@@ -393,14 +393,14 @@ class MyGLProgram(Gtk.GLArea):
             vao = GL.glGenVertexArrays(1)
             GL.glBindVertexArray(vao)
             atom.triangles = len(indexes)
-        
-            vert_vbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vert_vbo)
-            GL.glBufferData(GL.GL_ARRAY_BUFFER, vertices.itemsize*len(vertices), vertices, GL.GL_STATIC_DRAW)
             
             ind_vbo = GL.glGenBuffers(1)
             GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
             GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*len(indexes), indexes, GL.GL_STATIC_DRAW)
+        
+            vert_vbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vert_vbo)
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, vertices.itemsize*len(vertices), vertices, GL.GL_STATIC_DRAW)
             
             att_position = GL.glGetAttribLocation(program, 'coordinate')
             GL.glEnableVertexAttribArray(att_position)
@@ -442,13 +442,14 @@ class MyGLProgram(Gtk.GLArea):
                 self.stick_indexes = len(indexes)
             vao = GL.glGenVertexArrays(1)
             GL.glBindVertexArray(vao)
-            vert_vbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vert_vbo)
-            GL.glBufferData(GL.GL_ARRAY_BUFFER, vertices.itemsize*len(vertices), vertices, GL.GL_STATIC_DRAW)
             
             ind_vbo = GL.glGenBuffers(1)
             GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
             GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*len(indexes), indexes, GL.GL_STATIC_DRAW)
+	    
+            vert_vbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vert_vbo)
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, vertices.itemsize*len(vertices), vertices, GL.GL_STATIC_DRAW)
             
             att_position = GL.glGetAttribLocation(program, 'coordinate')
             GL.glEnableVertexAttribArray(att_position)
