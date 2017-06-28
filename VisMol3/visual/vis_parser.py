@@ -34,6 +34,7 @@ def parse_pdb(infile):
         chains_m = {}
         frame.chains = chains_m
         atoms = []
+        coords = []
         for line in pdb_file:
             if line[:4] == 'ATOM' or line[:6] == 'HETATM':
                 at_name = line[12:16].strip()
@@ -65,9 +66,9 @@ def parse_pdb(infile):
                 if atm.name == 'CA':
                     ch.backbone.append(atm)
                 if at_index not in res.atoms:
-                    print(atm.name)
                     res.atoms[at_index] = atm
                 atoms.append(atm)
+                coords.append(atm.pos)
             #elif line[:6] == 'ENDMDL':
             elif 'END' in line[:6]:
                 frame.chains = chains_m
@@ -78,8 +79,10 @@ def parse_pdb(infile):
                 frame = mm.Frame()
                 chains_m = {}
                 atoms = []
+                coords = []
         if len(frame.chains.values())>0 and len(frames)==0:
             frame.atoms = atoms
+            frame.coords = coords
             #frame.load_bonds()
             #frame.load_ribbons()
             frames.append(frame)

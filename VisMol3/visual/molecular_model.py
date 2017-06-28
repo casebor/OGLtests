@@ -41,6 +41,7 @@ class Frame:
         self.ribbons     = []
         self.mass_center = mass_center
         self.atoms       = []
+        self.coords      = []
     
     def load_bonds(self):
         """
