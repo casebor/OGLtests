@@ -155,6 +155,7 @@ class MyGLProgram(Gtk.GLArea):
         self.ribbon_program = self.load_shaders(vm_shader.vertex_shader_sphere, vm_shader.fragment_shader_sphere)
         self.ball_stick_program = self.load_shaders(vm_shader.vertex_shader_sphere, vm_shader.fragment_shader_sphere)
         self.crystal_program = self.load_shaders(vm_shader.vertex_shader_crystal, vm_shader.fragment_shader_crystal)
+        self.dot_surface_program = self.load_shaders(vm_shader.vertex_shader_dot_surface, vm_shader.fragment_shader_dot_surface)
         self.dots_program = self.load_shaders(vm_shader.vertex_shader_dots, vm_shader.fragment_shader_dots)
     
     def create_vaos(self):
@@ -267,14 +268,23 @@ class MyGLProgram(Gtk.GLArea):
                 self.draw_ribbons()
                 GL.glUseProgram(0)
             if self.DOTS_SURFACE:
-                GL.glUseProgram(self.dots_program)
-                self.load_matrices(self.dots_program)
+                GL.glUseProgram(self.dot_surface_program)
+                self.load_matrices(self.dot_surface_program)
                 self.draw_dots_surface()
+                GL.glUseProgram(0)
+            if self.LINES:
+                GL.glUseProgram(self.dot_surface_program)
+                GL.glLineWidth(50/self.glcamera.z_far)
+                self.load_matrices(self.dot_surface_program)
+                self.draw_lines()
                 GL.glUseProgram(0)
             if self.DOTS:
                 GL.glUseProgram(self.dots_program)
+                GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
                 self.load_matrices(self.dots_program)
+                self.load_dot_params(self.dots_program)
                 self.draw_dots()
+                GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
                 GL.glUseProgram(0)
             
         else:
@@ -297,6 +307,23 @@ class MyGLProgram(Gtk.GLArea):
         GL.glUniformMatrix4fv(proj, 1, GL.GL_FALSE, self.glcamera.get_projection_matrix())
         norm = GL.glGetUniformLocation(program, 'normal_mat')
         GL.glUniformMatrix3fv(norm, 1, GL.GL_FALSE, self.normal_mat)
+        return True
+    
+    def load_dot_params(self, program):
+        """ Function doc
+        """
+        # Extern line
+        linewidth = 2
+        # Intern line
+        antialias = 2
+        # Dot size factor
+        dot_factor = 500/self.glcamera.z_far
+        uni_vext_linewidth = GL.glGetUniformLocation(program, 'vert_ext_linewidth')
+        GL.glUniform1fv(uni_vext_linewidth, 1, linewidth)
+        uni_vint_antialias = GL.glGetUniformLocation(program, 'vert_int_antialias')
+        GL.glUniform1fv(uni_vint_antialias, 1, antialias)
+        uni_dot_size = GL.glGetUniformLocation(program, 'vert_dot_factor')
+        GL.glUniform1fv(uni_dot_size, 1, dot_factor)
         return True
     
     def load_lights(self, program):
@@ -354,49 +381,104 @@ class MyGLProgram(Gtk.GLArea):
         #self.make_gl_sphere(self.ball_stick_program, self.ball_stick_list, self.inner_cryst_vao, False)
         #self.make_gl_cylinder(self.ball_stick_program, self.data[0].bonds, self.bond_cryst_vao, False)
         #self.make_gl_sphere(self.crystal_program, self.crystal_list, self.outer_cryst_vao)
-        self.make_gl_sphere(self.sphere_program, self.sphere_list, self.spheres_vao)
+        #self.make_gl_sphere(self.sphere_program, self.sphere_list, self.spheres_vao)
         #self.make_gl_dot_sphere(self.dots_program, self.dot_surface_list, self.dots_surf_vao)
         self.make_gl_dot(self.dots_program, self.dot_surface_list, self.dots_vao)
         #self.make_gl_sphere(self.ball_stick_program, self.ball_stick_list, self.ball_stick_vao, False)
         #self.make_gl_cylinder(self.ball_stick_program, self.data[0].bonds, self.bond_stick_vao, False)
         #self.make_gl_cylinder(self.ribbon_program, self.data[0].ribbons, self.ribbons_vao)
+        self.make_gl_lines(self.dots_program, self.data[0].bonds, self.lines_vao)
         print("ended")
         self.modified_data = False
     
     def make_gl_dot(self, program, atom_list, vao_list):
         """ Function doc
         """
-        coords = []
+        coords = np.array([], dtype=np.float32)
         colors = []
+        dot_sizes = []
         for atom in atom_list:
-            coords.append(atom.pos[0])
-            coords.append(atom.pos[1])
-            coords.append(atom.pos[2])
-            colors.append(atom.color[0])
-            colors.append(atom.color[1])
-            colors.append(atom.color[2])
-        self.coords = np.array(coords, dtype=np.float32)
-        self.colors = np.array(colors, dtype=np.float32)
+            coords = np.hstack((coords, atom.pos))
+            colors = np.hstack((colors, atom.color))
+            dot_sizes.append(atom.vdw_rad)
+        colors = np.array(colors, dtype=np.float32)
+        dot_sizes = np.array(dot_sizes, dtype=np.float32)
+        self.dot_qtty = int(len(coords)/3)
+        bckgrnd_color = [self.bckgrnd_color[0],self.bckgrnd_color[1],
+                         self.bckgrnd_color[2],self.bckgrnd_color[3]]*self.dot_qtty
+        bckgrnd_color = np.array(bckgrnd_color, dtype=np.float32)
         
         vao = GL.glGenVertexArrays(1)
         GL.glBindVertexArray(vao)
-        #atom.vertices = int(len(vertices)/3)
         
-        vert_vbo = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vert_vbo)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, self.coords.itemsize*int(len(self.coords)), self.coords, GL.GL_STATIC_DRAW)
-        
-        att_position = GL.glGetAttribLocation(program, 'coordinate')
+        coord_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*int(len(coords)), coords, GL.GL_STATIC_DRAW)
+        att_position = GL.glGetAttribLocation(program, 'vert_coord')
         GL.glEnableVertexAttribArray(att_position)
-        GL.glVertexAttribPointer(att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*self.coords.itemsize, ctypes.c_void_p(0))
+        GL.glVertexAttribPointer(att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
         
         col_vbo = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, self.colors.itemsize*int(len(self.colors)), self.colors, GL.GL_STATIC_DRAW)
-        
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*int(len(colors)), colors, GL.GL_STATIC_DRAW)
         att_colors = GL.glGetAttribLocation(program, 'vert_color')
         GL.glEnableVertexAttribArray(att_colors)
-        GL.glVertexAttribPointer(att_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*self.colors.itemsize, ctypes.c_void_p(0))
+        GL.glVertexAttribPointer(att_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+        
+        dot_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, dot_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, dot_sizes.itemsize*len(dot_sizes), dot_sizes, GL.GL_STATIC_DRAW)
+        att_size = GL.glGetAttribLocation(program, 'vert_dot_size')
+        GL.glEnableVertexAttribArray(att_size)
+        GL.glVertexAttribPointer(att_size, 1, GL.GL_FLOAT, GL.GL_FALSE, dot_sizes.itemsize, ctypes.c_void_p(0))
+        
+        bckgrnd_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, bckgrnd_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, bckgrnd_color.itemsize*len(bckgrnd_color), bckgrnd_color, GL.GL_STATIC_DRAW)
+        att_bck_color = GL.glGetAttribLocation(program, 'bckgrnd_color')
+        GL.glEnableVertexAttribArray(att_bck_color)
+        GL.glVertexAttribPointer(att_bck_color, 4, GL.GL_FLOAT, GL.GL_FALSE, 4*bckgrnd_color.itemsize, ctypes.c_void_p(0))
+        
+        vao_list.append(vao)
+        GL.glBindVertexArray(0)
+        GL.glDisableVertexAttribArray(att_position)
+        GL.glDisableVertexAttribArray(att_colors)
+        GL.glDisableVertexAttribArray(att_size)
+        GL.glDisableVertexAttribArray(att_bck_color)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
+    
+    def make_gl_lines(self, program, bond_list, vao_list):
+        """ Function doc
+        """
+        coords = np.array([], dtype=np.float32)
+        colors = []
+        for bond in bond_list:
+            coords = np.hstack((coords, bond[0].pos))
+            coords = np.hstack((coords, bond[4]))
+            colors = np.hstack((colors, bond[0].color))
+            colors = np.hstack((colors, bond[0].color))
+            #colors = np.hstack((colors, bond[0].color))
+        
+        colors = np.array(colors, dtype=np.float32)
+        self.line_qtty = int(len(coords)/3)
+        
+        vao = GL.glGenVertexArrays(1)
+        GL.glBindVertexArray(vao)
+        
+        coord_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*int(len(coords)), coords, GL.GL_STATIC_DRAW)
+        att_position = GL.glGetAttribLocation(program, 'vert_coord')
+        GL.glEnableVertexAttribArray(att_position)
+        GL.glVertexAttribPointer(att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+        
+        col_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*int(len(colors)), colors, GL.GL_STATIC_DRAW)
+        att_colors = GL.glGetAttribLocation(program, 'vert_color')
+        GL.glEnableVertexAttribArray(att_colors)
+        GL.glVertexAttribPointer(att_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
         
         vao_list.append(vao)
         GL.glBindVertexArray(0)
@@ -414,11 +496,11 @@ class MyGLProgram(Gtk.GLArea):
             GL.glBindVertexArray(vao)
             atom.vertices = int(len(vertices)/3)
             
-            vert_vbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vert_vbo)
+            coord_vbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
             GL.glBufferData(GL.GL_ARRAY_BUFFER, vertices.itemsize*int(len(vertices)), vertices, GL.GL_STATIC_DRAW)
             
-            att_position = GL.glGetAttribLocation(program, 'coordinate')
+            att_position = GL.glGetAttribLocation(program, 'vert_coord')
             GL.glEnableVertexAttribArray(att_position)
             GL.glVertexAttribPointer(att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*vertices.itemsize, ctypes.c_void_p(0))
             
@@ -456,9 +538,6 @@ class MyGLProgram(Gtk.GLArea):
             self.t_verts = np.hstack((self.t_verts, vertices))
             self.t_inds = np.hstack((self.t_inds, indexes))
             self.t_cols = np.hstack((self.t_cols, colors))
-        #print(len(self.t_verts))
-        #print(len(self.t_cents))
-        #print(len(self.t_cols))
         
         vao = GL.glGenVertexArrays(1)
         GL.glBindVertexArray(vao)
@@ -467,11 +546,11 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
         GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, self.t_inds.itemsize*int(len(self.t_inds)), self.t_inds, GL.GL_STATIC_DRAW)
     
-        vert_vbo = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vert_vbo)
+        coord_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
         GL.glBufferData(GL.GL_ARRAY_BUFFER, self.t_verts.itemsize*int(len(self.t_verts)), self.t_verts, GL.GL_STATIC_DRAW)
         
-        att_position = GL.glGetAttribLocation(program, 'coordinate')
+        att_position = GL.glGetAttribLocation(program, 'vert_coord')
         GL.glEnableVertexAttribArray(att_position)
         GL.glVertexAttribPointer(att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*self.t_verts.itemsize, ctypes.c_void_p(0))
     
@@ -479,7 +558,7 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, center_vbo)
         GL.glBufferData(GL.GL_ARRAY_BUFFER, self.t_cents.itemsize*int(len(self.t_cents)), self.t_cents, GL.GL_STATIC_DRAW)
         
-        att_center = GL.glGetAttribLocation(program, 'center')
+        att_center = GL.glGetAttribLocation(program, 'vert_center')
         GL.glEnableVertexAttribArray(att_center)
         GL.glVertexAttribPointer(att_center, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*self.t_cents.itemsize, ctypes.c_void_p(0))
         
@@ -498,6 +577,7 @@ class MyGLProgram(Gtk.GLArea):
         GL.glDisableVertexAttribArray(att_center)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
         GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
+        
         #for atom in atom_list:
             #if covalent:
                 #vertices, indexes, colors = shapes.get_sphere(atom.pos, atom.cov_rad, atom.color, level='level_2')
@@ -517,7 +597,7 @@ class MyGLProgram(Gtk.GLArea):
             #GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vert_vbo)
             #GL.glBufferData(GL.GL_ARRAY_BUFFER, vertices.itemsize*int(len(vertices)), vertices, GL.GL_STATIC_DRAW)
             
-            #att_position = GL.glGetAttribLocation(program, 'coordinate')
+            #att_position = GL.glGetAttribLocation(program, 'vert_coord')
             #GL.glEnableVertexAttribArray(att_position)
             #GL.glVertexAttribPointer(att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*vertices.itemsize, ctypes.c_void_p(0))
         
@@ -525,7 +605,7 @@ class MyGLProgram(Gtk.GLArea):
             #GL.glBindBuffer(GL.GL_ARRAY_BUFFER, center_vbo)
             #GL.glBufferData(GL.GL_ARRAY_BUFFER, centers.itemsize*int(len(centers)), centers, GL.GL_STATIC_DRAW)
             
-            #att_center = GL.glGetAttribLocation(program, 'center')
+            #att_center = GL.glGetAttribLocation(program, 'vert_center')
             #GL.glEnableVertexAttribArray(att_center)
             #GL.glVertexAttribPointer(att_center, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*centers.itemsize, ctypes.c_void_p(0))
             
@@ -562,11 +642,11 @@ class MyGLProgram(Gtk.GLArea):
             GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
             GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_STATIC_DRAW)
             
-            vert_vbo = GL.glGenBuffers(1)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vert_vbo)
+            coord_vbo = GL.glGenBuffers(1)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
             GL.glBufferData(GL.GL_ARRAY_BUFFER, vertices.itemsize*int(len(vertices)), vertices, GL.GL_STATIC_DRAW)
             
-            att_position = GL.glGetAttribLocation(program, 'coordinate')
+            att_position = GL.glGetAttribLocation(program, 'vert_coord')
             GL.glEnableVertexAttribArray(att_position)
             GL.glVertexAttribPointer(att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*vertices.itemsize, ctypes.c_void_p(0))
             
@@ -574,7 +654,7 @@ class MyGLProgram(Gtk.GLArea):
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, center_vbo)
             GL.glBufferData(GL.GL_ARRAY_BUFFER, normals.itemsize*int(len(normals)), normals, GL.GL_STATIC_DRAW)
             
-            att_center = GL.glGetAttribLocation(program, 'center')
+            att_center = GL.glGetAttribLocation(program, 'vert_center')
             GL.glEnableVertexAttribArray(att_center)
             GL.glVertexAttribPointer(att_center, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*normals.itemsize, ctypes.c_void_p(0))
             
@@ -598,11 +678,21 @@ class MyGLProgram(Gtk.GLArea):
         """ Function doc
         """
         assert(len(self.dots_vao)>0)
-        GL.glPointSize(2)
+        GL.glPointSize(4)
         GL.glBindVertexArray(self.dots_vao[0])
-        GL.glDrawArrays(GL.GL_POINTS, 0, int(len(self.coords)))
+        GL.glDrawArrays(GL.GL_POINTS, 0, self.dot_qtty)
         GL.glBindVertexArray(0)
-        GL.glPointSize(2)
+        GL.glPointSize(4)
+    
+    def draw_lines(self):
+        """ Function doc
+        """
+        assert(len(self.lines_vao)>0)
+        #GL.glPointSize(2)
+        GL.glBindVertexArray(self.lines_vao[0])
+        GL.glDrawArrays(GL.GL_LINES, 0, self.line_qtty)
+        GL.glBindVertexArray(0)
+        #GL.glPointSize(2)
     
     def draw_dots_surface(self):
         """ Function doc
@@ -639,7 +729,7 @@ class MyGLProgram(Gtk.GLArea):
         GL.glEnable(GL.GL_CULL_FACE)
         for i,atom in enumerate(self.crystal_list):
             GL.glBindVertexArray(self.outer_cryst_vao[i])
-            GL.glDrawElements(GL.GL_TRIANGLES, atom.triangles, GL.GL_UNSIGNED_SHORT, None)
+            GL.glDrawElements(GL.GL_TRIANGLES, atom.triangles, GL.GL_UNSIGNED_INT, None)
             GL.glBindVertexArray(0)
         #GL.glDepthFunc(GL.GL_LESS)
         GL.glDisable(GL.GL_BLEND)
@@ -651,11 +741,11 @@ class MyGLProgram(Gtk.GLArea):
         assert(len(self.ball_stick_vao)>0)
         for i,atom in enumerate(self.ball_stick_list):
             GL.glBindVertexArray(self.ball_stick_vao[i])
-            GL.glDrawElements(GL.GL_TRIANGLES, atom.triangles, GL.GL_UNSIGNED_SHORT, None)
+            GL.glDrawElements(GL.GL_TRIANGLES, atom.triangles, GL.GL_UNSIGNED_INT, None)
             GL.glBindVertexArray(0)
         for i,bond in enumerate(self.bond_stick_vao):
             GL.glBindVertexArray(self.bond_stick_vao[i])
-            GL.glDrawElements(GL.GL_TRIANGLES, self.stick_indexes, GL.GL_UNSIGNED_SHORT, None)
+            GL.glDrawElements(GL.GL_TRIANGLES, self.stick_indexes, GL.GL_UNSIGNED_INT, None)
             GL.glBindVertexArray(0)
     
     def draw_ribbons(self):
@@ -664,7 +754,7 @@ class MyGLProgram(Gtk.GLArea):
         assert(len(self.ribbons_vao)>0)
         for i,bond in enumerate(self.ribbons_vao):
             GL.glBindVertexArray(self.ribbons_vao[i])
-            GL.glDrawElements(GL.GL_TRIANGLES, self.ribbon_indexes, GL.GL_UNSIGNED_SHORT, None)
+            GL.glDrawElements(GL.GL_TRIANGLES, self.ribbon_indexes, GL.GL_UNSIGNED_INT, None)
             GL.glBindVertexArray(0)
     
     def key_press(self, widget, event):
@@ -689,6 +779,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def pressed_k(self):
         self.DOTS = not self.DOTS
+        self.queue_draw()
+    
+    def pressed_j(self):
+        self.LINES = not self.LINES
         self.queue_draw()
     
     def pressed_d(self):

@@ -63,14 +63,14 @@ uniform mat4 model_mat;
 uniform mat4 view_mat;
 uniform mat4 projection_mat;
 
-in vec3 coordinate;
+in vec3 vert_coord;
 in vec3 vert_color;
 
 out vec3 sh_color;
 
 void main()
 {
-   gl_Position = projection_mat * view_mat * model_mat * vec4(coordinate, 1.0);
+   gl_Position = projection_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
    sh_color = vert_color;
 }
 """
@@ -109,7 +109,7 @@ uniform mat4 model_mat;
 uniform mat4 view_mat;
 uniform mat4 projection_mat;
 
-in vec3 coordinate;
+in vec3 vert_coord;
 in vec3 vert_color;
 
 out vec3 frag_vert;
@@ -117,8 +117,8 @@ out vec3 frag_color;
 out vec3 frag_normal;
 
 void main(){
-   gl_Position = projection_mat * view_mat * model_mat * vec4(coordinate, 1.0);
-   frag_vert = vec3(view_mat * model_mat * vec4(coordinate, 1.0));
+   gl_Position = projection_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
+   frag_vert = vec3(view_mat * model_mat * vec4(vert_coord, 1.0));
    frag_color = vert_color;
    frag_normal = frag_vert;
 }
@@ -329,8 +329,8 @@ uniform mat4 view_mat;
 uniform mat4 projection_mat;
 uniform mat3 normal_mat;
 
-in vec3 coordinate;
-in vec3 center;
+in vec3 vert_coord;
+in vec3 vert_center;
 in vec3 vert_color;
 
 out vec3 frag_coord;
@@ -339,9 +339,10 @@ out vec3 frag_normal;
 
 void main(){
    mat4 modelview = view_mat * model_mat;
-   gl_Position = projection_mat * modelview * vec4(coordinate, 1.0);
-   frag_coord = -vec3(modelview * vec4(coordinate, 1.0));
-   frag_normal = normalize(normal_mat * (coordinate - center));
+   gl_Position = projection_mat * modelview * vec4(vert_coord, 1.0);
+   frag_coord = -vec3(modelview * vec4(vert_coord, 1.0));
+   frag_normal = normalize(normal_mat * (vert_coord - vert_center));
+   frag_normal = normalize(normal_mat * (vert_coord - vert_center));
    frag_color = vert_color;
 }
 """
@@ -400,8 +401,8 @@ uniform mat4 view_mat;
 uniform mat4 projection_mat;
 uniform mat3 normal_mat;
 
-in vec3 coordinate;
-in vec3 center;
+in vec3 vert_coord;
+in vec3 vert_center;
 in vec3 vert_color;
 
 out vec3 frag_coord;
@@ -410,9 +411,9 @@ out vec3 frag_color;
 
 void main(){
    mat4 modelview = view_mat * model_mat;
-   gl_Position = projection_mat * modelview * vec4(coordinate, 1.0);
-   frag_coord = -vec3(modelview * vec4(coordinate, 1.0));
-   frag_normal = normalize(normal_mat * (coordinate - center));
+   gl_Position = projection_mat * modelview * vec4(vert_coord, 1.0);
+   frag_coord = -vec3(modelview * vec4(vert_coord, 1.0));
+   frag_normal = normalize(normal_mat * (vert_coord - vert_center));
    frag_color = vert_color;
 }
 """
@@ -456,7 +457,7 @@ void main(){
 }
 """
 
-vertex_shader_dots = """
+vertex_shader_dot_surface = """
 #version 330
 
 uniform mat4 model_mat;
@@ -464,17 +465,17 @@ uniform mat4 view_mat;
 uniform mat4 projection_mat;
 uniform mat3 normal_mat;
 
-in vec3 coordinate;
+in vec3 vert_coord;
 in vec3 vert_color;
 
 out vec3 frag_color;
 
 void main(){
-   gl_Position = projection_mat * view_mat * model_mat * vec4(coordinate, 1.0);
+   gl_Position = projection_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
    frag_color = vert_color;
 }
 """
-fragment_shader_dots = """
+fragment_shader_dot_surface = """
 #version 330
 
 in vec3 frag_color;
@@ -624,6 +625,167 @@ void main(){
 
 
 
+vertex_shader_dots = """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 projection_mat;
+uniform float vert_ext_linewidth;
+uniform float vert_int_antialias;
+uniform float vert_dot_factor;
+
+in vec3 vert_coord;
+in vec3 vert_color;
+in float vert_dot_size;
+attribute vec4  bckgrnd_color;
+
+varying float frag_dot_size;
+varying float frag_ext_linewidth;
+varying float frag_int_antialias;
+varying vec4 frag_dot_color;
+varying vec4 frag_bckgrnd_color;
+
+void main(){
+   frag_dot_size = vert_dot_size * vert_dot_factor;
+   frag_ext_linewidth = vert_ext_linewidth;
+   frag_int_antialias = vert_int_antialias;
+   frag_dot_color = vec4(vert_color, 1.0);
+   frag_bckgrnd_color  = bckgrnd_color;
+   gl_Position = projection_mat * view_mat * model_mat * vec4(vert_coord, 1);
+   gl_PointSize = vert_dot_size + 2*(vert_ext_linewidth + 1.5*vert_int_antialias);
+}
+"""
+ 
+fragment_shader_dots = """
+#version 330
+
+out vec4 final_color;
+// ------------------------------------
+varying vec4 frag_bckgrnd_color;
+varying vec4 frag_dot_color;
+varying float frag_dot_size;
+varying float frag_ext_linewidth;
+varying float frag_int_antialias;
+// ------------------------------------
+float disc(vec2 P, float size)
+{
+    float r = length((P.xy - vec2(0.5,0.5))*size);
+    r -= frag_dot_size/2;
+    return r;
+}
+
+// ----------------
+float arrow_right(vec2 P, float size)
+{
+    float r1 = abs(P.x -.50)*size + abs(P.y -.5)*size - frag_dot_size/2;
+    float r2 = abs(P.x -.25)*size + abs(P.y -.5)*size - frag_dot_size/2;
+    float r = max(r1,-r2);
+    return r;
+}
+// ----------------
+float ring(vec2 P, float size)
+{
+    float r1 = length((gl_PointCoord.xy - vec2(0.5,0.5))*size) - frag_dot_size/2;
+    float r2 = length((gl_PointCoord.xy - vec2(0.5,0.5))*size) - frag_dot_size/4;
+    float r = max(r1,-r2);
+    return r;
+}
+// ----------------
+float clober(vec2 P, float size)
+{
+    const float PI = 3.14159265358979323846264;
+    const float t1 = -PI/2;
+    const vec2  c1 = 0.2*vec2(cos(t1),sin(t1));
+    const float t2 = t1+2*PI/3;
+    const vec2  c2 = 0.2*vec2(cos(t2),sin(t2));
+    const float t3 = t2+2*PI/3;
+    const vec2  c3 = 0.2*vec2(cos(t3),sin(t3));
+    float r1 = length((gl_PointCoord.xy- vec2(0.5,0.5) - c1)*size);
+    r1 -= frag_dot_size/3;
+    float r2 = length((gl_PointCoord.xy- vec2(0.5,0.5) - c2)*size);
+    r2 -= frag_dot_size/3;
+    float r3 = length((gl_PointCoord.xy- vec2(0.5,0.5) - c3)*size);
+    r3 -= frag_dot_size/3;
+    float r = min(min(r1,r2),r3);
+    return r;
+}
+// ----------------
+float square(vec2 P, float size)
+{
+    float r = max(abs(gl_PointCoord.x -.5)*size,
+                  abs(gl_PointCoord.y -.5)*size);
+    r -= frag_dot_size/2;
+    return r;
+}
+// ----------------
+float diamond(vec2 P, float size)
+{
+    float r = abs(gl_PointCoord.x -.5)*size + abs(gl_PointCoord.y -.5)*size;
+    r -= frag_dot_size/2;
+    return r;
+}
+// ----------------
+float vbar(vec2 P, float size)
+{
+    float r1 = max(abs(gl_PointCoord.x -.75)*size,
+                   abs(gl_PointCoord.x -.25)*size);
+    float r3 = max(abs(gl_PointCoord.x -.5)*size,
+                   abs(gl_PointCoord.y -.5)*size);
+    float r = max(r1,r3);
+    r -= frag_dot_size/2;
+    return r;
+}
+// ----------------
+float hbar(vec2 P, float size)
+{
+    float r2 = max(abs(gl_PointCoord.y -.75)*size,
+                   abs(gl_PointCoord.y -.25)*size);
+    float r3 = max(abs(gl_PointCoord.x -.5)*size,
+                   abs(gl_PointCoord.y -.5)*size);
+    float r = max(r2,r3);
+    r -= frag_dot_size/2;
+    return r;
+}
+// ----------------
+float cross(vec2 P, float size)
+{
+    float r1 = max(abs(gl_PointCoord.x -.75)*size,
+                   abs(gl_PointCoord.x -.25)*size);
+    float r2 = max(abs(gl_PointCoord.y -.75)*size,
+                   abs(gl_PointCoord.y -.25)*size);
+    float r3 = max(abs(gl_PointCoord.x -.5)*size,
+                   abs(gl_PointCoord.y -.5)*size);
+    float r = max(min(r1,r2),r3);
+    r -= frag_dot_size/2;
+    return r;
+}
+
+void main(){
+   float size = frag_dot_size +2*(frag_ext_linewidth + 1.5*frag_int_antialias);
+   float t = frag_ext_linewidth/2.0-frag_int_antialias;
+   
+   // gl_PointCoord is the pixel in the coordinate
+   float r = disc(gl_PointCoord, size);
+   float d = abs(r) - t;
+   
+   // This if else statement makes the circle ilusion
+   if( r > (frag_ext_linewidth/2.0+frag_int_antialias)){
+      discard;
+   }
+   else if( d < 0.0 ){
+      final_color = frag_bckgrnd_color;
+   }
+   else{
+      float alpha = d/frag_int_antialias;
+      alpha = exp(-alpha*alpha);
+      if (r > 0)
+         final_color = frag_bckgrnd_color;
+      else
+         final_color = mix(frag_dot_color, frag_bckgrnd_color, alpha);
+   }
+}
+"""
 
 
 

@@ -22,6 +22,8 @@
 #  
 #
 
+import numpy as np
+
 hydrogen = ['H','HA','HB','HD','HE','HH','HB2','HB3','HG','HD11','HD12','HD13','HD21','HD22','HD23','HNC','H14','H15','H16','H17','H18','H19','H20','H21','H22','H24','1HB','2HB','3HB','H1']
 carbon   = ['CA','C','CB','CD','CE','CG','CD1','CD2','CE1','CE2','CZ']
 oxygen   = ['O','OD1','OD2', 'OW', 'OH', 'OH2', 'OXT']
