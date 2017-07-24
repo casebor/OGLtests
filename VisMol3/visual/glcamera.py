@@ -148,6 +148,19 @@ class GLCamera():
         assert(self.viewport_aspect_ratio>0.0)
         return mop.my_glPerspectivef(self.field_of_view,self.viewport_aspect_ratio,self.z_near,self.z_far)
     
+    def set_projection_matrix(self, fov, z_n, z_f, var):
+        """ Function doc
+        """
+        assert(fov>0.0 and fov<180.0)
+        assert(z_n>0.0)
+        assert(z_n<z_f)
+        assert(var>0.0)
+        self.field_of_view = fov
+        self.z_near = z_n
+        self.z_far = z_f
+        self.viewport_aspect_ratio = var
+        return True
+    
     def get_view_matrix(self):
         """ Function doc
         """

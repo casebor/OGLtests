@@ -341,7 +341,8 @@ void main(){
    mat4 modelview = view_mat * model_mat;
    gl_Position = projection_mat * modelview * vec4(coordinate, 1.0);
    frag_coord = -vec3(modelview * vec4(coordinate, 1.0));
-   frag_normal = normalize(normal_mat * (coordinate - center));
+   //frag_normal = normalize(normal_mat * (coordinate - center));
+   frag_normal = mat3(transpose(inverse(model_mat))) * (coordinate - center);
    frag_color = vert_color;
 }
 """
@@ -412,7 +413,8 @@ void main(){
    mat4 modelview = view_mat * model_mat;
    gl_Position = projection_mat * modelview * vec4(coordinate, 1.0);
    frag_coord = -vec3(modelview * vec4(coordinate, 1.0));
-   frag_normal = normalize(normal_mat * (coordinate - center));
+   //frag_normal = normalize(normal_mat * (coordinate - center));
+   frag_normal = mat3(transpose(inverse(model_mat))) * (coordinate - center);
    frag_color = vert_color;
 }
 """
@@ -506,7 +508,8 @@ void main(){
    mat4 modelview = view_mat * model_mat;
    gl_Position = projection_mat * modelview * vec4(coordinate, 1.0);
    frag_coord = -vec3(modelview * vec4(coordinate, 1.0));
-   frag_normal = normalize(normal_mat * (coordinate - center));
+   //frag_normal = normalize(normal_mat * (coordinate - center));
+   frag_normal = mat3(transpose(inverse(model_mat))) * (coordinate - center);
    frag_color = vert_color;
 }
 """

@@ -671,7 +671,7 @@ class MyGLProgram(Gtk.GLArea):
         if self.mouse_rotate:
             angle = math.sqrt(dx**2+dy**2)/float(self.width+1)*180.0
             self.model_mat = mop.my_glRotatef(self.model_mat, angle, [-dy, -dx, 0])
-            self.update_normal_mat()
+            #self.update_normal_mat()
             changed = True
         elif self.mouse_pan:
             px, py, pz = self.pos(x, y)
@@ -680,7 +680,7 @@ class MyGLProgram(Gtk.GLArea):
                  (py-self.drag_pos_y)*self.glcamera.z_far/10, 
                  (pz-self.drag_pos_z)*self.glcamera.z_far/10])
             self.model_mat = mop.my_glMultiplyMatricesf(self.model_mat, pan_matrix)
-            self.update_normal_mat()
+            #self.update_normal_mat()
             self.drag_pos_x = px
             self.drag_pos_y = py
             self.drag_pos_z = pz
@@ -708,14 +708,14 @@ class MyGLProgram(Gtk.GLArea):
             self.glcamera.z_far = self.glcamera.z_near + 0.05
         self.queue_draw()
     
-    def update_normal_mat(self):
-        """ Function doc
-        """
-        modelview = mop.my_glMultiplyMatricesf(self.glcamera.get_view_matrix(), self.model_mat)
-        normal_mat = np.matrix(modelview[:3,:3]).I.T
-        self.normal_mat = np.array(normal_mat)
-        #model = np.matrix(self.model_mat[:3,:3]).I.T
-        #self.normal_mat = np.array(model)
+    #def update_normal_mat(self):
+        #""" Function doc
+        #"""
+        #modelview = mop.my_glMultiplyMatricesf(self.glcamera.get_view_matrix(), self.model_mat)
+        #normal_mat = np.matrix(modelview[:3,:3]).I.T
+        #self.normal_mat = np.array(normal_mat)
+        ##model = np.matrix(self.model_mat[:3,:3]).I.T
+        ##self.normal_mat = np.array(model)
     
     def pos(self, x, y):
         """

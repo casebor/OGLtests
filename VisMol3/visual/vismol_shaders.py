@@ -787,6 +787,48 @@ void main(){
 }
 """
 
+vertex_shader_lines = """
+#version 330
 
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 projection_mat;
+uniform mat3 normal_mat;
+
+in vec3 coordinate;
+in vec3 vert_color;
+
+out vec4 frag_color;
+out vec4 view_space;
+
+void main(){
+   gl_Position = projection_mat * view_mat * model_mat * vec4(coordinate, 1.0);
+   frag_color = vec4(vert_color, 1.0);
+   view_space = view_mat * model_mat * vec4(coordinate, 1.0);
+}
+"""
+fragment_shader_lines = """
+#version 330
+
+uniform vec4 fog_color;
+uniform float fog_start;
+uniform float fog_end;
+
+in vec4 frag_color;
+in vec4 view_space;
+
+out vec4 final_color;
+
+void main(){
+   float dist = abs(view_space.z);
+   if(dist>=fog_start){
+      float fog_factor = (fog_end-dist)/(fog_end-fog_start);
+      final_color = mix(fog_color, frag_color, fog_factor);
+   }
+   else{
+      final_color = frag_color;
+   }
+}
+"""
 
 

@@ -65,7 +65,7 @@ class MyGLProgram(Gtk.GLArea):
         self.connect("button-release-event", self.mouse_released)
         self.connect("motion-notify-event", self.mouse_motion)
         self.connect("scroll-event", self.mouse_scroll)
-        self.set_size_request(width, height)
+        #self.set_size_request(width, height)
         self.grab_focus()
         self.set_events( self.get_events() | Gdk.EventMask.SCROLL_MASK
                        | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK
@@ -143,6 +143,8 @@ class MyGLProgram(Gtk.GLArea):
         self.height = height
         self.center_x = width/2
         self.center_y = height/2
+        print(width)
+        print(height)
         self.glcamera.viewport_aspect_ratio = float(width)/height
         self.queue_draw()
         return True
@@ -157,6 +159,7 @@ class MyGLProgram(Gtk.GLArea):
         self.crystal_program = self.load_shaders(vm_shader.vertex_shader_crystal, vm_shader.fragment_shader_crystal)
         self.dot_surface_program = self.load_shaders(vm_shader.vertex_shader_dot_surface, vm_shader.fragment_shader_dot_surface)
         self.dots_program = self.load_shaders(vm_shader.vertex_shader_dots, vm_shader.fragment_shader_dots)
+        self.lines_program = self.load_shaders(vm_shader.vertex_shader_lines, vm_shader.fragment_shader_lines)
     
     def create_vaos(self):
         """ Function doc
@@ -273,9 +276,10 @@ class MyGLProgram(Gtk.GLArea):
                 self.draw_dots_surface()
                 GL.glUseProgram(0)
             if self.LINES:
-                GL.glUseProgram(self.dot_surface_program)
-                GL.glLineWidth(50/self.glcamera.z_far)
-                self.load_matrices(self.dot_surface_program)
+                GL.glUseProgram(self.lines_program)
+                #GL.glLineWidth(50/self.glcamera.z_far)
+                self.load_matrices(self.lines_program)
+                self.load_fog(self.lines_program)
                 self.draw_lines()
                 GL.glUseProgram(0)
             if self.DOTS:
@@ -308,6 +312,16 @@ class MyGLProgram(Gtk.GLArea):
         norm = GL.glGetUniformLocation(program, 'normal_mat')
         GL.glUniformMatrix3fv(norm, 1, GL.GL_FALSE, self.normal_mat)
         return True
+    
+    def load_fog(self, program):
+        """ Function doc
+        """
+        fog_s = GL.glGetUniformLocation(program, 'fog_start')
+        GL.glUniform1fv(fog_s, 1, self.glcamera.z_far-5)
+        fog_e = GL.glGetUniformLocation(program, 'fog_end')
+        GL.glUniform1fv(fog_e, 1, self.glcamera.z_far)
+        fog_c = GL.glGetUniformLocation(program, 'fog_color')
+        GL.glUniform4fv(fog_c, 1, self.bckgrnd_color)
     
     def load_dot_params(self, program):
         """ Function doc
@@ -678,11 +692,9 @@ class MyGLProgram(Gtk.GLArea):
         """ Function doc
         """
         assert(len(self.dots_vao)>0)
-        GL.glPointSize(4)
         GL.glBindVertexArray(self.dots_vao[0])
         GL.glDrawArrays(GL.GL_POINTS, 0, self.dot_qtty)
         GL.glBindVertexArray(0)
-        GL.glPointSize(4)
     
     def draw_lines(self):
         """ Function doc
@@ -791,6 +803,11 @@ class MyGLProgram(Gtk.GLArea):
     
     def pressed_s(self):
         self.SPHERES = not self.SPHERES
+        self.queue_draw()
+    
+    def pressed_y(self):
+        self.load_data()
+        self.DOTS = not self.DOTS
         self.queue_draw()
     
     def pressed_b(self):
