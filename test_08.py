@@ -4,6 +4,7 @@ import math
 import numpy as np
 import ctypes
 import camera as cam
+import shaders as sh
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -11,25 +12,37 @@ from gi.repository import Gtk, Gdk
 
 import OpenGL
 from OpenGL import GL
-from OpenGL.GL import shaders
 
-class MyGLProgram():
-    def __init__(self, vertex, fragment, geometry=None):
-        self.glarea = Gtk.GLArea.new()
-        self.glarea.connect("realize", self.initialize)
-        self.glarea.connect("render", self.render)
-        self.vertex_shader = vertex
-        self.geometry_shader = geometry
-        self.fragment_shader = fragment
-        self.model_mat = np.identity(4, dtype=np.float32)
-        self.view_mat = np.identity(4, dtype=np.float32)
-        self.proj_mat = np.identity(4, dtype=np.float32)
-        self.degrees = np.float32(0)
+class MyGLProgram(Gtk.GLArea):
     
-    def initialize(self, otro):
-        self.glarea.set_has_depth_buffer(True)
-        self.glarea.set_has_alpha(True)
-        self.flag = True
+    def __init__(self):
+        super(MyGLProgram, self).__init__()
+        self.connect("realize", self.initialize)
+        self.connect("render", self.render)
+        self.connect("key-press-event", self.key_pressed)
+        self.connect("key-release-event", self.key_released)
+        self.grab_focus()
+        self.set_events( self.get_events() | Gdk.EventMask.SCROLL_MASK
+                       | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK
+                       | Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.POINTER_MOTION_HINT_MASK
+                       | Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK )
+    
+    def initialize(self, widget):
+        aloc = self.get_allocation()
+        w = np.float32(aloc.width)
+        h = np.float32(aloc.height)
+        self.model_mat = np.identity(4, dtype=np.float32)
+        self.view_mat = cam.my_glTranslatef(np.identity(4, dtype=np.float32), np.array([0,0,-3],dtype=np.float32))
+        self.proj_mat = cam.my_gluPerspectivef(np.identity(4, dtype=np.float32), 30, w/h, 0.1, 10.0)
+        self.degrees = np.float32(0)
+        self.set_has_depth_buffer(True)
+        self.set_has_alpha(True)
+        self.gl_programs = True
+        # Here are the test programs and flags
+        self.gl_program_diamonds = None
+        self.gl_program_circles = None
+        self.diamonds = True
+        self.circles = True
     
     def create_gl_programs(self):
         """ Function doc
@@ -40,8 +53,8 @@ class MyGLProgram():
             print('OpenGL minor version: ',GL.glGetDoublev(GL.GL_MINOR_VERSION))
         except:
             print('OpenGL major version not found')
-        self.program = self.load_shaders(vertex_shader, fragment_shader, geometry_shader)
-        self.program2 = self.load_shaders(vertex_shader2, fragment_shader2)
+        self.gl_program_diamonds = self.load_shaders(sh.v_shader_diamonds, sh.f_shader_diamonds, sh.g_shader_diamonds)
+        self.gl_program_circles = self.load_shaders(sh.v_shader_circles, sh.f_shader_circles)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -86,49 +99,40 @@ class MyGLProgram():
     def load_matrices(self, program):
         """ Function doc
         """
-        model = view = proj = np.identity(4, dtype=np.float32)
-        model = cam.my_glRotateYf(model, self.degrees)
-        view = cam.my_glTranslatef(view, np.array([0,0,-3],dtype=np.float32))
-        aloc = self.glarea.get_allocation()
-        w = np.float32(aloc.width)
-        h = np.float32(aloc.height)
-        proj = cam.my_gluPerspectivef(proj, 30, w/h, 0.1, 10.0)
-        
-        self.model = GL.glGetUniformLocation(program, 'model_mat')
-        GL.glUniformMatrix4fv(self.model, 1, GL.GL_FALSE, model)
-        self.view = GL.glGetUniformLocation(program, 'view_mat')
-        GL.glUniformMatrix4fv(self.view, 1, GL.GL_FALSE, view)
-        self.proj = GL.glGetUniformLocation(program, 'projection_mat')
-        GL.glUniformMatrix4fv(self.proj, 1, GL.GL_FALSE, proj)
+        model = GL.glGetUniformLocation(program, 'model_mat')
+        GL.glUniformMatrix4fv(model, 1, GL.GL_FALSE, self.model_mat)
+        view = GL.glGetUniformLocation(program, 'view_mat')
+        GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, self.view_mat)
+        proj = GL.glGetUniformLocation(program, 'projection_mat')
+        GL.glUniformMatrix4fv(proj, 1, GL.GL_FALSE, self.proj_mat)
     
     def render(self, area, context):
-        if self.flag:
+        if self.gl_programs:
             self.create_gl_programs()
-            self.flag = False
-        
+            self.gl_programs = False
         GL.glClearColor(0.0, 0.0, 0.0, 1.0)
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
-        #GL.glUseProgram(self.program)
-        #self.load_matrices(self.program)
-        #self.load_data(self.program)
         
-        #GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
-        GL.glUseProgram(self.program2)
-        GL.glPointSize(50)
-        self.load_matrices(self.program2)
-        self.load_data(self.program2)
-        GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
-        #GL.glDisable(GL.GL_DEPTH_TEST)
-        
-        GL.glBindVertexArray(self.vertex_array_object)
-        if self.coords is None:
+        if self.diamonds:
             pass
-        else:
-            GL.glDrawArrays(GL.GL_POINTS, 0, int(len(self.coords)/3))
         
-        GL.glBindVertexArray(0)
-        GL.glUseProgram(0)
+        if self.circles:
+            GL.glEnable(GL.GL_DEPTH_TEST)
+            GL.glUseProgram(self.gl_program_circles)
+            GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+            self.load_matrices(self.gl_program_circles)
+            self.load_data(self.gl_program_circles)
+            GL.glBindVertexArray(self.vertex_array_object)
+            if self.coords is None:
+                pass
+            else:
+                GL.glDrawArrays(GL.GL_POINTS, 0, int(len(self.coords)/3))
+                #GL.glDrawElements(GL.GL_LINES, int(len(self.coords)), GL.GL_UNSIGNED_SHORT, None)
+            GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+            GL.glDisable(GL.GL_DEPTH_TEST)
+            GL.glBindVertexArray(0)
+            GL.glUseProgram(0)
+        
         self.degrees += 1
         if self.degrees >= 360:
             self.degrees = np.float32(0)
@@ -178,170 +182,49 @@ class MyGLProgram():
         GL.glDisableVertexAttribArray(position)
         GL.glDisableVertexAttribArray(gl_colors)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    
+    def key_pressed(self, widget, event):
+        """ Function doc
+        """
+        k_name = Gdk.keyval_name(event.keyval)
+        func = getattr(self, '_pressed_' + k_name, None)
+        print(k_name)
+        if func:
+            func()
+        return True
+    
+    def key_released(self, widget, event):
+        """ Function doc
+        """
+        k_name = Gdk.keyval_name(event.keyval)
+        func = getattr(self, '_released_' + k_name, None)
+        if func:
+            func()
+        return True
+    
+    def _pressed_Right(self):
+        """ Function doc """
+        pass
+    
+    def _pressed_Left(self):
+        """ Function doc """
+        pass
+    
+    def _pressed_Up(self):
+        """ Function doc """
+        pass
+    
+    def _pressed_Down(self):
+        """ Function doc """
+        pass
+    
 
-vertex_shader = """
-#version 330
-
-in vec3 vert_coord;
-in vec3 vert_color;
-
-out vec3 geom_color;
-
-void main()
-{
-   geom_color = vert_color;
-   gl_Position = vec4(vert_coord, 1.0);
-}
-"""
-geometry_shader = """
-#version 330
-
-layout (points) in; // Name for use is gl_in[] is default for GLSL
-layout (triangle_strip, max_vertices = 14) out;
-
-in vec3 geom_color[];
-
-out vec3 sh_color;
-
-uniform mat4 model_mat;
-uniform mat4 view_mat;
-uniform mat4 projection_mat;
-
-void main()
-{
-   vec4 offset = vec4(0.0, 0.5, 0.0, 1.0);
-   vec4 vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(-.5, 0.0, 0.0, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(0.0, 0.0, 0.5, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(0.0,-0.5, 0.0, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(0.5, 0.0, 0.0, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(0.0, 0.0,-0.5, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(0.0, 0.5, 0.0, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(-.5, 0.0, 0.0, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   EndPrimitive();
-   
-   offset = vec4(-.5, 0.0, 0.0, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(0.0, 0.0,-0.5, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(0.0,-0.5, 0.0, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   EndPrimitive();
-   
-   offset = vec4(0.0, 0.5, 0.0, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(0.0, 0.0, 0.5, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   offset = vec4(0.5, 0.0, 0.0, 1.0);
-   vertPos = offset + gl_in[0].gl_Position;
-   gl_Position = projection_mat * view_mat * model_mat * vertPos;
-   sh_color = geom_color[0];
-   EmitVertex();
-   EndPrimitive();
-}
-"""
-fragment_shader = """
-#version 330
-
-in vec3 sh_color;
-
-out vec4 final_color;
-
-void main()
-{
-   final_color = vec4(sh_color, 1.0);
-}
-"""
-
-vertex_shader2 = """
-#version 330
-
-uniform mat4 model_mat;
-uniform mat4 view_mat;
-uniform mat4 projection_mat;
-
-in vec3 vert_coord;
-in vec3 vert_color;
-
-out vec3 frag_color;
-
-void main()
-{
-   frag_color = vert_color;
-   gl_Position = projection_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
-}
-"""
-fragment_shader2 = """
-#version 330
-
-in vec3 frag_color;
-out vec4 final_color;
-
-void main(){
-    float dist = length((gl_PointCoord - vec2(0.5, 0.5)));
-    if (dist > 0.5)
-        discard;
-    if (dist >= 0. && dist <= 0.5)
-        final_color = mix(vec4(frag_color,1), vec4(0, 0, 0, 1), dist);
-    else
-        final_color = vec4(frag_color, 1);
-}
-"""
-
-
-
-
-
-test = MyGLProgram(vertex_shader, geometry_shader, fragment_shader)
+test = MyGLProgram()
 wind = Gtk.Window()
-wind.add(test.glarea)
+wind.add(test)
 
 wind.connect("delete-event", Gtk.main_quit)
+wind.connect("key-press-event", test.key_pressed)
+wind.connect("key-release-event", test.key_released)
 wind.show_all()
 Gtk.main()

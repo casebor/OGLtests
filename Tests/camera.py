@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 #  camera.py
@@ -22,11 +22,9 @@
 #  
 #  
 
-
 import math
 import numpy as np
 import ctypes
-
 
 def my_gluLookAt(in_matrix, eye, target, up):
     forward = target - eye
@@ -38,27 +36,8 @@ def my_gluLookAt(in_matrix, eye, target, up):
     temp_matrix[:3,0] = side
     temp_matrix[:3,1] = up
     temp_matrix[:3,2] = -forward
-    #result_matrix = my_glMultiplyMatricesf(in_matrix, temp_matrix)
-    #result_matrix = my_glTranslatef(result_matrix, -eye)
     result_matrix = my_glTranslatef(temp_matrix, -eye)
     return result_matrix
-    #view_matrix = np.identity(4, dtype=np.float32)
-    #forward = target - eye
-    #forward = forward/np.linalg.norm(forward)
-    #side = np.cross(up, forward)
-    #side = side/np.linalg.norm(side)
-    #up = np.cross(forward, side)
-    #up = up/np.linalg.norm(up)
-    #dot_x = -np.dot(side, eye)
-    #dot_y = -np.dot(up, eye)
-    #dot_z = -np.dot(forward, eye)
-    #view_matrix[:3,0] = side
-    #view_matrix[:3,1] = up
-    #view_matrix[:3,2] = -forward
-    #view_matrix[3,0] = dot_x
-    #view_matrix[3,1] = dot_y
-    #view_matrix[3,2] = dot_z
-    #return view_matrix
 
 def my_gluPerspectived(fovy, aspect, z_near, z_far):
     y_max = np.float64(z_near*math.tan(fovy*math.pi/360.0))
@@ -114,9 +93,7 @@ def my_glRotateZf(in_matrix, angle):
     rot_matrix[1,1] =  math.cos(angle)
     return my_glMultiplyMatricesf(in_matrix, rot_matrix)
 
-
 #################### FUNCIONANDO ####################
-
 
 def my_glScalef(in_matrix, x_scale, y_scale, z_scale):
     x_scale = np.float32(x_scale)
@@ -130,7 +107,6 @@ def my_glScalef(in_matrix, x_scale, y_scale, z_scale):
 
 def my_glTranslatef(orig_matrix, position):
     trans_matrix = np.identity(4, dtype=np.float32)
-    #trans_matrix[:3,3] = position
     trans_matrix[3,:3] = position
     return my_glMultiplyMatricesf(orig_matrix, trans_matrix)
 
@@ -187,4 +163,3 @@ def my_gluPerspectivef(in_matrix, fovy, aspect, z_near, z_far):
     pers_matrix[3,2] = 2*z_near*z_far/(z_near-z_far)
     pers_matrix[2,3] = -1
     return my_glMultiplyMatricesf(in_matrix, pers_matrix)
-    
