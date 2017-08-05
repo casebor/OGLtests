@@ -27,6 +27,7 @@ import math
 import camera as cam
 import shaders as sh
 import vaos
+import time
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -94,6 +95,9 @@ class MyGLProgram(Gtk.GLArea):
         self.drag_pos_x = 0
         self.drag_pos_y = 0
         self.drag_pos_z = 0
+        self.dx = 0.0
+        self.dy = 0.0
+        self.start_time = time.perf_counter()
         self.ctrl = False
         self.shift = False
         self.light_position = np.array([-2.5, 2.5, 3.0],dtype=np.float32)
@@ -256,6 +260,10 @@ class MyGLProgram(Gtk.GLArea):
         crd_xyz = -1 * np.mat(modelview[:3,:3]) * np.mat(modelview[3,:3]).T
         return crd_xyz.A1
     
+    def _update_cam_pos(self):
+        """ Function doc """
+        self.cam_pos = self.get_cam_pos()
+    
     def render(self, area, context):
         """ Function doc """
         if self.gl_programs:
@@ -313,7 +321,7 @@ class MyGLProgram(Gtk.GLArea):
                 self._draw_select_box()
         if len(self.edit_points) > 0:
             if self.modified_points:
-                self.edit_mode_vao, self.edit_mode_vbos, self.edit_mode_elemns, self.info = vaos.make_edit_mode(self.gl_program_edit_mode, self.edit_points)
+                self.edit_mode_vao, self.edit_mode_vbos, self.edit_mode_elemns = vaos.make_edit_mode(self.gl_program_edit_mode, self.edit_points)
                 self.modified_points = False
             self._draw_edit_mode()
     
@@ -435,6 +443,8 @@ class MyGLProgram(Gtk.GLArea):
         self.dragging = False
         if event.button == 1:
             pass
+            self.dx = 0.0
+            self.dy = 0.0
         if event.button == 2:
             pass
         if event.button == 3:
@@ -446,7 +456,19 @@ class MyGLProgram(Gtk.GLArea):
         self.mouse_zoom = False
         self.mouse_pan = False
         if event.button == 1:
-            if not self.dragging:
+            if self.dragging:
+                if (time.perf_counter()-self.start_time) <= 0.01:
+                    for i in range(10):
+                        self._rotate_view(self.dx, self.dy, self.mouse_x, self.mouse_y)
+                        self.get_window().invalidate_rect(None, False)
+                        self.get_window().process_updates(False)
+                        time.sleep(0.02)
+                    for i in range(1, 18):
+                        self._rotate_view(self.dx/i, self.dy/i, self.mouse_x, self.mouse_y)
+                        self.get_window().invalidate_rect(None, False)
+                        self.get_window().process_updates(False)
+                        time.sleep(0.02)
+            else:
                 if self.editing:
                     self.edit_draw(event)
                 self.dragging = False
@@ -468,58 +490,17 @@ class MyGLProgram(Gtk.GLArea):
             return
         self.mouse_x, self.mouse_y = x, y
         changed = False
-        
         if self.mouse_rotate:
-            angle = math.sqrt(dx**2+dy**2)/float(self.width+1)*180.0
-            
-            if self.ctrl:
-                if abs(dx) >= abs(dy):
-                    if (y-self.height/2.0) < 0:
-                        rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, dx])
-                    else:
-                        rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, -dx])
-                else:
-                    if (x-self.width/2.0) < 0:
-                        rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, -dy])
-                    else:
-                        rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, dy])
-            else:
-                rot_mat = cam.my_glRotatef(np.identity(4), angle, [-dy, -dx, 0.0])
-            self.model_mat = cam.my_glMultiplyMatricesf(self.model_mat, rot_mat)
-            changed = True
-        
+            changed = self._rotate_view(dx, dy, x, y)
         elif self.mouse_pan:
-            px, py, pz = self.get_viewport_pos(x, y)
-            pan_mat = cam.my_glTranslatef(np.identity(4, dtype=np.float32),
-                [(px-self.drag_pos_x)*self.z_far/10.0, 
-                 (py-self.drag_pos_y)*self.z_far/10.0, 
-                 (pz-self.drag_pos_z)*self.z_far/10.0])
-            self.model_mat = cam.my_glMultiplyMatricesf(self.model_mat, pan_mat)
-            self.drag_pos_x = px
-            self.drag_pos_y = py
-            self.drag_pos_z = pz
-            changed = True
-        
+            changed = self._pan_view(x, y)
         elif self.mouse_zoom:
-            delta = (((self.z_far-self.z_near)/2.0)+self.z_near)/200.0
-            move_z = dy * delta
-            moved_mat = cam.my_glTranslatef(self.view_mat, [0.0, 0.0, move_z])
-            moved_pos = cam.get_xyz_coords(moved_mat)
-            if moved_pos[2] > 0.101:
-                self.view_mat = moved_mat
-                self.z_near -= move_z
-                self.z_far -= move_z
-                if self.z_near >= self.min_znear:
-                    self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.z_near, self.z_far)
-                else:
-                    if self.z_far < (self.min_zfar+self.min_znear):
-                        self.z_near += move_z
-                        self.z_far = self.min_zfar+self.min_znear
-                    self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.min_znear, self.z_far)
-                changed = True
-            else:
-                pass
+            changed = self._zoom_view(dy)
         if changed:
+            self._update_cam_pos()
+            self.start_time = time.perf_counter()
+            self.dx = dx
+            self.dy = dy
             self.dragging = True
             self.queue_draw()
         return True
@@ -532,7 +513,8 @@ class MyGLProgram(Gtk.GLArea):
             if event.direction == Gdk.ScrollDirection.DOWN:
                 self.model_mat = cam.my_glTranslatef(self.model_mat, [0.0, 0.0, self.scroll])
         else:
-            pos_z = self.get_cam_pos()[2]
+            #pos_z = self.get_cam_pos()[2]
+            pos_z = self.cam_pos[2]
             if event.direction == Gdk.ScrollDirection.UP:
                 self.z_near -= self.scroll
                 self.z_far += self.scroll
@@ -550,9 +532,62 @@ class MyGLProgram(Gtk.GLArea):
                 self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.min_znear, self.z_far)
         self.queue_draw()
     
+    def _rotate_view(self, dx, dy, x, y):
+        """ Function doc """
+        angle = math.sqrt(dx**2+dy**2)/float(self.width+1)*36.0*np.linalg.norm(self.cam_pos)
+        if self.ctrl:
+            if abs(dx) >= abs(dy):
+                if (y-self.height/2.0) < 0:
+                    rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, dx])
+                else:
+                    rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, -dx])
+            else:
+                if (x-self.width/2.0) < 0:
+                    rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, -dy])
+                else:
+                    rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, dy])
+        else:
+            rot_mat = cam.my_glRotatef(np.identity(4), angle, [-dy, -dx, 0.0])
+        self.model_mat = cam.my_glMultiplyMatricesf(self.model_mat, rot_mat)
+        return True
+    
+    def _pan_view(self, x, y):
+        """ Function doc """
+        px, py, pz = self.get_viewport_pos(x, y)
+        pan_mat = cam.my_glTranslatef(np.identity(4, dtype=np.float32),
+            [(px-self.drag_pos_x)*self.z_far/10.0, 
+             (py-self.drag_pos_y)*self.z_far/10.0, 
+             (pz-self.drag_pos_z)*self.z_far/10.0])
+        self.model_mat = cam.my_glMultiplyMatricesf(self.model_mat, pan_mat)
+        self.drag_pos_x = px
+        self.drag_pos_y = py
+        self.drag_pos_z = pz
+        return True
+    
+    def _zoom_view(self, dy):
+        """ Function doc """
+        delta = (((self.z_far-self.z_near)/2.0)+self.z_near)/200.0
+        move_z = dy * delta
+        moved_mat = cam.my_glTranslatef(self.view_mat, [0.0, 0.0, move_z])
+        moved_pos = cam.get_xyz_coords(moved_mat)
+        if moved_pos[2] > 0.101:
+            self.view_mat = moved_mat
+            self.z_near -= move_z
+            self.z_far -= move_z
+            if self.z_near >= self.min_znear:
+                self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.z_near, self.z_far)
+            else:
+                if self.z_far < (self.min_zfar+self.min_znear):
+                    self.z_near += move_z
+                    self.z_far = self.min_zfar+self.min_znear
+                self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.min_znear, self.z_far)
+        else:
+            pass
+        return True
+    
     def edit_draw(self, event):
         """ Function doc """
-        self.cam_pos = self.get_cam_pos()
+        #self.cam_pos = self.get_cam_pos()
         proj = np.matrix(self.proj_mat)
         view = np.matrix(self.view_mat)
         model = np.matrix(self.model_mat)
@@ -614,11 +649,11 @@ class MyGLProgram(Gtk.GLArea):
     def _pressed_i(self):
         print("------------------------------------")
         print(self.edit_points,"<- points")
-        print(self.info[3], "<- elements")
     
     def _pressed_o(self):
         print("------------------------------------")
-        print(self.get_cam_pos(),"<- camera position")
+        print(self.cam_pos,"<- camera position")
+        print(np.linalg.norm(self.cam_pos),"<- camera dist to 0")
     
     def _pressed_m(self):
         print("------------------------------------")
@@ -627,26 +662,6 @@ class MyGLProgram(Gtk.GLArea):
         print(self.view_mat,"<- view matrix")
         print("------------------------------------")
         print(self.proj_mat,"<- projection matrix")
-    
-    def _pressed_Left(self):
-        self.model_mat = cam.my_glRotateYf(self.model_mat, 10)
-        self.cam_pos = self.get_cam_pos()
-        self.queue_draw()
-    
-    def _pressed_Right(self):
-        self.model_mat = cam.my_glRotateYf(self.model_mat, -10)
-        self.cam_pos = self.get_cam_pos()
-        self.queue_draw()
-    
-    def _pressed_Up(self):
-        self.model_mat = cam.my_glRotateXf(self.model_mat, 10)
-        self.cam_pos = self.get_cam_pos()
-        self.queue_draw()
-    
-    def _pressed_Down(self):
-        self.model_mat = cam.my_glRotateXf(self.model_mat, -10)
-        self.cam_pos = self.get_cam_pos()
-        self.queue_draw()
     
     def _pressed_p(self):
         self.dots = not self.dots

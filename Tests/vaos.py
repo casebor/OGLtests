@@ -443,7 +443,7 @@ def make_edit_mode(program, points):
     indexes = np.array([], dtype=np.uint32)
     for i in range(0, amount, 3):
         center = [points[i], points[i+1], points[i+2]]
-        verts, inds, cols = spd.get_sphere(center, 1.1, [0, 1, 0], level='level_1')
+        verts, inds, cols = spd.get_sphere(center, 1.1, [0, 1, 0], level='level_2')
         center *= int(verts.size/3)
         to_add = int(verts.size/3) * int(i/3)
         inds += to_add
@@ -490,6 +490,6 @@ def make_edit_mode(program, points):
     GL.glDisableVertexAttribArray(gl_center)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, centr_vbo, col_vbo), int(len(indexes)), (coords, centers, colors, indexes)
+    return vertex_array_object, (coord_vbo, centr_vbo, col_vbo), int(len(indexes))
 
 
