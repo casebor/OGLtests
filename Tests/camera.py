@@ -44,22 +44,22 @@ def my_gluPerspectived(fovy, aspect, z_near, z_far):
     x_max = np.float64(y_max*aspect)
     return my_gluFrustumd(-x_max, x_max, -y_max, y_max, z_near, z_far)
 
-def my_gluFrustumd(left, rigth, bottom, top, near, far):
+def my_gluFrustumd(left, right, bottom, top, near, far):
     frust = np.zeros((4,4), dtype=np.float64)
-    frust[0,0] = np.float64((2*near)/(rigth-left))
+    frust[0,0] = np.float64((2*near)/(right-left))
     frust[1,1] = np.float64((2*near)/(top-bottom))
-    frust[2,0] = np.float64((rigth+left)/(rigth-left))
+    frust[2,0] = np.float64((right+left)/(right-left))
     frust[2,1] = np.float64((top+bottom)/(top-bottom))
     frust[2,2] = np.float64((-far-near)/(far-near))
     frust[2,3] = np.float64(-1)
     frust[3,2] = np.float64((-2*near*far)/(far-near))
     return frust
 
-def my_gluFrustumf(left, rigth, bottom, top, near, far):
+def my_gluFrustumf(left, right, bottom, top, near, far):
     frust = np.zeros((4,4), dtype=np.float32)
-    frust[0,0] = np.float32((2*near)/(rigth-left))
+    frust[0,0] = np.float32((2*near)/(right-left))
     frust[1,1] = np.float32((2*near)/(top-bottom))
-    frust[2,0] = np.float32((rigth+left)/(rigth-left))
+    frust[2,0] = np.float32((right+left)/(right-left))
     frust[2,1] = np.float32((top+bottom)/(top-bottom))
     frust[2,2] = np.float32((-far-near)/(far-near))
     frust[2,3] = np.float32(-1)
@@ -163,3 +163,29 @@ def my_gluPerspectivef(in_matrix, fovy, aspect, z_near, z_far):
     pers_matrix[3,2] = 2*z_near*z_far/(z_near-z_far)
     pers_matrix[2,3] = -1
     return my_glMultiplyMatricesf(in_matrix, pers_matrix)
+
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.
+    """
+    return vector / np.linalg.norm(vector)
+
+def get_angle(vecA, vecB):
+    """ Return the angle in degrees of two vectors.
+    """
+    vecA_u = unit_vector(vecA)
+    vecB_u = unit_vector(vecB)
+    return np.degrees(np.arccos(np.clip(np.dot(vecA_u, vecB_u), -1.0, 1.0)))
+
+def get_euclidean(pa, pb):
+    """ Returns the distance between two points in R3
+    """
+    import math
+    if int(len(pa)) == 1:
+        pa = [pa[0], 0.0, 0.0]
+    if int(len(pa)) == 2:
+        pa = [pa[0], pa[1], 0.0]
+    if int(len(pb)) == 1:
+        pb = [pb[0], 0.0, 0.0]
+    if int(len(pb)) == 2:
+        pb = [pb[0], pb[1], 0.0]
+    return math.sqrt((pb[0]-pa[0])**2 + (pb[1]-pa[1])**2 + (pb[2]-pa[2])**2)

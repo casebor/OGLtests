@@ -44,26 +44,46 @@ class MyGLProgram(Gtk.GLArea):
         self.connect("key-press-event", self.key_pressed)
         self.connect("key-release-event", self.key_released)
         self.connect("scroll-event", self.mouse_scroll)
+        self.connect("button-press-event", self.mouse_pressed)
+        self.connect("button-release-event", self.mouse_released)
         self.grab_focus()
         self.set_events( self.get_events() | Gdk.EventMask.SCROLL_MASK
                        | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK
                        | Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.POINTER_MOTION_HINT_MASK
                        | Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK )
-        #self.set_size_request(width, height)
     
     def initialize(self, widget):
         """ Function doc """
-        self.cam_pos = np.array([0,0,-5],dtype=np.float32)
         aloc = self.get_allocation()
         self.width = np.float32(aloc.width)
         self.height = np.float32(aloc.height)
+        self.z_near = 1.0
+        self.z_far = 9.0
         self.model_mat = np.identity(4, dtype=np.float32)
-        self.view_mat = cam.my_glTranslatef(np.identity(4, dtype=np.float32), self.cam_pos)
-        self.proj_mat = cam.my_gluPerspectivef(np.identity(4, dtype=np.float32), 30, self.width/self.height, 0.1, 10.0)
+        self.view_mat = cam.my_glTranslatef(np.identity(4, dtype=np.float32), [0, 0, -5])
+        self.cam_pos = self.get_cam_pos()
+        #----------------------------------------------------------------------#
+        #self.top = self.z_near * np.degrees(np.tan(np.pi*30/360))
+        #self.bottom = -self.top
+        #self.right = self.top * self.width / self.height
+        #self.left = -self.right
+        #self.proj_mat = cam.my_gluFrustumf(self.left, self.right, self.bottom, self.top, self.z_near, self.z_far)
+        #----------------------------------------------------------------------#
+        self.proj_mat = cam.my_gluPerspectivef(np.identity(4, dtype=np.float32), 30, self.width/self.height, self.z_near, self.z_far)
         self.degrees = np.float32(0)
         self.set_has_depth_buffer(True)
         self.set_has_alpha(True)
         self.gl_programs = True
+        self.right = self.width / self.height
+        self.left = -self.right
+        self.top = 1.0
+        self.bottom = -1.0
+        self.light_position = np.array([-2.5, 2.5, 3.0],dtype=np.float32)
+        self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
+        self.light_ambient_coef = 0.5
+        self.light_shininess = 5.5
+        self.light_intensity = np.array([0.6, 0.6, 0.6],dtype=np.float32)
+        self.light_specular_color = np.array([1.0, 1.0, 1.0],dtype=np.float32)
         # Here are the test programs and flags
         self.gl_program_dots = None
         self.dots_vao = None
@@ -90,11 +110,33 @@ class MyGLProgram(Gtk.GLArea):
         self.spheres_vbos = None
         self.spheres_elemns = None
         self.spheres = False
+        self.gl_program_geom_cones = None
+        self.geom_cones_vao = None
+        self.geom_cones_vbos = None
+        self.geom_cones_elemns = None
+        self.geom_cones = False
+        self.gl_program_sph_cones = None
+        self.sph_cones_vao = None
+        self.sph_cones_vbos = None
+        self.sph_cones_elemns = None
+        self.sph_cones = False
+        self.gl_program_select_box = None
+        self.select_box_vao = None
+        self.select_box_vbos = None
+        self.select_box_elemns = None
+        self.select_box = False
+        self.points = []
+        self.gl_program_add_points = None
+        self.add_points_vao = None
+        self.add_points_vbos = None
+        self.add_points_elemns = None
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
         self.width = np.float32(width)
         self.height = np.float32(height)
+        self.right = self.width / self.height
+        self.left = -self.right
         self.proj_mat = cam.my_gluPerspectivef(np.identity(4, dtype=np.float32), 30, self.width/self.height, 0.1, 40.0)
     
     def create_gl_programs(self):
@@ -110,6 +152,10 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_circles = self.load_shaders(sh.v_shader_circles, sh.f_shader_circles)
         self.gl_program_lines = self.load_shaders(sh.v_shader_lines, sh.f_shader_lines, sh.g_shader_lines)
         self.gl_program_spheres = self.load_shaders(sh.v_shader_spheres, sh.f_shader_spheres, sh.g_shader_spheres5)
+        self.gl_program_geom_cones = self.load_shaders(sh.v_shader_geom_cones, sh.f_shader_geom_cones)
+        self.gl_program_sph_cones = self.load_shaders(sh.v_shader_sph_cones, sh.f_shader_sph_cones)
+        self.gl_program_select_box = self.load_shaders(sh.v_shader_select_box, sh.f_shader_select_box)
+        self.gl_program_add_points = self.load_shaders(sh.v_shader_add_points, sh.f_shader_add_points)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -160,6 +206,38 @@ class MyGLProgram(Gtk.GLArea):
         proj = GL.glGetUniformLocation(program, 'proj_mat')
         GL.glUniformMatrix4fv(proj, 1, GL.GL_FALSE, self.proj_mat)
     
+    def load_lights(self, program):
+        """ Function doc
+        """
+        light_pos = GL.glGetUniformLocation(program, 'my_light.position')
+        GL.glUniform3fv(light_pos, 1, self.light_position)
+        #light_col = GL.glGetUniformLocation(program, 'my_light.color')
+        #GL.glUniform3fv(light_col, 1, self.light_color)
+        amb_coef = GL.glGetUniformLocation(program, 'my_light.ambient_coef')
+        GL.glUniform1fv(amb_coef, 1, self.light_ambient_coef)
+        shiny = GL.glGetUniformLocation(program, 'my_light.shininess')
+        GL.glUniform1fv(shiny, 1, self.light_shininess)
+        intensity = GL.glGetUniformLocation(program, 'my_light.intensity')
+        GL.glUniform3fv(intensity, 1, self.light_intensity)
+        #spec_col = GL.glGetUniformLocation(program, 'my_light.specular_color')
+        #GL.glUniform3fv(spec_col, 1, self.light_specular_color)
+        return True
+    
+    def get_viewport_pos(self, x, y):
+        """ Function doc """
+        px = (2.0*x - self.width)/self.width
+        py = (self.height - 2.0*y)/self.height
+        return [px, py, self.z_near]
+    
+    def get_cam_pos(self):
+        """ Returns the position of the camera in XYZ coordinates
+            The type of data returned is 'numpy.ndarray'.
+        """
+        modelview = cam.my_glMultiplyMatricesf(self.model_mat, self.view_mat)
+        print(modelview, "<= modelview")
+        crd_xyz = -1 * np.mat(modelview[:3,:3]) * np.mat(modelview[3,:3]).T
+        return crd_xyz.A1
+    
     def render(self, area, context):
         """ Function doc """
         if self.gl_programs:
@@ -197,6 +275,28 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_spheres()
+        if self.geom_cones:
+            if self.geom_cones_vao is None:
+                self.geom_cones_vao, self.geom_cones_vbos, self.geom_cones_elemns = vaos.make_geom_cones(self.gl_program_geom_cones)
+                self.queue_draw()
+            else:
+                self._draw_geom_cones()
+        if self.sph_cones:
+            if self.sph_cones_vao is None:
+                self.sph_cones_vao, self.sph_cones_vbos, self.sph_cones_elemns = vaos.make_sph_cones(self.gl_program_sph_cones)
+                self.queue_draw()
+            else:
+                self._draw_sph_cones()
+        if self.select_box:
+            if self.select_box_vao is None:
+                self.select_box_vao, self.select_box_vbos, self.select_box_elemns = vaos.make_select_box(self.gl_program_select_box)
+                self.queue_draw()
+            else:
+                self._draw_select_box()
+        if len(self.points) > 0:
+            #print(self.points)
+            self.add_points_vao, self.add_points_vbos, self.add_points_elemns = vaos.make_add_points(self.gl_program_add_points, self.points)
+            self._draw_add_points()
     
     def _draw_dots(self):
         """ Function doc """
@@ -240,7 +340,7 @@ class MyGLProgram(Gtk.GLArea):
         GL.glUseProgram(self.gl_program_lines)
         self.load_matrices(self.gl_program_lines)
         GL.glBindVertexArray(self.lines_vao)
-        GL.glDrawElements(GL.GL_LINES, self.lines_elemns, GL.GL_UNSIGNED_SHORT, None)
+        GL.glDrawElements(GL.GL_LINES, self.lines_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -251,20 +351,111 @@ class MyGLProgram(Gtk.GLArea):
         GL.glUseProgram(self.gl_program_spheres)
         self.load_matrices(self.gl_program_spheres)
         GL.glBindVertexArray(self.spheres_vao)
-        GL.glDrawElements(GL.GL_POINTS, self.spheres_elemns, GL.GL_UNSIGNED_SHORT, None)
+        GL.glDrawElements(GL.GL_POINTS, self.spheres_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
+    def _draw_geom_cones(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_geom_cones)
+        self.load_matrices(self.gl_program_geom_cones)
+        self.load_lights(self.gl_program_geom_cones)
+        GL.glBindVertexArray(self.geom_cones_vao)
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.geom_cones_elemns)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_sph_cones(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_sph_cones)
+        self.load_matrices(self.gl_program_sph_cones)
+        self.load_lights(self.gl_program_sph_cones)
+        GL.glBindVertexArray(self.sph_cones_vao)
+        GL.glDrawElements(GL.GL_TRIANGLES, self.sph_cones_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_select_box(self):
+        """ Function doc """
+        #GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glLineWidth(1)
+        GL.glUseProgram(self.gl_program_select_box)
+        GL.glBindVertexArray(self.select_box_vao)
+        GL.glDrawElements(GL.GL_LINE_STRIP, 5, GL.GL_UNSIGNED_INT, None)
+        #GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_add_points(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_add_points)
+        GL.glPointSize(4)
+        self.load_matrices(self.gl_program_add_points)
+        GL.glBindVertexArray(self.add_points_vao)
+        GL.glDrawArrays(GL.GL_POINTS, 0, self.add_points_elemns)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def mouse_pressed(self, widget, event):
+        """ Function doc """
+        left   = event.button == 1
+        middle = event.button == 2
+        right  = event.button == 3
+        self.mouse_rotate = left   and not (middle or right)
+        self.mouse_zoom   = right  and not (middle or left)
+        self.mouse_pan    = middle and not (right  or left)
+        self.dragging = False
+        if event.button == 1:
+            proj = np.matrix(self.proj_mat)
+            view = np.matrix(self.view_mat)
+            model = np.matrix(self.model_mat)
+            i_proj = proj.I
+            i_view = view.I
+            i_model = model.I
+            i_mvp = i_proj * i_view * i_model
+            mod = self.get_viewport_pos(event.x, event.y)
+            mod.append(1)
+            mod = np.matrix(mod)
+            mod = (mod*i_mvp).A1
+            mod /= mod[3]
+            u_vec = cam.unit_vector(mod[:3] - self.cam_pos)
+            c_vec = cam.unit_vector(-self.cam_pos)
+            angle = np.radians(cam.get_angle(c_vec, u_vec))
+            hypo = cam.get_euclidean(self.cam_pos, [0,0,0]) / np.cos(angle)
+            test = u_vec * hypo
+            mod = self.cam_pos + test
+            self.add_points(mod[:3])
+            self.queue_draw()
+        if event.button == 2:
+            pass
+        if event.button == 3:
+            pass
+            self.points = []
+            self.queue_draw()
+    
+    def mouse_released(self, widget, event):
+        """ Function doc """
+        if event.button == 1:
+            pass
+        if event.button == 2:
+            pass
+        if event.button == 3:
+            pass
+    
     def mouse_scroll(self, widget, event):
         """ Function doc """
         if event.direction == Gdk.ScrollDirection.UP:
-            self.cam_pos[2] += 1
             pos = [0,0,1]
         if event.direction == Gdk.ScrollDirection.DOWN:
-            self.cam_pos[2] -= 1
             pos = [0,0,-1]
         self.view_mat = cam.my_glTranslatef(self.view_mat, pos)
+        self.cam_pos = self.get_cam_pos()
         self.queue_draw()
     
     def key_pressed(self, widget, event):
@@ -284,20 +475,43 @@ class MyGLProgram(Gtk.GLArea):
             func()
         return True
     
+    def _pressed_Escape(self):
+        Gtk.main_quit()
+    
+    def _pressed_i(self):
+        print("------------------------------------")
+        print(self.points,"<- points")
+    
+    def _pressed_o(self):
+        print("------------------------------------")
+        print(self.get_cam_pos(),"<- camera position")
+    
+    def _pressed_m(self):
+        print("------------------------------------")
+        print(self.model_mat,"<- model matrix")
+        print("------------------------------------")
+        print(self.view_mat,"<- view matrix")
+        print("------------------------------------")
+        print(self.proj_mat,"<- projection matrix")
+    
     def _pressed_Left(self):
         self.model_mat = cam.my_glRotateYf(self.model_mat, 10)
+        self.cam_pos = self.get_cam_pos()
         self.queue_draw()
     
     def _pressed_Right(self):
         self.model_mat = cam.my_glRotateYf(self.model_mat, -10)
+        self.cam_pos = self.get_cam_pos()
         self.queue_draw()
     
     def _pressed_Up(self):
         self.model_mat = cam.my_glRotateXf(self.model_mat, 10)
+        self.cam_pos = self.get_cam_pos()
         self.queue_draw()
     
     def _pressed_Down(self):
         self.model_mat = cam.my_glRotateXf(self.model_mat, -10)
+        self.cam_pos = self.get_cam_pos()
         self.queue_draw()
     
     def _pressed_p(self):
@@ -319,6 +533,24 @@ class MyGLProgram(Gtk.GLArea):
     def _pressed_s(self):
         self.spheres = not self.spheres
         self.queue_draw()
+    
+    def _pressed_n(self):
+        self.geom_cones = not self.geom_cones
+        self.queue_draw()
+    
+    def _pressed_q(self):
+        self.sph_cones = not self.sph_cones
+        self.queue_draw()
+    
+    def _pressed_b(self):
+        self.select_box = not self.select_box
+        self.queue_draw()
+    
+    def add_points(self, point):
+        """ Function doc """
+        for i in point:
+            self.points.append(i)
+    
     
 
 test = MyGLProgram()
