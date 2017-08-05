@@ -24,6 +24,7 @@
 
 import ctypes
 import numpy as np
+import sphere_data as spd
 
 from OpenGL import GL
 
@@ -157,7 +158,7 @@ def make_lines(program):
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(coords))
 
-def make_spheres(program):
+def make_pseudospheres(program):
     """ Function doc """
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
@@ -433,21 +434,49 @@ def make_select_box(program):
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(coords))
 
-def make_add_points(program, coords):
+def make_edit_mode(program, points):
     """ Function doc """
+    amount = int(len(points))
+    coords = np.array([], dtype=np.float32)
+    colors = np.array([], dtype=np.float32)
+    centers = np.array([], dtype=np.float32)
+    indexes = np.array([], dtype=np.uint32)
+    for i in range(0, amount, 3):
+        center = [points[i], points[i+1], points[i+2]]
+        verts, inds, cols = spd.get_sphere(center, 1.1, [0, 1, 0], level='level_1')
+        center *= int(verts.size/3)
+        to_add = int(verts.size/3) * int(i/3)
+        inds += to_add
+        coords = np.concatenate((coords,verts))
+        colors = np.concatenate((colors,cols))
+        centers = np.concatenate((centers,center))
+        indexes = np.concatenate((indexes,inds))
+    
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
     
-    i = int(len(coords)/3)
     coords = np.array(coords,dtype=np.float32)
-    colors = np.array([1, 0, 0]*i,dtype=np.float32)
+    colors = np.array(colors,dtype=np.float32)
+    centers = np.array(centers,dtype=np.float32)
+    indexes = np.array(indexes, dtype=np.uint32)
+    
+    ind_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
     GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    position = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(position)
-    GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    gl_coord = GL.glGetAttribLocation(program, 'vert_coord')
+    GL.glEnableVertexAttribArray(gl_coord)
+    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    centr_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, centr_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, centers.itemsize*len(centers), centers, GL.GL_STATIC_DRAW)
+    gl_center = GL.glGetAttribLocation(program, 'vert_centr')
+    GL.glEnableVertexAttribArray(gl_center)
+    GL.glVertexAttribPointer(gl_center, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*centers.itemsize, ctypes.c_void_p(0))
     
     col_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
@@ -457,9 +486,10 @@ def make_add_points(program, coords):
     GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
     
     GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(position)
+    GL.glDisableVertexAttribArray(gl_coord)
+    GL.glDisableVertexAttribArray(gl_center)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), i
+    return vertex_array_object, (coord_vbo, centr_vbo, col_vbo), int(len(indexes)), (coords, centers, colors, indexes)
 
 

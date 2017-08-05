@@ -23,6 +23,7 @@
 #  
 
 import numpy as np
+import math
 import camera as cam
 import shaders as sh
 import vaos
@@ -45,6 +46,7 @@ class MyGLProgram(Gtk.GLArea):
         self.connect("key-release-event", self.key_released)
         self.connect("scroll-event", self.mouse_scroll)
         self.connect("button-press-event", self.mouse_pressed)
+        self.connect("motion-notify-event", self.mouse_motion)
         self.connect("button-release-event", self.mouse_released)
         self.grab_focus()
         self.set_events( self.get_events() | Gdk.EventMask.SCROLL_MASK
@@ -59,6 +61,8 @@ class MyGLProgram(Gtk.GLArea):
         self.height = np.float32(aloc.height)
         self.z_near = 1.0
         self.z_far = 9.0
+        self.min_znear = 0.1
+        self.min_zfar = 1.1
         self.model_mat = np.identity(4, dtype=np.float32)
         self.view_mat = cam.my_glTranslatef(np.identity(4, dtype=np.float32), [0, 0, -5])
         self.cam_pos = self.get_cam_pos()
@@ -69,8 +73,9 @@ class MyGLProgram(Gtk.GLArea):
         #self.left = -self.right
         #self.proj_mat = cam.my_gluFrustumf(self.left, self.right, self.bottom, self.top, self.z_near, self.z_far)
         #----------------------------------------------------------------------#
-        self.proj_mat = cam.my_gluPerspectivef(np.identity(4, dtype=np.float32), 30, self.width/self.height, self.z_near, self.z_far)
-        self.degrees = np.float32(0)
+        self.fov = 20.0 # Field Of View = fov
+        self.var = self.width/self.height # Viewport Aspect Ratio
+        self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.z_near, self.z_far)
         self.set_has_depth_buffer(True)
         self.set_has_alpha(True)
         self.gl_programs = True
@@ -78,6 +83,19 @@ class MyGLProgram(Gtk.GLArea):
         self.left = -self.right
         self.top = 1.0
         self.bottom = -1.0
+        self.scroll = 0.3
+        self.edit_points = []
+        self.editing = False
+        self.mouse_rotate = False
+        self.mouse_pan = False
+        self.mouse_zoom = False
+        self.mouse_x = 0
+        self.mouse_y = 0
+        self.drag_pos_x = 0
+        self.drag_pos_y = 0
+        self.drag_pos_z = 0
+        self.ctrl = False
+        self.shift = False
         self.light_position = np.array([-2.5, 2.5, 3.0],dtype=np.float32)
         self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_ambient_coef = 0.5
@@ -105,11 +123,11 @@ class MyGLProgram(Gtk.GLArea):
         self.lines_vbos = None
         self.lines_elemns = None
         self.lines = False
-        self.gl_program_spheres = None
-        self.spheres_vao = None
-        self.spheres_vbos = None
-        self.spheres_elemns = None
-        self.spheres = False
+        self.gl_program_pseudospheres = None
+        self.pseudospheres_vao = None
+        self.pseudospheres_vbos = None
+        self.pseudospheres_elemns = None
+        self.pseudospheres = False
         self.gl_program_geom_cones = None
         self.geom_cones_vao = None
         self.geom_cones_vbos = None
@@ -125,11 +143,11 @@ class MyGLProgram(Gtk.GLArea):
         self.select_box_vbos = None
         self.select_box_elemns = None
         self.select_box = False
-        self.points = []
-        self.gl_program_add_points = None
-        self.add_points_vao = None
-        self.add_points_vbos = None
-        self.add_points_elemns = None
+        self.gl_program_edit_mode = None
+        self.edit_mode_vao = None
+        self.edit_mode_vbos = None
+        self.edit_mode_elemns = None
+        self.modified_points = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -137,7 +155,8 @@ class MyGLProgram(Gtk.GLArea):
         self.height = np.float32(height)
         self.right = self.width / self.height
         self.left = -self.right
-        self.proj_mat = cam.my_gluPerspectivef(np.identity(4, dtype=np.float32), 30, self.width/self.height, 0.1, 40.0)
+        self.var = self.width/self.height # Viewport Aspect Ratio
+        self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.z_near, self.z_far)
     
     def create_gl_programs(self):
         """ Function doc """
@@ -151,11 +170,11 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_dots = self.load_shaders(sh.v_shader_dots, sh.f_shader_dots)
         self.gl_program_circles = self.load_shaders(sh.v_shader_circles, sh.f_shader_circles)
         self.gl_program_lines = self.load_shaders(sh.v_shader_lines, sh.f_shader_lines, sh.g_shader_lines)
-        self.gl_program_spheres = self.load_shaders(sh.v_shader_spheres, sh.f_shader_spheres, sh.g_shader_spheres5)
+        self.gl_program_pseudospheres = self.load_shaders(sh.v_shader_pseudospheres, sh.f_shader_pseudospheres, sh.g_shader_pseudospheres5)
         self.gl_program_geom_cones = self.load_shaders(sh.v_shader_geom_cones, sh.f_shader_geom_cones)
         self.gl_program_sph_cones = self.load_shaders(sh.v_shader_sph_cones, sh.f_shader_sph_cones)
         self.gl_program_select_box = self.load_shaders(sh.v_shader_select_box, sh.f_shader_select_box)
-        self.gl_program_add_points = self.load_shaders(sh.v_shader_add_points, sh.f_shader_add_points)
+        self.gl_program_edit_mode = self.load_shaders(sh.v_shader_edit_mode, sh.f_shader_edit_mode)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -234,7 +253,6 @@ class MyGLProgram(Gtk.GLArea):
             The type of data returned is 'numpy.ndarray'.
         """
         modelview = cam.my_glMultiplyMatricesf(self.model_mat, self.view_mat)
-        print(modelview, "<= modelview")
         crd_xyz = -1 * np.mat(modelview[:3,:3]) * np.mat(modelview[3,:3]).T
         return crd_xyz.A1
     
@@ -269,12 +287,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_lines()
-        if self.spheres:
-            if self.spheres_vao is None:
-                self.spheres_vao, self.spheres_vbos, self.spheres_elemns = vaos.make_spheres(self.gl_program_spheres)
+        if self.pseudospheres:
+            if self.pseudospheres_vao is None:
+                self.pseudospheres_vao, self.pseudospheres_vbos, self.pseudospheres_elemns = vaos.make_pseudospheres(self.gl_program_pseudospheres)
                 self.queue_draw()
             else:
-                self._draw_spheres()
+                self._draw_pseudospheres()
         if self.geom_cones:
             if self.geom_cones_vao is None:
                 self.geom_cones_vao, self.geom_cones_vbos, self.geom_cones_elemns = vaos.make_geom_cones(self.gl_program_geom_cones)
@@ -293,10 +311,11 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_select_box()
-        if len(self.points) > 0:
-            #print(self.points)
-            self.add_points_vao, self.add_points_vbos, self.add_points_elemns = vaos.make_add_points(self.gl_program_add_points, self.points)
-            self._draw_add_points()
+        if len(self.edit_points) > 0:
+            if self.modified_points:
+                self.edit_mode_vao, self.edit_mode_vbos, self.edit_mode_elemns, self.info = vaos.make_edit_mode(self.gl_program_edit_mode, self.edit_points)
+                self.modified_points = False
+            self._draw_edit_mode()
     
     def _draw_dots(self):
         """ Function doc """
@@ -345,13 +364,13 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
-    def _draw_spheres(self):
+    def _draw_pseudospheres(self):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glUseProgram(self.gl_program_spheres)
-        self.load_matrices(self.gl_program_spheres)
-        GL.glBindVertexArray(self.spheres_vao)
-        GL.glDrawElements(GL.GL_POINTS, self.spheres_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glUseProgram(self.gl_program_pseudospheres)
+        self.load_matrices(self.gl_program_pseudospheres)
+        GL.glBindVertexArray(self.pseudospheres_vao)
+        GL.glDrawElements(GL.GL_POINTS, self.pseudospheres_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -391,72 +410,176 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
-    def _draw_add_points(self):
+    def _draw_edit_mode(self):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glUseProgram(self.gl_program_add_points)
-        GL.glPointSize(4)
-        self.load_matrices(self.gl_program_add_points)
-        GL.glBindVertexArray(self.add_points_vao)
-        GL.glDrawArrays(GL.GL_POINTS, 0, self.add_points_elemns)
+        GL.glUseProgram(self.gl_program_edit_mode)
+        self.load_matrices(self.gl_program_edit_mode)
+        self.load_lights(self.gl_program_edit_mode)
+        GL.glBindVertexArray(self.edit_mode_vao)
+        GL.glDrawElements(GL.GL_TRIANGLES, self.edit_mode_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
     def mouse_pressed(self, widget, event):
         """ Function doc """
-        left   = event.button == 1
+        left = event.button == 1
         middle = event.button == 2
-        right  = event.button == 3
-        self.mouse_rotate = left   and not (middle or right)
-        self.mouse_zoom   = right  and not (middle or left)
-        self.mouse_pan    = middle and not (right  or left)
+        right = event.button == 3
+        self.mouse_rotate = left and not (middle or right)
+        self.mouse_zoom = right and not (middle or left)
+        self.mouse_pan = middle and not (right  or left)
+        self.mouse_x = float(event.x)
+        self.mouse_y = float(event.y)
+        self.drag_pos_x, self.drag_pos_y, self.drag_pos_z = self.get_viewport_pos(self.mouse_x, self.mouse_y)
         self.dragging = False
         if event.button == 1:
-            proj = np.matrix(self.proj_mat)
-            view = np.matrix(self.view_mat)
-            model = np.matrix(self.model_mat)
-            i_proj = proj.I
-            i_view = view.I
-            i_model = model.I
-            i_mvp = i_proj * i_view * i_model
-            mod = self.get_viewport_pos(event.x, event.y)
-            mod.append(1)
-            mod = np.matrix(mod)
-            mod = (mod*i_mvp).A1
-            mod /= mod[3]
-            u_vec = cam.unit_vector(mod[:3] - self.cam_pos)
-            c_vec = cam.unit_vector(-self.cam_pos)
-            angle = np.radians(cam.get_angle(c_vec, u_vec))
-            hypo = cam.get_euclidean(self.cam_pos, [0,0,0]) / np.cos(angle)
-            test = u_vec * hypo
-            mod = self.cam_pos + test
-            self.add_points(mod[:3])
-            self.queue_draw()
+            pass
         if event.button == 2:
             pass
         if event.button == 3:
             pass
-            self.points = []
-            self.queue_draw()
     
     def mouse_released(self, widget, event):
         """ Function doc """
+        self.mouse_rotate = False
+        self.mouse_zoom = False
+        self.mouse_pan = False
         if event.button == 1:
-            pass
+            if not self.dragging:
+                if self.editing:
+                    self.edit_draw(event)
+                self.dragging = False
         if event.button == 2:
             pass
         if event.button == 3:
-            pass
+            if not self.dragging:
+                if self.editing:
+                    self.edit_points = []
+                    self.queue_draw()
+    
+    def mouse_motion(self, widget, event):
+        """ Function doc """
+        x = float(event.x)
+        y = float(event.y)
+        dx = x - self.mouse_x
+        dy = y - self.mouse_y
+        if (dx==0 and dy==0):
+            return
+        self.mouse_x, self.mouse_y = x, y
+        changed = False
+        
+        if self.mouse_rotate:
+            angle = math.sqrt(dx**2+dy**2)/float(self.width+1)*180.0
+            
+            if self.ctrl:
+                if abs(dx) >= abs(dy):
+                    if (y-self.height/2.0) < 0:
+                        rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, dx])
+                    else:
+                        rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, -dx])
+                else:
+                    if (x-self.width/2.0) < 0:
+                        rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, -dy])
+                    else:
+                        rot_mat = cam.my_glRotatef(np.identity(4), angle, [0.0, 0.0, dy])
+            else:
+                rot_mat = cam.my_glRotatef(np.identity(4), angle, [-dy, -dx, 0.0])
+            self.model_mat = cam.my_glMultiplyMatricesf(self.model_mat, rot_mat)
+            changed = True
+        
+        elif self.mouse_pan:
+            px, py, pz = self.get_viewport_pos(x, y)
+            pan_mat = cam.my_glTranslatef(np.identity(4, dtype=np.float32),
+                [(px-self.drag_pos_x)*self.z_far/10.0, 
+                 (py-self.drag_pos_y)*self.z_far/10.0, 
+                 (pz-self.drag_pos_z)*self.z_far/10.0])
+            self.model_mat = cam.my_glMultiplyMatricesf(self.model_mat, pan_mat)
+            self.drag_pos_x = px
+            self.drag_pos_y = py
+            self.drag_pos_z = pz
+            changed = True
+        
+        elif self.mouse_zoom:
+            delta = (((self.z_far-self.z_near)/2.0)+self.z_near)/200.0
+            move_z = dy * delta
+            moved_mat = cam.my_glTranslatef(self.view_mat, [0.0, 0.0, move_z])
+            moved_pos = cam.get_xyz_coords(moved_mat)
+            if moved_pos[2] > 0.101:
+                self.view_mat = moved_mat
+                self.z_near -= move_z
+                self.z_far -= move_z
+                if self.z_near >= self.min_znear:
+                    self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.z_near, self.z_far)
+                else:
+                    if self.z_far < (self.min_zfar+self.min_znear):
+                        self.z_near += move_z
+                        self.z_far = self.min_zfar+self.min_znear
+                    self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.min_znear, self.z_far)
+                changed = True
+            else:
+                pass
+        if changed:
+            self.dragging = True
+            self.queue_draw()
+        return True
     
     def mouse_scroll(self, widget, event):
         """ Function doc """
-        if event.direction == Gdk.ScrollDirection.UP:
-            pos = [0,0,1]
-        if event.direction == Gdk.ScrollDirection.DOWN:
-            pos = [0,0,-1]
-        self.view_mat = cam.my_glTranslatef(self.view_mat, pos)
-        self.cam_pos = self.get_cam_pos()
+        if self.ctrl:
+            if event.direction == Gdk.ScrollDirection.UP:
+                self.model_mat = cam.my_glTranslatef(self.model_mat, [0.0, 0.0, -self.scroll])
+            if event.direction == Gdk.ScrollDirection.DOWN:
+                self.model_mat = cam.my_glTranslatef(self.model_mat, [0.0, 0.0, self.scroll])
+        else:
+            pos_z = self.get_cam_pos()[2]
+            if event.direction == Gdk.ScrollDirection.UP:
+                self.z_near -= self.scroll
+                self.z_far += self.scroll
+            if event.direction == Gdk.ScrollDirection.DOWN:
+                if (self.z_far-self.scroll) >= (self.min_zfar):
+                    if (self.z_far-self.scroll) > (self.z_near+self.scroll):
+                        self.z_near += self.scroll
+                        self.z_far -= self.scroll
+            if (self.z_near >= self.min_znear):
+                self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.z_near, self.z_far)
+            else:
+                if self.z_far < (self.min_zfar+self.min_znear):
+                    self.z_near -= self.scroll
+                    self.z_far = self.min_znear + self.min_zfar
+                self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.min_znear, self.z_far)
         self.queue_draw()
+    
+    def edit_draw(self, event):
+        """ Function doc """
+        self.cam_pos = self.get_cam_pos()
+        proj = np.matrix(self.proj_mat)
+        view = np.matrix(self.view_mat)
+        model = np.matrix(self.model_mat)
+        i_proj = proj.I
+        i_view = view.I
+        i_model = model.I
+        i_mvp = i_proj * i_view * i_model
+        mod = self.get_viewport_pos(event.x, event.y)
+        mod.append(1)
+        mod = np.matrix(mod)
+        mod = (mod*i_mvp).A1
+        mod /= mod[3]
+        u_vec = cam.unit_vector(mod[:3] - self.cam_pos)
+        v_vec = cam.unit_vector(-self.cam_pos)
+        angle = np.radians(cam.get_angle(v_vec, u_vec))
+        hypo = cam.get_euclidean(self.cam_pos, [0,0,0]) / np.cos(angle)
+        test = u_vec * hypo
+        mod = self.cam_pos + test
+        self.add_points(mod[:3])
+        self.queue_draw()
+    
+    def add_points(self, point):
+        """ Function doc """
+        for i in point:
+            self.edit_points.append(i)
+        self.modified_points = True
+        print("Point added")
     
     def key_pressed(self, widget, event):
         """ Function doc """
@@ -478,9 +601,20 @@ class MyGLProgram(Gtk.GLArea):
     def _pressed_Escape(self):
         Gtk.main_quit()
     
+    def _pressed_e(self):
+        self.editing = not self.editing
+        print("Editing mode:", self.editing)
+    
+    def _pressed_Control_L(self):
+        self.ctrl = True
+    
+    def _released_Control_L(self):
+        self.ctrl = False
+    
     def _pressed_i(self):
         print("------------------------------------")
-        print(self.points,"<- points")
+        print(self.edit_points,"<- points")
+        print(self.info[3], "<- elements")
     
     def _pressed_o(self):
         print("------------------------------------")
@@ -531,7 +665,7 @@ class MyGLProgram(Gtk.GLArea):
         self.queue_draw()
     
     def _pressed_s(self):
-        self.spheres = not self.spheres
+        self.pseudospheres = not self.pseudospheres
         self.queue_draw()
     
     def _pressed_n(self):
@@ -545,11 +679,6 @@ class MyGLProgram(Gtk.GLArea):
     def _pressed_b(self):
         self.select_box = not self.select_box
         self.queue_draw()
-    
-    def add_points(self, point):
-        """ Function doc """
-        for i in point:
-            self.points.append(i)
     
     
 

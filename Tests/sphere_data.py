@@ -5504,6 +5504,13 @@ sphere_triangles = {'level_0':np.array(
   2557,   641,  2561,  2560,   340,  1360,  2561,  2560,  2561,  1360],dtype=np.uint32)
 }
 
-
-
+def get_sphere(pos, rad, color, level='level_1'):
+    """ Function doc
+    """
+    vertices = np.copy(sphere_vertices[level])
+    indices = np.copy(sphere_triangles[level])
+    colors = np.array(color*len(vertices), dtype=np.float32)
+    for i in range(int(len(vertices)/3)):
+        vertices[i*3:(i+1)*3] = (vertices[i*3:(i+1)*3] * rad) + pos
+    return vertices, indices, colors
 
