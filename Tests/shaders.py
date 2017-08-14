@@ -266,6 +266,9 @@ in vec3 frag_color;
 out vec4 final_color;
 
 void main(){
+    float dist = gl_FragCoord.y - 0.5;
+    if (dist<0)
+        discard;
     final_color = vec4(frag_color, 1);
 }
 """
@@ -851,59 +854,93 @@ in vec3 frag_norm;
 out vec4 final_color;
 
 void main(){
-   vec3 normal = normalize(frag_norm);
-   vec3 vert_to_light = normalize(my_light.position);
-   vec3 vert_to_cam = normalize(frag_coord);
-   
-   // Ambient Component
-   vec3 ambient = my_light.ambient_coef * frag_color * my_light.intensity;
-   
-   // Diffuse component
-   float diffuse_coef = max(0.0, dot(normal, vert_to_light));
-   vec3 diffuse = diffuse_coef * frag_color * my_light.intensity;
-   
-   // Specular component
-   float specular_coef = 0.0;
-   if (diffuse_coef > 0.0)
-      specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(-vert_to_light, normal))), my_light.shininess);
-   vec3 specular = specular_coef * my_light.intensity;
-   specular = specular * (vec3(1) - diffuse);
-   final_color = vec4(ambient + diffuse + specular, 1.0);
+    vec3 normal = normalize(frag_norm);
+    vec3 vert_to_light = normalize(my_light.position);
+    vec3 vert_to_cam = normalize(frag_coord);
+    
+    // Ambient Component
+    vec3 ambient = my_light.ambient_coef * frag_color * my_light.intensity;
+    
+    // Diffuse component
+    float diffuse_coef = max(0.0, dot(normal, vert_to_light));
+    vec3 diffuse = diffuse_coef * frag_color * my_light.intensity;
+    
+    // Specular component
+    float specular_coef = 0.0;
+    if (diffuse_coef > 0.0)
+        specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(-vert_to_light, normal))), my_light.shininess);
+    vec3 specular = specular_coef * my_light.intensity;
+    specular = specular * (vec3(1) - diffuse);
+    final_color = vec4(ambient + diffuse + specular, 1.0);
 }
 """
 
-v_shader_sph_cones = """
+v_shader_arrow = """
 #version 330
 
 uniform mat4 model_mat;
 uniform mat4 view_mat;
-uniform mat4 proj_mat;
 
 in vec3 vert_coord;
 in vec3 vert_color;
-in vec3 vert_norm;
+
+out vec3 geom_coord;
+out vec3 geom_color;
+
+void main(){
+    geom_coord = (view_mat * model_mat * vec4(vert_coord, 1.0)).xyz;
+    geom_color = vert_color;
+}
+"""
+g_shader_arrow = """
+#version 330
+
+layout (triangles) in;
+layout (triangle_strip, max_vertices = 3) out;
+
+uniform mat4 proj_mat;
+
+in vec3 geom_coord[];
+in vec3 geom_color[];
+
+varying vec3 vec_a;
+varying vec3 vec_b;
 
 out vec3 frag_coord;
 out vec3 frag_color;
 out vec3 frag_norm;
 
 void main(){
-    frag_coord = (view_mat * model_mat * vec4(vert_coord, 1.0)).xyz;
-    frag_color = vert_color;
-    frag_norm = mat3(transpose(inverse(model_mat))) * normalize(vert_norm);
-    gl_Position = proj_mat * vec4(frag_coord, 1.0);
+    vec_a = normalize(geom_coord[2] - geom_coord[0]);
+    vec_b = normalize(geom_coord[2] - geom_coord[1]);
+    gl_Position = proj_mat * vec4(geom_coord[0], 1.0);
+    frag_coord = geom_coord[0];
+    frag_color = geom_color[0];
+    frag_norm = cross(vec_b, vec_a);
+    EmitVertex();
+    gl_Position = proj_mat * vec4(geom_coord[1], 1.0);
+    frag_coord = geom_coord[1];
+    frag_color = geom_color[1];
+    frag_norm = cross(vec_b, vec_a);
+    EmitVertex();
+    gl_Position = proj_mat * vec4(geom_coord[2], 1.0);
+    frag_coord = geom_coord[2];
+    frag_color = geom_color[2];
+    frag_norm = cross(vec_b, vec_a);
+    EmitVertex();
+    EndPrimitive();
 }
 """
-f_shader_sph_cones = """
+f_shader_arrow = """
 #version 330
 
 struct Light {
-   vec3 position;
-   //vec3 color;
-   vec3 intensity;
-   //vec3 specular_color;
-   float ambient_coef;
-   float shininess;
+    vec3 position;
+    //vec3 color;
+    vec3 intensity;
+    //vec3 specular_color;
+    float ambient_coef;
+    float shininess;
 };
 
 uniform Light my_light;
@@ -915,24 +952,24 @@ in vec3 frag_norm;
 out vec4 final_color;
 
 void main(){
-   vec3 normal = normalize(frag_norm);
-   vec3 vert_to_light = normalize(my_light.position);
-   vec3 vert_to_cam = normalize(frag_coord);
-   
-   // Ambient Component
-   vec3 ambient = my_light.ambient_coef * frag_color * my_light.intensity;
-   
-   // Diffuse component
-   float diffuse_coef = max(0.0, dot(normal, vert_to_light));
-   vec3 diffuse = diffuse_coef * frag_color * my_light.intensity;
-   
-   // Specular component
-   float specular_coef = 0.0;
-   if (diffuse_coef > 0.0)
-      specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(-vert_to_light, normal))), my_light.shininess);
-   vec3 specular = specular_coef * my_light.intensity;
-   specular = specular * (vec3(1) - diffuse);
-   final_color = vec4(ambient + diffuse + specular, 1.0);
+    vec3 normal = normalize(frag_norm);
+    vec3 vert_to_light = normalize(my_light.position);
+    vec3 vert_to_cam = normalize(frag_coord);
+    
+    // Ambient Component
+    vec3 ambient = my_light.ambient_coef * frag_color * my_light.intensity;
+    
+    // Diffuse component
+    float diffuse_coef = max(0.0, dot(normal, vert_to_light));
+    vec3 diffuse = diffuse_coef * frag_color * my_light.intensity;
+    
+    // Specular component
+    float specular_coef = 0.0;
+    if (diffuse_coef > 0.0)
+        specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(vert_to_light, normal))), my_light.shininess);
+    vec3 specular = specular_coef * my_light.intensity;
+    specular = specular * (vec3(1) - diffuse);
+    final_color = vec4(ambient + diffuse + specular, 1.0);
 }
 """
 
@@ -1015,24 +1052,24 @@ out vec3 frag_color;
 out vec3 frag_norm;
 
 void main(){
-   mat4 modelview = view_mat * model_mat;
-   gl_Position = proj_mat * modelview * vec4(vert_coord, 1.0);
-   vert_norm = normalize(vert_coord - vert_centr);
-   frag_coord = -vec3(modelview * vec4(vert_coord, 1.0));
-   frag_norm = mat3(transpose(inverse(model_mat))) * vert_norm;
-   frag_color = vert_color;
+    mat4 modelview = view_mat * model_mat;
+    gl_Position = proj_mat * modelview * vec4(vert_coord, 1.0);
+    vert_norm = normalize(vert_coord - vert_centr);
+    frag_coord = -vec3(modelview * vec4(vert_coord, 1.0));
+    frag_norm = mat3(transpose(inverse(model_mat))) * vert_norm;
+    frag_color = vert_color;
 }
 """
 f_shader_edit_mode = """
 #version 330
 
 struct Light {
-   vec3 position;
-   //vec3 color;
-   vec3 intensity;
-   //vec3 specular_color;
-   float ambient_coef;
-   float shininess;
+    vec3 position;
+    //vec3 color;
+    vec3 intensity;
+    //vec3 specular_color;
+    float ambient_coef;
+    float shininess;
 };
 
 uniform Light my_light;
@@ -1044,24 +1081,55 @@ in vec3 frag_norm;
 out vec4 final_color;
 
 void main(){
-   vec3 normal = normalize(frag_norm);
-   vec3 vert_to_light = normalize(my_light.position);
-   vec3 vert_to_cam = normalize(frag_coord);
-   
-   // Ambient Component
-   vec3 ambient = my_light.ambient_coef * frag_color * my_light.intensity;
-   
-   // Diffuse component
-   float diffuse_coef = max(0.0, dot(normal, vert_to_light));
-   vec3 diffuse = diffuse_coef * frag_color * my_light.intensity;
-   
-   // Specular component
-   float specular_coef = 0.0;
-   if (diffuse_coef > 0.0)
-      specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(-vert_to_light, normal))), my_light.shininess);
-   vec3 specular = specular_coef * my_light.intensity;
-   specular = specular * (vec3(1) - diffuse);
-   
-   final_color = vec4(ambient + diffuse + specular, 1.0);
+    vec3 normal = normalize(frag_norm);
+    vec3 vert_to_light = normalize(my_light.position);
+    vec3 vert_to_cam = normalize(frag_coord);
+    
+    // Ambient Component
+    vec3 ambient = my_light.ambient_coef * frag_color * my_light.intensity;
+    
+    // Diffuse component
+    float diffuse_coef = max(0.0, dot(normal, vert_to_light));
+    vec3 diffuse = diffuse_coef * frag_color * my_light.intensity;
+    
+    // Specular component
+    float specular_coef = 0.0;
+    if (diffuse_coef > 0.0)
+        specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(-vert_to_light, normal))), my_light.shininess);
+    vec3 specular = specular_coef * my_light.intensity;
+    specular = specular * (vec3(1) - diffuse);
+    
+    final_color = vec4(ambient + diffuse + specular, 1.0);
+}
+"""
+
+v_shader_texture =  """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+in vec3 vert_coord;
+in vec2 vert_text;
+
+out vec2 frag_text;
+
+void main(){
+    gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
+    frag_text = vert_text;
+}
+"""
+f_shader_texture = """
+#version 330
+
+uniform sampler2D textu;
+
+in vec2 frag_text;
+
+out vec4 final_color;
+
+void main(){
+    final_color = texture(textu, frag_text);
 }
 """

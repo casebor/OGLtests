@@ -28,6 +28,7 @@ import camera as cam
 import shaders as sh
 import vaos
 import time
+from PIL import Image as img
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -100,7 +101,7 @@ class MyGLProgram(Gtk.GLArea):
         self.start_time = time.perf_counter()
         self.ctrl = False
         self.shift = False
-        self.light_position = np.array([-2.5, 2.5, 3.0],dtype=np.float32)
+        self.light_position = np.array([-2.5, 2.5, 2.5],dtype=np.float32)
         self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_ambient_coef = 0.5
         self.light_shininess = 5.5
@@ -137,11 +138,11 @@ class MyGLProgram(Gtk.GLArea):
         self.geom_cones_vbos = None
         self.geom_cones_elemns = None
         self.geom_cones = False
-        self.gl_program_sph_cones = None
-        self.sph_cones_vao = None
-        self.sph_cones_vbos = None
-        self.sph_cones_elemns = None
-        self.sph_cones = False
+        self.gl_program_arrow = None
+        self.arrow_vao = None
+        self.arrow_vbos = None
+        self.arrow_elemns = None
+        self.arrow = False
         self.gl_program_select_box = None
         self.select_box_vao = None
         self.select_box_vbos = None
@@ -152,6 +153,12 @@ class MyGLProgram(Gtk.GLArea):
         self.edit_mode_vbos = None
         self.edit_mode_elemns = None
         self.modified_points = False
+        self.gl_program_texture = None
+        self.texture_vao = None
+        self.texture_vbos = None
+        self.texture_elemns = None
+        self.texture = False
+        self.tex = None
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -176,9 +183,10 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_lines = self.load_shaders(sh.v_shader_lines, sh.f_shader_lines, sh.g_shader_lines)
         self.gl_program_pseudospheres = self.load_shaders(sh.v_shader_pseudospheres, sh.f_shader_pseudospheres, sh.g_shader_pseudospheres5)
         self.gl_program_geom_cones = self.load_shaders(sh.v_shader_geom_cones, sh.f_shader_geom_cones)
-        self.gl_program_sph_cones = self.load_shaders(sh.v_shader_sph_cones, sh.f_shader_sph_cones)
+        self.gl_program_arrow = self.load_shaders(sh.v_shader_arrow, sh.f_shader_arrow, sh.g_shader_arrow)
         self.gl_program_select_box = self.load_shaders(sh.v_shader_select_box, sh.f_shader_select_box)
         self.gl_program_edit_mode = self.load_shaders(sh.v_shader_edit_mode, sh.f_shader_edit_mode)
+        self.gl_program_texture = self.load_shaders(sh.v_shader_texture, sh.f_shader_texture)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -307,12 +315,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_geom_cones()
-        if self.sph_cones:
-            if self.sph_cones_vao is None:
-                self.sph_cones_vao, self.sph_cones_vbos, self.sph_cones_elemns = vaos.make_sph_cones(self.gl_program_sph_cones)
+        if self.arrow:
+            if self.arrow_vao is None:
+                self.arrow_vao, self.arrow_vbos, self.arrow_elemns = vaos.make_arrow(self.gl_program_arrow)
                 self.queue_draw()
             else:
-                self._draw_sph_cones()
+                self._draw_arrow()
         if self.select_box:
             if self.select_box_vao is None:
                 self.select_box_vao, self.select_box_vbos, self.select_box_elemns = vaos.make_select_box(self.gl_program_select_box)
@@ -324,6 +332,13 @@ class MyGLProgram(Gtk.GLArea):
                 self.edit_mode_vao, self.edit_mode_vbos, self.edit_mode_elemns = vaos.make_edit_mode(self.gl_program_edit_mode, self.edit_points)
                 self.modified_points = False
             self._draw_edit_mode()
+        if self.texture:
+            if self.texture_vao is None:
+                self.make_texture()
+                self.texture_vao, self.texture_vbos, self.texture_elemns = vaos.make_texture(self.gl_program_texture)
+                self.queue_draw()
+            else:
+                self._draw_texture()
     
     def _draw_dots(self):
         """ Function doc """
@@ -363,7 +378,7 @@ class MyGLProgram(Gtk.GLArea):
     def _draw_lines(self):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glLineWidth(5)
+        GL.glLineWidth(10)
         GL.glUseProgram(self.gl_program_lines)
         self.load_matrices(self.gl_program_lines)
         GL.glBindVertexArray(self.lines_vao)
@@ -395,14 +410,14 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
-    def _draw_sph_cones(self):
+    def _draw_arrow(self):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glUseProgram(self.gl_program_sph_cones)
-        self.load_matrices(self.gl_program_sph_cones)
-        self.load_lights(self.gl_program_sph_cones)
-        GL.glBindVertexArray(self.sph_cones_vao)
-        GL.glDrawElements(GL.GL_TRIANGLES, self.sph_cones_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glUseProgram(self.gl_program_arrow)
+        self.load_matrices(self.gl_program_arrow)
+        self.load_lights(self.gl_program_arrow)
+        GL.glBindVertexArray(self.arrow_vao)
+        GL.glDrawElements(GL.GL_TRIANGLES, self.arrow_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -426,6 +441,52 @@ class MyGLProgram(Gtk.GLArea):
         self.load_lights(self.gl_program_edit_mode)
         GL.glBindVertexArray(self.edit_mode_vao)
         GL.glDrawElements(GL.GL_TRIANGLES, self.edit_mode_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def make_texture(self):
+        """ Function doc """
+        image_a = img.open("lava.bmp")
+        ix = image_a.size[0]
+        iy = image_a.size[1]
+        image_a = image_a.tobytes("raw", "RGBX", 0, -1)
+        self.tex = GL.glGenTextures(2)
+        GL.glActiveTexture(GL.GL_TEXTURE0)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[0])
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_a)
+        image_b = img.open("cry.bmp")
+        ix = image_b.size[0]
+        iy = image_b.size[1]
+        image_b = image_b.tobytes("raw", "RGBX", 0, -1)
+        GL.glActiveTexture(GL.GL_TEXTURE1)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_b)
+    
+    def load_texture(self, program):
+        """ Function doc """
+        GL.glActiveTexture(GL.GL_TEXTURE0)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[0])
+        text = GL.glGetUniformLocation(program, 'textu')
+        GL.glUniform1i(text, 0)
+        GL.glActiveTexture(GL.GL_TEXTURE1)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
+        GL.glUniform1i(text, 1)
+    
+    def _draw_texture(self):
+        """ Function doc """
+        GL.glUseProgram(self.gl_program_texture)
+        self.load_matrices(self.gl_program_texture)
+        self.load_texture(self.gl_program_texture)
+        GL.glBindVertexArray(self.texture_vao)
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.texture_elemns)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
@@ -457,17 +518,18 @@ class MyGLProgram(Gtk.GLArea):
         self.mouse_pan = False
         if event.button == 1:
             if self.dragging:
-                if (time.perf_counter()-self.start_time) <= 0.01:
-                    for i in range(10):
-                        self._rotate_view(self.dx, self.dy, self.mouse_x, self.mouse_y)
-                        self.get_window().invalidate_rect(None, False)
-                        self.get_window().process_updates(False)
-                        time.sleep(0.02)
-                    for i in range(1, 18):
-                        self._rotate_view(self.dx/i, self.dy/i, self.mouse_x, self.mouse_y)
-                        self.get_window().invalidate_rect(None, False)
-                        self.get_window().process_updates(False)
-                        time.sleep(0.02)
+                pass
+                #if (time.perf_counter()-self.start_time) <= 0.01:
+                    #for i in range(10):
+                        #self._rotate_view(self.dx, self.dy, self.mouse_x, self.mouse_y)
+                        #self.get_window().invalidate_rect(None, False)
+                        #self.get_window().process_updates(False)
+                        #time.sleep(0.02)
+                    #for i in range(1, 18):
+                        #self._rotate_view(self.dx/i, self.dy/i, self.mouse_x, self.mouse_y)
+                        #self.get_window().invalidate_rect(None, False)
+                        #self.get_window().process_updates(False)
+                        #time.sleep(0.02)
             else:
                 if self.editing:
                     self.edit_draw(event)
@@ -687,12 +749,18 @@ class MyGLProgram(Gtk.GLArea):
         self.geom_cones = not self.geom_cones
         self.queue_draw()
     
-    def _pressed_q(self):
-        self.sph_cones = not self.sph_cones
+    def _pressed_a(self):
+        print("CONE")
+        self.arrow = not self.arrow
         self.queue_draw()
     
     def _pressed_b(self):
         self.select_box = not self.select_box
+        self.queue_draw()
+    
+    def _pressed_t(self):
+        print("TEXTURE")
+        self.texture = not self.texture
         self.queue_draw()
     
     
