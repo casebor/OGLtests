@@ -101,6 +101,7 @@ class MyGLProgram(Gtk.GLArea):
         self.start_time = time.perf_counter()
         self.ctrl = False
         self.shift = False
+        self.bckgrnd_color = np.array([0.0, 0.0, 0.0, 1.0],dtype=np.float32)
         self.light_position = np.array([-2.5, 2.5, 2.5],dtype=np.float32)
         self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_ambient_coef = 0.5
@@ -128,6 +129,12 @@ class MyGLProgram(Gtk.GLArea):
         self.lines_vbos = None
         self.lines_elemns = None
         self.lines = False
+        self.gl_program_antialias = None
+        self.antialias_vao = None
+        self.antialias_vbos = None
+        self.antialias_elemns = None
+        self.antialias = False
+        self.antialias_length = 0.03
         self.gl_program_pseudospheres = None
         self.pseudospheres_vao = None
         self.pseudospheres_vbos = None
@@ -181,6 +188,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_dots = self.load_shaders(sh.v_shader_dots, sh.f_shader_dots)
         self.gl_program_circles = self.load_shaders(sh.v_shader_circles, sh.f_shader_circles)
         self.gl_program_lines = self.load_shaders(sh.v_shader_lines, sh.f_shader_lines, sh.g_shader_lines)
+        self.gl_program_antialias = self.load_shaders(sh.v_shader_antialias, sh.f_shader_antialias, sh.g_shader_antialias)
         self.gl_program_pseudospheres = self.load_shaders(sh.v_shader_pseudospheres, sh.f_shader_pseudospheres, sh.g_shader_pseudospheres5)
         self.gl_program_geom_cones = self.load_shaders(sh.v_shader_geom_cones, sh.f_shader_geom_cones)
         self.gl_program_arrow = self.load_shaders(sh.v_shader_arrow, sh.f_shader_arrow, sh.g_shader_arrow)
@@ -254,6 +262,23 @@ class MyGLProgram(Gtk.GLArea):
         #GL.glUniform3fv(spec_col, 1, self.light_specular_color)
         return True
     
+    def load_texture(self, program):
+        """ Function doc """
+        GL.glActiveTexture(GL.GL_TEXTURE0)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[0])
+        text = GL.glGetUniformLocation(program, 'textu')
+        GL.glUniform1i(text, 0)
+        GL.glActiveTexture(GL.GL_TEXTURE1)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
+        GL.glUniform1i(text, 1)
+    
+    def load_antialias_params(self, program):
+        """ Function doc """
+        a_length = GL.glGetUniformLocation(program, 'antialias_length')
+        GL.glUniform1fv(a_length, 1, self.antialias_length)
+        bck_col = GL.glGetUniformLocation(program, 'alias_color')
+        GL.glUniform3fv(bck_col, 1, self.bckgrnd_color[:3])
+    
     def get_viewport_pos(self, x, y):
         """ Function doc """
         px = (2.0*x - self.width)/self.width
@@ -277,7 +302,7 @@ class MyGLProgram(Gtk.GLArea):
         if self.gl_programs:
             self.create_gl_programs()
             self.gl_programs = False
-        GL.glClearColor(0.0, 0.0, 0.0, 1.0)
+        GL.glClearColor(self.bckgrnd_color[0], self.bckgrnd_color[1], self.bckgrnd_color[2], self.bckgrnd_color[3])
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         if self.dots:
             if self.dots_vao is None:
@@ -303,6 +328,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_lines()
+        if self.antialias:
+            if self.antialias_vao is None:
+                self.antialias_vao, self.antialias_vbos, self.antialias_elemns = vaos.make_antialias(self.gl_program_antialias)
+                self.queue_draw()
+            else:
+                self._draw_antialias()
         if self.pseudospheres:
             if self.pseudospheres_vao is None:
                 self.pseudospheres_vao, self.pseudospheres_vbos, self.pseudospheres_elemns = vaos.make_pseudospheres(self.gl_program_pseudospheres)
@@ -383,6 +414,18 @@ class MyGLProgram(Gtk.GLArea):
         self.load_matrices(self.gl_program_lines)
         GL.glBindVertexArray(self.lines_vao)
         GL.glDrawElements(GL.GL_LINES, self.lines_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_antialias(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_antialias)
+        self.load_matrices(self.gl_program_antialias)
+        self.load_antialias_params(self.gl_program_antialias)
+        GL.glBindVertexArray(self.antialias_vao)
+        GL.glDrawElements(GL.GL_LINES, self.antialias_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -469,16 +512,6 @@ class MyGLProgram(Gtk.GLArea):
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
         GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_b)
-    
-    def load_texture(self, program):
-        """ Function doc """
-        GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[0])
-        text = GL.glGetUniformLocation(program, 'textu')
-        GL.glUniform1i(text, 0)
-        GL.glActiveTexture(GL.GL_TEXTURE1)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
-        GL.glUniform1i(text, 1)
     
     def _draw_texture(self):
         """ Function doc """
@@ -741,6 +774,10 @@ class MyGLProgram(Gtk.GLArea):
         self.lines = not self.lines
         self.queue_draw()
     
+    def _pressed_k(self):
+        self.antialias = not self.antialias
+        self.queue_draw()
+    
     def _pressed_s(self):
         self.pseudospheres = not self.pseudospheres
         self.queue_draw()
@@ -750,7 +787,6 @@ class MyGLProgram(Gtk.GLArea):
         self.queue_draw()
     
     def _pressed_a(self):
-        print("CONE")
         self.arrow = not self.arrow
         self.queue_draw()
     
@@ -759,7 +795,6 @@ class MyGLProgram(Gtk.GLArea):
         self.queue_draw()
     
     def _pressed_t(self):
-        print("TEXTURE")
         self.texture = not self.texture
         self.queue_draw()
     

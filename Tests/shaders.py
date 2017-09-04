@@ -273,6 +273,137 @@ void main(){
 }
 """
 
+v_shader_antialias = """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+in vec3 vert_coord;
+in vec3 vert_color;
+
+out vec4 geom_coord;
+out vec3 geom_color;
+
+void main(){
+    geom_color = vert_color;
+    geom_coord = view_mat * model_mat * vec4(vert_coord, 1);
+}
+"""
+g_shader_antialias = """
+#version 330
+
+layout (lines) in;
+layout (triangle_strip, max_vertices = 20) out;
+
+uniform mat4 proj_mat;
+uniform float antialias_length;
+uniform vec3 alias_color;
+
+in vec4 geom_coord[];
+in vec3 geom_color[];
+
+varying vec4 point_a[4];
+varying vec4 point_b[4];
+varying vec4 point_c[4];
+
+out vec3 frag_color;
+
+void main(){
+    vec4 mid_point = (geom_coord[0] + geom_coord[1])/2;
+    vec2 dir_vec = normalize((geom_coord[1] - geom_coord[0]).xy);
+    vec3 orto_vec = normalize(cross(vec3(dir_vec, 0), vec3(0, 0, 1)));
+    point_a[0] = vec4(geom_coord[0].xyz + orto_vec * antialias_length, 1.0);
+    point_a[1] = vec4(geom_coord[0].xyz + orto_vec * antialias_length/2, 1.0);
+    point_a[2] = vec4(geom_coord[0].xyz - orto_vec * antialias_length/2, 1.0);
+    point_a[3] = vec4(geom_coord[0].xyz - orto_vec * antialias_length, 1.0);
+    point_b[0] = vec4(mid_point.xyz + orto_vec * antialias_length, 1.0);
+    point_b[1] = vec4(mid_point.xyz + orto_vec * antialias_length/2, 1.0);
+    point_b[2] = vec4(mid_point.xyz - orto_vec * antialias_length/2, 1.0);
+    point_b[3] = vec4(mid_point.xyz - orto_vec * antialias_length, 1.0);
+    point_c[0] = vec4(geom_coord[1].xyz + orto_vec * antialias_length, 1.0);
+    point_c[1] = vec4(geom_coord[1].xyz + orto_vec * antialias_length/2, 1.0);
+    point_c[2] = vec4(geom_coord[1].xyz - orto_vec * antialias_length/2, 1.0);
+    point_c[3] = vec4(geom_coord[1].xyz - orto_vec * antialias_length, 1.0);
+    
+    gl_Position = proj_mat * point_a[0];
+    frag_color = alias_color;
+    EmitVertex();
+    gl_Position = proj_mat * point_b[0];
+    frag_color = alias_color;
+    EmitVertex();
+    gl_Position = proj_mat * point_a[1];
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * point_b[1];
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * geom_coord[0];
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * mid_point;
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * point_a[2];
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * point_b[2];
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * point_a[3];
+    frag_color = alias_color;
+    EmitVertex();
+    gl_Position = proj_mat * point_b[3];
+    frag_color = alias_color;
+    EmitVertex();
+    EndPrimitive();
+    
+    gl_Position = proj_mat * point_b[0];
+    frag_color = alias_color;
+    EmitVertex();
+    gl_Position = proj_mat * point_c[0];
+    frag_color = alias_color;
+    EmitVertex();
+    gl_Position = proj_mat * point_b[1];
+    frag_color = geom_color[1];
+    EmitVertex();
+    gl_Position = proj_mat * point_c[1];
+    frag_color = geom_color[1];
+    EmitVertex();
+    gl_Position = proj_mat * mid_point;
+    frag_color = geom_color[1];
+    EmitVertex();
+    gl_Position = proj_mat * geom_coord[1];
+    frag_color = geom_color[1];
+    EmitVertex();
+    gl_Position = proj_mat * point_b[2];
+    frag_color = geom_color[1];
+    EmitVertex();
+    gl_Position = proj_mat * point_c[2];
+    frag_color = geom_color[1];
+    EmitVertex();
+    gl_Position = proj_mat * point_b[3];
+    frag_color = alias_color;
+    EmitVertex();
+    gl_Position = proj_mat * point_c[3];
+    frag_color = alias_color;
+    EmitVertex();
+    EndPrimitive();
+}
+"""
+f_shader_antialias = """
+#version 330
+
+in vec3 frag_color;
+
+out vec4 final_color;
+
+void main(){
+    final_color = vec4(frag_color, 1);
+}
+"""
+
 v_shader_pseudospheres = """
 #version 330
 
