@@ -102,6 +102,7 @@ class MyGLProgram(Gtk.GLArea):
         self.ctrl = False
         self.shift = False
         self.bckgrnd_color = np.array([0.0, 0.0, 0.0, 1.0],dtype=np.float32)
+        #self.bckgrnd_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_position = np.array([-2.5, 2.5, 2.5],dtype=np.float32)
         self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_ambient_coef = 0.5
@@ -140,6 +141,11 @@ class MyGLProgram(Gtk.GLArea):
         self.pseudospheres_vbos = None
         self.pseudospheres_elemns = None
         self.pseudospheres = False
+        self.gl_program_non_bonded = None
+        self.non_bonded_vao = None
+        self.non_bonded_vbos = None
+        self.non_bonded_elemns = None
+        self.non_bonded = False
         self.gl_program_geom_cones = None
         self.geom_cones_vao = None
         self.geom_cones_vbos = None
@@ -166,6 +172,11 @@ class MyGLProgram(Gtk.GLArea):
         self.texture_elemns = None
         self.texture = False
         self.tex = None
+        self.gl_program_cylinders = None
+        self.cylinders_vao = None
+        self.cylinders_vbos = None
+        self.cylinders_elemns = None
+        self.cylinders = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -190,11 +201,13 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_lines = self.load_shaders(sh.v_shader_lines, sh.f_shader_lines, sh.g_shader_lines)
         self.gl_program_antialias = self.load_shaders(sh.v_shader_antialias, sh.f_shader_antialias, sh.g_shader_antialias)
         self.gl_program_pseudospheres = self.load_shaders(sh.v_shader_pseudospheres, sh.f_shader_pseudospheres, sh.g_shader_pseudospheres5)
+        self.gl_program_non_bonded = self.load_shaders(sh.v_shader_non_bonded, sh.f_shader_non_bonded, sh.g_shader_non_bonded)
         self.gl_program_geom_cones = self.load_shaders(sh.v_shader_geom_cones, sh.f_shader_geom_cones)
         self.gl_program_arrow = self.load_shaders(sh.v_shader_arrow, sh.f_shader_arrow, sh.g_shader_arrow)
         self.gl_program_select_box = self.load_shaders(sh.v_shader_select_box, sh.f_shader_select_box)
         self.gl_program_edit_mode = self.load_shaders(sh.v_shader_edit_mode, sh.f_shader_edit_mode)
         self.gl_program_texture = self.load_shaders(sh.v_shader_texture, sh.f_shader_texture)
+        self.gl_program_cylinders = self.load_shaders(sh.v_shader_cylinders, sh.f_shader_cylinders, sh.g_shader_cylinders)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -340,6 +353,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_pseudospheres()
+        if self.non_bonded:
+            if self.non_bonded_vao is None:
+                self.non_bonded_vao, self.non_bonded_vbos, self.non_bonded_elemns = vaos.make_non_bonded(self.gl_program_non_bonded)
+                self.queue_draw()
+            else:
+                self._draw_non_bonded()
         if self.geom_cones:
             if self.geom_cones_vao is None:
                 self.geom_cones_vao, self.geom_cones_vbos, self.geom_cones_elemns = vaos.make_geom_cones(self.gl_program_geom_cones)
@@ -370,6 +389,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_texture()
+        if self.cylinders:
+            if self.cylinders_vao is None:
+                self.cylinders_vao, self.cylinders_vbos, self.cylinders_elemns = vaos.make_cylinders(self.gl_program_cylinders)
+                self.queue_draw()
+            else:
+                self._draw_cylinders()
     
     def _draw_dots(self):
         """ Function doc """
@@ -414,6 +439,7 @@ class MyGLProgram(Gtk.GLArea):
         self.load_matrices(self.gl_program_lines)
         GL.glBindVertexArray(self.lines_vao)
         GL.glDrawElements(GL.GL_LINES, self.lines_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glLineWidth(1)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -437,6 +463,17 @@ class MyGLProgram(Gtk.GLArea):
         self.load_matrices(self.gl_program_pseudospheres)
         GL.glBindVertexArray(self.pseudospheres_vao)
         GL.glDrawElements(GL.GL_POINTS, self.pseudospheres_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_non_bonded(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_non_bonded)
+        self.load_matrices(self.gl_program_non_bonded)
+        GL.glBindVertexArray(self.non_bonded_vao)
+        GL.glDrawElements(GL.GL_POINTS, self.non_bonded_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -520,6 +557,18 @@ class MyGLProgram(Gtk.GLArea):
         self.load_texture(self.gl_program_texture)
         GL.glBindVertexArray(self.texture_vao)
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.texture_elemns)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_cylinders(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_cylinders)
+        self.load_matrices(self.gl_program_cylinders)
+        self.load_lights(self.gl_program_cylinders)
+        GL.glBindVertexArray(self.cylinders_vao)
+        GL.glDrawElements(GL.GL_LINES, self.cylinders_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
@@ -796,6 +845,14 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_t(self):
         self.texture = not self.texture
+        self.queue_draw()
+    
+    def _pressed_f(self):
+        self.non_bonded = not self.non_bonded
+        self.queue_draw()
+    
+    def _pressed_y(self):
+        self.cylinders = not self.cylinders
         self.queue_draw()
     
     
