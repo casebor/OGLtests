@@ -182,6 +182,11 @@ class MyGLProgram(Gtk.GLArea):
         self.dots_surface_vbos = None
         self.dots_surface_elemns = None
         self.dots_surface = False
+        self.gl_program_icosahedron = None
+        self.icosahedron_vao = None
+        self.icosahedron_vbos = None
+        self.icosahedron_elemns = None
+        self.icosahedron = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -214,6 +219,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_texture = self.load_shaders(sh.v_shader_texture, sh.f_shader_texture)
         self.gl_program_cylinders = self.load_shaders(sh.v_shader_cylinders, sh.f_shader_cylinders, sh.g_shader_cylinders)
         self.gl_program_dots_surface = self.load_shaders(sh.v_shader_dots_surface, sh.f_shader_dots_surface, sh.g_shader_dots_surface)
+        self.gl_program_icosahedron = self.load_shaders(sh.v_shader_icosahedron, sh.f_shader_icosahedron, sh.g_shader_icosahedron)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -407,6 +413,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_dots_surface()
+        if self.icosahedron:
+            if self.icosahedron_vao is None:
+                self.icosahedron_vao, self.icosahedron_vbos, self.icosahedron_elemns = vaos.make_icosahedron(self.gl_program_icosahedron)
+                self.queue_draw()
+            else:
+                self._draw_icosahedron()
     
     def _draw_dots(self):
         """ Function doc """
@@ -593,6 +605,18 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(self.dots_surface_vao)
         GL.glDrawElements(GL.GL_POINTS, self.dots_surface_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glPointSize(1)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_icosahedron(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_icosahedron)
+        self.load_matrices(self.gl_program_icosahedron)
+        self.load_lights(self.gl_program_cylinders)
+        GL.glBindVertexArray(self.icosahedron_vao)
+        GL.glDrawElements(GL.GL_POINTS, self.icosahedron_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -815,7 +839,7 @@ class MyGLProgram(Gtk.GLArea):
     def _released_Control_L(self):
         self.ctrl = False
     
-    def _pressed_i(self):
+    def _pressed_q(self):
         print("------------------------------------")
         print(self.edit_points,"<- points")
     
@@ -882,6 +906,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_g(self):
         self.dots_surface = not self.dots_surface
+        self.queue_draw()
+    
+    def _pressed_i(self):
+        self.icosahedron = not self.icosahedron
         self.queue_draw()
     
     
