@@ -177,6 +177,11 @@ class MyGLProgram(Gtk.GLArea):
         self.cylinders_vbos = None
         self.cylinders_elemns = None
         self.cylinders = False
+        self.gl_program_dots_surface = None
+        self.dots_surface_vao = None
+        self.dots_surface_vbos = None
+        self.dots_surface_elemns = None
+        self.dots_surface = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -208,6 +213,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_edit_mode = self.load_shaders(sh.v_shader_edit_mode, sh.f_shader_edit_mode)
         self.gl_program_texture = self.load_shaders(sh.v_shader_texture, sh.f_shader_texture)
         self.gl_program_cylinders = self.load_shaders(sh.v_shader_cylinders, sh.f_shader_cylinders, sh.g_shader_cylinders)
+        self.gl_program_dots_surface = self.load_shaders(sh.v_shader_dots_surface, sh.f_shader_dots_surface, sh.g_shader_dots_surface)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -395,6 +401,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_cylinders()
+        if self.dots_surface:
+            if self.dots_surface_vao is None:
+                self.dots_surface_vao, self.dots_surface_vbos, self.dots_surface_elemns = vaos.make_dots_surface(self.gl_program_dots_surface)
+                self.queue_draw()
+            else:
+                self._draw_dots_surface()
     
     def _draw_dots(self):
         """ Function doc """
@@ -568,6 +580,19 @@ class MyGLProgram(Gtk.GLArea):
         self.load_lights(self.gl_program_cylinders)
         GL.glBindVertexArray(self.cylinders_vao)
         GL.glDrawElements(GL.GL_LINES, self.cylinders_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_dots_surface(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_dots_surface)
+        self.load_matrices(self.gl_program_dots_surface)
+        GL.glPointSize(5)
+        GL.glBindVertexArray(self.dots_surface_vao)
+        GL.glDrawElements(GL.GL_POINTS, self.dots_surface_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glPointSize(1)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -853,6 +878,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_y(self):
         self.cylinders = not self.cylinders
+        self.queue_draw()
+    
+    def _pressed_g(self):
+        self.dots_surface = not self.dots_surface
         self.queue_draw()
     
     
