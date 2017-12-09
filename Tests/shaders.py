@@ -1261,13 +1261,15 @@ in vec2 frag_text;
 out vec4 final_color;
 
 void main(){
-    final_color = texture(textu, frag_text);
+    vec4 my_color = texture(textu, frag_text);
+    if (my_color.a==0.0)
+        discard;
+    final_color = my_color;
 }
 """
 
 v_shader_non_bonded = """
 #version 330
-
 
 in vec3 vert_coord;
 in vec3 vert_color;
@@ -1284,10 +1286,10 @@ void main(){
 g_shader_non_bonded = """
 #version 330
 
-const float xyz_offset = 0.5;
-
 layout (points) in;
 layout (line_strip, max_vertices = 6) out;
+
+const float xyz_offset = 0.5;
 
 uniform mat4 model_mat;
 uniform mat4 view_mat;
@@ -1327,10 +1329,10 @@ void main(){
 g_shader_non_bonded2 = """
 #version 330
 
-const float xyz_offset = 0.5;
-
 layout (points) in;
 layout (line_strip, max_vertices = 6) out;
+
+const float xyz_offset = 0.5;
 
 in vec3 geom_color[];
 in vec4 geom_coord[];
@@ -2057,12 +2059,12 @@ void main(){
 g_shader_dots_surface = """
 #version 330
 
+layout (points) in;
+layout (points, max_vertices = 42) out;
+
 uniform mat4 model_mat;
 uniform mat4 view_mat;
 uniform mat4 proj_mat;
-
-layout (points) in;
-layout (points, max_vertices = 42) out;
 
 vec3 p_00 = vec3( 0.850650787354, 0.525731086731, 0.000000000000);
 vec3 p_01 = vec3(-0.850650787354, 0.525731086731, 0.000000000000);
@@ -2197,10 +2199,10 @@ void main(){
 g_shader_icosahedron_OLD = """
 #version 330
 
-uniform mat4 proj_mat;
-
 layout (points) in;
 layout (triangle_strip, max_vertices = 26) out;
+
+uniform mat4 proj_mat;
 
 vec3 p_00 = vec3( 0.000000, 0.000000,-1.000000);
 vec3 p_01 = vec3( 0.723600,-0.525720,-0.447215);
@@ -2256,10 +2258,10 @@ void main(){
 g_shader_icosahedron = """
 #version 330
 
-uniform mat4 proj_mat;
-
 layout (points) in;
 layout (triangle_strip, max_vertices = 100) out;
+
+uniform mat4 proj_mat;
 
 vec3 p_00 = vec3( 0.000000, 0.000000,-1.000000);
 vec3 p_01 = vec3( 0.723607,-0.525725,-0.447220);
@@ -2467,5 +2469,144 @@ void main(){
     vec3 specular = specular_coef * my_light.intensity;
     specular = specular * (vec3(1) - diffuse);
     final_color = vec4(ambient + diffuse + specular, 1.0);
+}
+"""
+
+
+v_shader_text =  """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+
+in vec3 vert_coord;
+in int vert_id;
+
+out vec4 geom_coord;
+flat out int geom_id;
+
+void main(){
+    geom_coord = view_mat * model_mat * vec4(vert_coord, 1.0);
+    geom_id = vert_id;
+}
+"""
+g_shader_text = """
+#version 330
+
+layout (points) in;
+layout (triangle_strip, max_vertices = 4) out;
+
+const float xyz_offset = 0.5;
+
+uniform mat4 proj_mat;
+
+in vec4 geom_coord[];
+flat in int geom_id[];
+
+out vec2 frag_text;
+
+void calculate_points(in vec4 coord, out vec4 pA, out vec4 pB, out vec4 pC, out vec4 pD){
+    pA = vec4(coord.x - xyz_offset, coord.y + xyz_offset, coord.z, 1.0);
+    pB = vec4(coord.x - xyz_offset, coord.y - xyz_offset, coord.z, 1.0);
+    pC = vec4(coord.x + xyz_offset, coord.y - xyz_offset, coord.z, 1.0);
+    pD = vec4(coord.x + xyz_offset, coord.y + xyz_offset, coord.z, 1.0);
+}
+
+void main(){
+    vec2 geom_color;
+    vec4 pointA, pointB, pointC, pointD;
+    calculate_points(geom_coord[0], pointA, pointB, pointC, pointD);
+    if (geom_id[0] == 3.0)
+        geom_color = vec2(0.5,0.5);
+    else
+        geom_color = vec2(0,1);
+    gl_Position = proj_mat * pointA;
+    frag_text = vec2(0,0);
+    EmitVertex();
+    gl_Position = proj_mat * pointB;
+    frag_text = geom_color;
+    EmitVertex();
+    gl_Position = proj_mat * pointD;
+    frag_text = vec2(1,0);
+    EmitVertex();
+    gl_Position = proj_mat * pointC;
+    frag_text = vec2(1,1);
+    EmitVertex();
+    EndPrimitive();
+}
+"""
+f_shader_text = """
+#version 330
+
+uniform sampler2D textu;
+
+in vec2 frag_text;
+
+out vec4 final_color;
+
+void main(){
+    vec4 my_text = texture(textu, frag_text);
+    if (my_text.a==0.0)
+        discard;
+    final_color = my_text;
+}
+"""
+v_shader_text_NEW =  """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+
+in vec3 vert_coord;
+in vec2 vert_text;
+
+out vec4 geom_coord;
+out vec2 geom_text;
+
+void main(){
+    geom_coord = view_mat * model_mat * vec4(vert_coord, 1.0);
+    geom_text = vert_text;
+}
+"""
+g_shader_text_NEW = """
+#version 330
+
+layout (triangles) in;
+layout (triangle_strip, max_vertices = 3) out;
+
+uniform mat4 proj_mat;
+
+in vec4 geom_coord[];
+in vec2 geom_text[];
+
+out vec2 frag_text;
+
+void main(){
+    gl_Position = proj_mat * geom_coord[0];
+    frag_text = geom_text[0];
+    EmitVertex();
+    gl_Position = proj_mat * geom_coord[1];
+    frag_text = geom_text[1];
+    EmitVertex();
+    gl_Position = proj_mat * geom_coord[2];
+    frag_text = geom_text[2];
+    EmitVertex();
+    EndPrimitive();
+}
+"""
+f_shader_text_NEW = """
+#version 330
+
+uniform sampler2D textu;
+
+in vec2 frag_text;
+
+out vec4 final_color;
+
+void main(){
+    vec4 my_text = texture(textu, frag_text);
+    if (my_text.a==0.0)
+        discard;
+    final_color = my_text;
 }
 """

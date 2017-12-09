@@ -28,7 +28,6 @@ import camera as cam
 import shaders as sh
 import vaos
 import time
-from PIL import Image as img
 
 import gi
 gi.require_version('Gtk', '3.0')
@@ -172,6 +171,12 @@ class MyGLProgram(Gtk.GLArea):
         self.texture_elemns = None
         self.texture = False
         self.tex = None
+        self.gl_program_text = None
+        self.text_vao = None
+        self.text_vbos = None
+        self.text_elemns = None
+        self.text = False
+        self.text_texture = None
         self.gl_program_cylinders = None
         self.cylinders_vao = None
         self.cylinders_vbos = None
@@ -217,6 +222,8 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_select_box = self.load_shaders(sh.v_shader_select_box, sh.f_shader_select_box)
         self.gl_program_edit_mode = self.load_shaders(sh.v_shader_edit_mode, sh.f_shader_edit_mode)
         self.gl_program_texture = self.load_shaders(sh.v_shader_texture, sh.f_shader_texture)
+        #self.gl_program_text = self.load_shaders(sh.v_shader_text, sh.f_shader_text, sh.g_shader_text)
+        self.gl_program_text = self.load_shaders(sh.v_shader_text, sh.f_shader_text, sh.g_shader_text)
         self.gl_program_cylinders = self.load_shaders(sh.v_shader_cylinders, sh.f_shader_cylinders, sh.g_shader_cylinders)
         self.gl_program_dots_surface = self.load_shaders(sh.v_shader_dots_surface, sh.f_shader_dots_surface, sh.g_shader_dots_surface)
         self.gl_program_icosahedron = self.load_shaders(sh.v_shader_icosahedron, sh.f_shader_icosahedron, sh.g_shader_icosahedron)
@@ -290,12 +297,19 @@ class MyGLProgram(Gtk.GLArea):
     def load_texture(self, program):
         """ Function doc """
         GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[0])
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex)
         text = GL.glGetUniformLocation(program, 'textu')
         GL.glUniform1i(text, 0)
-        GL.glActiveTexture(GL.GL_TEXTURE1)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
-        GL.glUniform1i(text, 1)
+        #GL.glActiveTexture(GL.GL_TEXTURE1)
+        #GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
+        #GL.glUniform1i(text, 1)
+    
+    def load_text(self, program):
+        """ Function doc """
+        GL.glActiveTexture(GL.GL_TEXTURE0)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.text_texture)
+        text = GL.glGetUniformLocation(program, 'textu')
+        GL.glUniform1i(text, 0)
     
     def load_antialias_params(self, program):
         """ Function doc """
@@ -394,13 +408,20 @@ class MyGLProgram(Gtk.GLArea):
                 self.edit_mode_vao, self.edit_mode_vbos, self.edit_mode_elemns = vaos.make_edit_mode(self.gl_program_edit_mode, self.edit_points)
                 self.modified_points = False
             self._draw_edit_mode()
-        if self.texture:
-            if self.texture_vao is None:
-                self.make_texture()
-                self.texture_vao, self.texture_vbos, self.texture_elemns = vaos.make_texture(self.gl_program_texture)
+        #if self.texture:
+            #if self.texture_vao is None:
+                #self.make_texture()
+                #self.texture_vao, self.texture_vbos, self.texture_elemns = vaos.make_texture(self.gl_program_texture)
+                #self.queue_draw()
+            #else:
+                #self._draw_texture()
+        if self.text:
+            if self.text_vao is None:
+                self.make_text_texture()
+                self.text_vao, self.text_vbos, self.text_elemns = vaos.make_text(self.gl_program_text)
                 self.queue_draw()
             else:
-                self._draw_texture()
+                self._draw_text()
         if self.cylinders:
             if self.cylinders_vao is None:
                 self.cylinders_vao, self.cylinders_vbos, self.cylinders_elemns = vaos.make_cylinders(self.gl_program_cylinders)
@@ -550,37 +571,80 @@ class MyGLProgram(Gtk.GLArea):
     
     def make_texture(self):
         """ Function doc """
-        image_a = img.open("lava.bmp")
+        from PIL import Image as img
+        image_a = img.open("test.tga")
+        print('opened file: size=', image_a.size, 'format=', image_a.format)
         ix = image_a.size[0]
         iy = image_a.size[1]
-        image_a = image_a.tobytes("raw", "RGBX", 0, -1)
-        self.tex = GL.glGenTextures(2)
+        #print(image_a,"<--before")
+        image_a = np.array(list(image_a.getdata()),np.uint8)
+        #print(image_a,"<--after")
+        #self.tex = GL.glGenTextures(2)
+        self.tex = GL.glGenTextures(1)
         GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[0])
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
         GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_a)
-        image_b = img.open("cry.bmp")
-        ix = image_b.size[0]
-        iy = image_b.size[1]
-        image_b = image_b.tobytes("raw", "RGBX", 0, -1)
-        GL.glActiveTexture(GL.GL_TEXTURE1)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
-        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_b)
+        #image_b = img.open("cry.bmp")
+        #ix = image_b.size[0]
+        #iy = image_b.size[1]
+        #image_b = image_b.tobytes("raw", "RGBX", 0, -1)
+        #GL.glActiveTexture(GL.GL_TEXTURE1)
+        #GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
+        #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
+        #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
+        #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+        #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+        #GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_b)
     
     def _draw_texture(self):
         """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_SRC_ALPHA)
         GL.glUseProgram(self.gl_program_texture)
         self.load_matrices(self.gl_program_texture)
         self.load_texture(self.gl_program_texture)
         GL.glBindVertexArray(self.texture_vao)
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.texture_elemns)
+        GL.glDisable(GL.GL_BLEND)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def make_text_texture(self):
+        """ Function doc """
+        from PIL import Image as img
+        image_a = img.open("yu.tga")
+        print('opened file: size=', image_a.size, 'format=', image_a.format)
+        ix = image_a.size[0]
+        iy = image_a.size[1]
+        image_a = np.array(list(image_a.getdata()),np.uint8)
+        self.text_texture = GL.glGenTextures(1)
+        GL.glActiveTexture(GL.GL_TEXTURE0)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.text_texture)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_a)
+    
+    def _draw_text(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        #GL.glEnable(GL.GL_BLEND)
+        #GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_SRC_ALPHA)
+        GL.glUseProgram(self.gl_program_text)
+        self.load_matrices(self.gl_program_text)
+        self.load_text(self.gl_program_text)
+        GL.glBindVertexArray(self.text_vao)
+        GL.glDrawElements(GL.GL_POINTS, self.text_elemns, GL.GL_UNSIGNED_INT, None)
+        #GL.glDrawArrays(GL.GL_POINTS, 0, self.text_elemns)
+        #GL.glDisable(GL.GL_BLEND)
+        GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
@@ -894,6 +958,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_t(self):
         self.texture = not self.texture
+        self.queue_draw()
+    
+    def _pressed_u(self):
+        self.text = not self.text
         self.queue_draw()
     
     def _pressed_f(self):

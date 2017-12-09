@@ -574,6 +574,76 @@ def make_edit_mode(program, points):
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vertex_array_object, (coord_vbo, centr_vbo, col_vbo), int(len(indexes))
 
+def make_text(program):
+    """ Function doc """
+    coords = np.array([-1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
+                       -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                       -1.0,-1.0, 0.0, 0.0,-1.0, 0.0, 1.0,-1.0, 0.0],dtype=np.float32)
+    #colors = np.array([ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
+                        #1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0,
+                        #0.5, 0.5, 0.5, 0.2, 0.3, 0.4, 0.9, 0.5, 0.1],dtype=np.float32)
+    text_id = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=np.int32)
+    indexes = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=np.uint32)
+    
+    vertex_array_object = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vertex_array_object)
+    
+    ind_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
+    gl_coord = GL.glGetAttribLocation(program, 'vert_coord')
+    GL.glEnableVertexAttribArray(gl_coord)
+    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    tex_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, tex_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, text_id.itemsize*len(text_id), text_id, GL.GL_STATIC_DRAW)
+    gl_texture = GL.glGetAttribLocation(program, 'vert_id')
+    GL.glEnableVertexAttribArray(gl_texture)
+    GL.glVertexAttribPointer(gl_texture, 1, GL.GL_INT, GL.GL_FALSE, 1*text_id.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coord)
+    GL.glDisableVertexAttribArray(gl_texture)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return vertex_array_object, (ind_vbo, coord_vbo, tex_vbo), int(len(coords))
+
+def make_text_NEW(program):
+    """ Function doc """
+    coords = np.array([-1.0, 1.0, 0.0,-1.0,-1.0, 0.0, 1.0,-1.0, 0.0,
+                       -1.0, 1.0, 0.0, 1.0,-1.0, 0.0, 1.0, 1.0, 0.0],dtype=np.float32)
+    textur = np.array([ 0.9375,0.375, 0.9375,0.25, 1,0.25,
+                        0.9375,0.375, 1,0.25, 1,0.375],dtype=np.float32)
+    #textur = np.array([ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+                        #0.0, 0.0, 1.0, 1.0, 1.0, 0.0],dtype=np.float32)
+    
+    vertex_array_object = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vertex_array_object)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
+    gl_coord = GL.glGetAttribLocation(program, 'vert_coord')
+    GL.glEnableVertexAttribArray(gl_coord)
+    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    tex_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, tex_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, textur.itemsize*len(textur), textur, GL.GL_STATIC_DRAW)
+    gl_texture = GL.glGetAttribLocation(program, 'vert_text')
+    GL.glEnableVertexAttribArray(gl_texture)
+    GL.glVertexAttribPointer(gl_texture, 2, GL.GL_FLOAT, GL.GL_FALSE, 2*textur.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coord)
+    GL.glDisableVertexAttribArray(gl_texture)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return vertex_array_object, (coord_vbo, tex_vbo), int(len(coords)/3)
+
 def make_texture(program):
     """ Function doc """
     coords = np.array([-1.0, 1.0, 0.0,-1.0,-1.0, 0.0, 1.0,-1.0, 0.0,
