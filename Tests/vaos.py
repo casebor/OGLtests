@@ -603,7 +603,7 @@ def make_text(program):
     coords = np.zeros(len(phrase)*3,np.float32)
     point = [-1, 1, 0]
     for i in range(0, coords.size, 3):
-        coords[i] = point[0] + i*0.1
+        coords[i] = point[0] + i*0.06
         coords[i+1] = point[1]
         coords[i+2] = point[2]
     
