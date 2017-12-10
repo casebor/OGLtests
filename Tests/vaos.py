@@ -514,7 +514,7 @@ def make_select_box(program):
     GL.glDisableVertexAttribArray(position)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(coords))
+    return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(indexes))
 
 def make_edit_mode(program, points):
     """ Function doc """
@@ -574,16 +574,44 @@ def make_edit_mode(program, points):
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vertex_array_object, (coord_vbo, centr_vbo, col_vbo), int(len(indexes))
 
+def make_text_texture():
+    """ Function doc """
+    from PIL import Image
+    image_a = Image.open("SimSun_ExtB.tga")
+    #print('opened file: size=', image_a.size, 'format=', image_a.format)
+    ix = image_a.size[0]
+    iy = image_a.size[1]
+    image_a = np.array(list(image_a.getdata()), np.uint8)
+    text_texture = GL.glGenTextures(1)
+    GL.glActiveTexture(GL.GL_TEXTURE0)
+    GL.glBindTexture(GL.GL_TEXTURE_2D, text_texture)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+    GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_a)
+    return text_texture
+
 def make_text(program):
     """ Function doc """
-    coords = np.array([-1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-                       -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-                       -1.0,-1.0, 0.0, 0.0,-1.0, 0.0, 1.0,-1.0, 0.0],dtype=np.float32)
-    #colors = np.array([ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
-                        #1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0,
-                        #0.5, 0.5, 0.5, 0.2, 0.3, 0.4, 0.9, 0.5, 0.1],dtype=np.float32)
-    text_id = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=np.int32)
-    indexes = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=np.uint32)
+    phrase = "Hello World!!! :)"
+    text_id = np.zeros(len(phrase),np.uint32)
+    indexes = np.zeros(len(phrase),np.uint32)
+    for i,letter in enumerate(phrase):
+        text_id[i] = ord(letter)
+        indexes[i] = i
+    coords = np.zeros(len(phrase)*3,np.float32)
+    point = [-1, 1, 0]
+    for i in range(0, coords.size, 3):
+        coords[i] = point[0] + i*0.1
+        coords[i+1] = point[1]
+        coords[i+2] = point[2]
+    
+    #coords = np.array([-1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
+    #                   -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+    #                   -1.0,-1.0, 0.0, 0.0,-1.0, 0.0, 1.0,-1.0, 0.0],dtype=np.float32)
+    #text_id = np.array([33, 34, 35, 56, 111, 122, 87, 90, 666], dtype=np.int32)
+    #indexes = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8], dtype=np.uint32)
     
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
@@ -604,45 +632,43 @@ def make_text(program):
     GL.glBufferData(GL.GL_ARRAY_BUFFER, text_id.itemsize*len(text_id), text_id, GL.GL_STATIC_DRAW)
     gl_texture = GL.glGetAttribLocation(program, 'vert_id')
     GL.glEnableVertexAttribArray(gl_texture)
-    GL.glVertexAttribPointer(gl_texture, 1, GL.GL_INT, GL.GL_FALSE, 1*text_id.itemsize, ctypes.c_void_p(0))
+    GL.glVertexAttribPointer(gl_texture, 1, GL.GL_FLOAT, GL.GL_FALSE, 1*text_id.itemsize, ctypes.c_void_p(0))
     
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_coord)
     GL.glDisableVertexAttribArray(gl_texture)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (ind_vbo, coord_vbo, tex_vbo), int(len(coords))
+    return vertex_array_object, (ind_vbo, coord_vbo, tex_vbo), int(len(indexes))
 
-def make_text_NEW(program):
+def make_texture_texture():
     """ Function doc """
-    coords = np.array([-1.0, 1.0, 0.0,-1.0,-1.0, 0.0, 1.0,-1.0, 0.0,
-                       -1.0, 1.0, 0.0, 1.0,-1.0, 0.0, 1.0, 1.0, 0.0],dtype=np.float32)
-    textur = np.array([ 0.9375,0.375, 0.9375,0.25, 1,0.25,
-                        0.9375,0.375, 1,0.25, 1,0.375],dtype=np.float32)
-    #textur = np.array([ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
-                        #0.0, 0.0, 1.0, 1.0, 1.0, 0.0],dtype=np.float32)
-    
-    vertex_array_object = GL.glGenVertexArrays(1)
-    GL.glBindVertexArray(vertex_array_object)
-    
-    coord_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    gl_coord = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(gl_coord)
-    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
-    
-    tex_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, tex_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, textur.itemsize*len(textur), textur, GL.GL_STATIC_DRAW)
-    gl_texture = GL.glGetAttribLocation(program, 'vert_text')
-    GL.glEnableVertexAttribArray(gl_texture)
-    GL.glVertexAttribPointer(gl_texture, 2, GL.GL_FLOAT, GL.GL_FALSE, 2*textur.itemsize, ctypes.c_void_p(0))
-    
-    GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(gl_coord)
-    GL.glDisableVertexAttribArray(gl_texture)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, tex_vbo), int(len(coords)/3)
+    from PIL import Image
+    image_a = Image.open("test.tga")
+    #print('opened file: size=', image_a.size, 'format=', image_a.format)
+    ix = image_a.size[0]
+    iy = image_a.size[1]
+    image_a = np.array(list(image_a.getdata()),np.uint8)
+    tex_texture = GL.glGenTextures(1)
+    #tex_texture = GL.glGenTextures(2)
+    GL.glActiveTexture(GL.GL_TEXTURE0)
+    GL.glBindTexture(GL.GL_TEXTURE_2D, tex_texture)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+    GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_a)
+    #image_b = img.open("cry.bmp")
+    #ix = image_b.size[0]
+    #iy = image_b.size[1]
+    #image_b = image_b.tobytes("raw", "RGBX", 0, -1)
+    #GL.glActiveTexture(GL.GL_TEXTURE1)
+    #GL.glBindTexture(GL.GL_TEXTURE_2D, tex_texture[1])
+    #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
+    #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
+    #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+    #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+    #GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_b)
+    return tex_texture
 
 def make_texture(program):
     """ Function doc """

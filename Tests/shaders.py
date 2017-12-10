@@ -2472,7 +2472,6 @@ void main(){
 }
 """
 
-
 v_shader_text =  """
 #version 330
 
@@ -2483,11 +2482,130 @@ in vec3 vert_coord;
 in int vert_id;
 
 out vec4 geom_coord;
-flat out int geom_id;
+out vec4 geom_text_uv;
+
+vec4 get_uv_coordinates(in int char_id){
+    // This coordinates works only with the SimHei.tga or SimSun_ExtB.tga files,
+    // if you want to change the font, you'll need to change the values in the
+    // uv_coords vector (probably you'll need to change only the third column).
+    // This coordinates works with a 512x256 (width x heigth) files.
+    // In order to reduce the space used, we took only two coordinates from the
+    // quad, i.e. the upper-left and lower-right points, with these two we can
+    // create a quad in the geometry shader. See the geometry shader for a
+    // graphic representation of this.
+    vec4 uv_coords;
+    float h = 0.125, w = 0.0625, u = 0.001953125;
+    switch (char_id){
+        case  32: uv_coords = vec4( 0*w, 0*h, 0*w+u*14, 1*h); break;
+        case  33: uv_coords = vec4( 1*w, 0*h, 1*w+u*14, 1*h); break;
+        case  34: uv_coords = vec4( 2*w, 0*h, 2*w+u*14, 1*h); break;
+        case  35: uv_coords = vec4( 3*w, 0*h, 3*w+u*14, 1*h); break;
+        case  36: uv_coords = vec4( 4*w, 0*h, 4*w+u*14, 1*h); break;
+        case  37: uv_coords = vec4( 5*w, 0*h, 5*w+u*14, 1*h); break;
+        case  38: uv_coords = vec4( 6*w, 0*h, 6*w+u*14, 1*h); break;
+        case  39: uv_coords = vec4( 7*w, 0*h, 7*w+u*14, 1*h); break;
+        case  40: uv_coords = vec4( 8*w, 0*h, 8*w+u*14, 1*h); break;
+        case  41: uv_coords = vec4( 9*w, 0*h, 9*w+u*14, 1*h); break;
+        case  42: uv_coords = vec4(10*w, 0*h,10*w+u*14, 1*h); break;
+        case  43: uv_coords = vec4(11*w, 0*h,11*w+u*14, 1*h); break;
+        case  44: uv_coords = vec4(12*w, 0*h,12*w+u*14, 1*h); break;
+        case  45: uv_coords = vec4(13*w, 0*h,13*w+u*14, 1*h); break;
+        case  46: uv_coords = vec4(14*w, 0*h,14*w+u*14, 1*h); break;
+        case  47: uv_coords = vec4(15*w, 0*h,15*w+u*14, 1*h); break;
+        
+        case  48: uv_coords = vec4( 0*w, 1*h, 0*w+u*14, 2*h); break;
+        case  49: uv_coords = vec4( 1*w, 1*h, 1*w+u*14, 2*h); break;
+        case  50: uv_coords = vec4( 2*w, 1*h, 2*w+u*14, 2*h); break;
+        case  51: uv_coords = vec4( 3*w, 1*h, 3*w+u*14, 2*h); break;
+        case  52: uv_coords = vec4( 4*w, 1*h, 4*w+u*14, 2*h); break;
+        case  53: uv_coords = vec4( 5*w, 1*h, 5*w+u*14, 2*h); break;
+        case  54: uv_coords = vec4( 6*w, 1*h, 6*w+u*14, 2*h); break;
+        case  55: uv_coords = vec4( 7*w, 1*h, 7*w+u*14, 2*h); break;
+        case  56: uv_coords = vec4( 8*w, 1*h, 8*w+u*14, 2*h); break;
+        case  57: uv_coords = vec4( 9*w, 1*h, 9*w+u*14, 2*h); break;
+        case  58: uv_coords = vec4(10*w, 1*h,10*w+u*14, 2*h); break;
+        case  59: uv_coords = vec4(11*w, 1*h,11*w+u*14, 2*h); break;
+        case  60: uv_coords = vec4(12*w, 1*h,12*w+u*14, 2*h); break;
+        case  61: uv_coords = vec4(13*w, 1*h,13*w+u*14, 2*h); break;
+        case  62: uv_coords = vec4(14*w, 1*h,14*w+u*14, 2*h); break;
+        case  63: uv_coords = vec4(15*w, 1*h,15*w+u*14, 2*h); break;
+        
+        case  64: uv_coords = vec4( 0*w, 2*h, 0*w+u*14, 3*h); break;
+        case  65: uv_coords = vec4( 1*w, 2*h, 1*w+u*14, 3*h); break;
+        case  66: uv_coords = vec4( 2*w, 2*h, 2*w+u*14, 3*h); break;
+        case  67: uv_coords = vec4( 3*w, 2*h, 3*w+u*14, 3*h); break;
+        case  68: uv_coords = vec4( 4*w, 2*h, 4*w+u*14, 3*h); break;
+        case  69: uv_coords = vec4( 5*w, 2*h, 5*w+u*14, 3*h); break;
+        case  70: uv_coords = vec4( 6*w, 2*h, 6*w+u*14, 3*h); break;
+        case  71: uv_coords = vec4( 7*w, 2*h, 7*w+u*14, 3*h); break;
+        case  72: uv_coords = vec4( 8*w, 2*h, 8*w+u*14, 3*h); break;
+        case  73: uv_coords = vec4( 9*w, 2*h, 9*w+u*14, 3*h); break;
+        case  74: uv_coords = vec4(10*w, 2*h,10*w+u*14, 3*h); break;
+        case  75: uv_coords = vec4(11*w, 2*h,11*w+u*14, 3*h); break;
+        case  76: uv_coords = vec4(12*w, 2*h,12*w+u*14, 3*h); break;
+        case  77: uv_coords = vec4(13*w, 2*h,13*w+u*14, 3*h); break;
+        case  78: uv_coords = vec4(14*w, 2*h,14*w+u*14, 3*h); break;
+        case  79: uv_coords = vec4(15*w, 2*h,15*w+u*14, 3*h); break;
+        
+        case  80: uv_coords = vec4( 0*w, 3*h, 0*w+u*14, 4*h); break;
+        case  81: uv_coords = vec4( 1*w, 3*h, 1*w+u*14, 4*h); break;
+        case  82: uv_coords = vec4( 2*w, 3*h, 2*w+u*14, 4*h); break;
+        case  83: uv_coords = vec4( 3*w, 3*h, 3*w+u*14, 4*h); break;
+        case  84: uv_coords = vec4( 4*w, 3*h, 4*w+u*14, 4*h); break;
+        case  85: uv_coords = vec4( 5*w, 3*h, 5*w+u*14, 4*h); break;
+        case  86: uv_coords = vec4( 6*w, 3*h, 6*w+u*14, 4*h); break;
+        case  87: uv_coords = vec4( 7*w, 3*h, 7*w+u*14, 4*h); break;
+        case  88: uv_coords = vec4( 8*w, 3*h, 8*w+u*14, 4*h); break;
+        case  89: uv_coords = vec4( 9*w, 3*h, 9*w+u*14, 4*h); break;
+        case  90: uv_coords = vec4(10*w, 3*h,10*w+u*14, 4*h); break;
+        case  91: uv_coords = vec4(11*w, 3*h,11*w+u*14, 4*h); break;
+        case  92: uv_coords = vec4(12*w, 3*h,12*w+u*14, 4*h); break;
+        case  93: uv_coords = vec4(13*w, 3*h,13*w+u*14, 4*h); break;
+        case  94: uv_coords = vec4(14*w, 3*h,14*w+u*14, 4*h); break;
+        case  95: uv_coords = vec4(15*w, 3*h,15*w+u*14, 4*h); break;
+        
+        case  96: uv_coords = vec4( 0*w, 4*h, 0*w+u*14, 5*h); break;
+        case  97: uv_coords = vec4( 1*w, 4*h, 1*w+u*14, 5*h); break;
+        case  98: uv_coords = vec4( 2*w, 4*h, 2*w+u*14, 5*h); break;
+        case  99: uv_coords = vec4( 3*w, 4*h, 3*w+u*14, 5*h); break;
+        case 100: uv_coords = vec4( 4*w, 4*h, 4*w+u*14, 5*h); break;
+        case 101: uv_coords = vec4( 5*w, 4*h, 5*w+u*14, 5*h); break;
+        case 102: uv_coords = vec4( 6*w, 4*h, 6*w+u*14, 5*h); break;
+        case 103: uv_coords = vec4( 7*w, 4*h, 7*w+u*14, 5*h); break;
+        case 104: uv_coords = vec4( 8*w, 4*h, 8*w+u*14, 5*h); break;
+        case 105: uv_coords = vec4( 9*w, 4*h, 9*w+u*14, 5*h); break;
+        case 106: uv_coords = vec4(10*w, 4*h,10*w+u*14, 5*h); break;
+        case 107: uv_coords = vec4(11*w, 4*h,11*w+u*14, 5*h); break;
+        case 108: uv_coords = vec4(12*w, 4*h,12*w+u*14, 5*h); break;
+        case 109: uv_coords = vec4(13*w, 4*h,13*w+u*14, 5*h); break;
+        case 110: uv_coords = vec4(14*w, 4*h,14*w+u*14, 5*h); break;
+        case 111: uv_coords = vec4(15*w, 4*h,15*w+u*14, 5*h); break;
+        
+        case 112: uv_coords = vec4( 0*w, 5*h, 0*w+u*14, 6*h); break;
+        case 113: uv_coords = vec4( 1*w, 5*h, 1*w+u*14, 6*h); break;
+        case 114: uv_coords = vec4( 2*w, 5*h, 2*w+u*14, 6*h); break;
+        case 115: uv_coords = vec4( 3*w, 5*h, 3*w+u*14, 6*h); break;
+        case 116: uv_coords = vec4( 4*w, 5*h, 4*w+u*14, 6*h); break;
+        case 117: uv_coords = vec4( 5*w, 5*h, 5*w+u*14, 6*h); break;
+        case 118: uv_coords = vec4( 6*w, 5*h, 6*w+u*14, 6*h); break;
+        case 119: uv_coords = vec4( 7*w, 5*h, 7*w+u*14, 6*h); break;
+        case 120: uv_coords = vec4( 8*w, 5*h, 8*w+u*14, 6*h); break;
+        case 121: uv_coords = vec4( 9*w, 5*h, 9*w+u*14, 6*h); break;
+        case 122: uv_coords = vec4(10*w, 5*h,10*w+u*14, 6*h); break;
+        case 123: uv_coords = vec4(11*w, 5*h,11*w+u*14, 6*h); break;
+        case 124: uv_coords = vec4(12*w, 5*h,12*w+u*14, 6*h); break;
+        case 125: uv_coords = vec4(13*w, 5*h,13*w+u*14, 6*h); break;
+        case 126: uv_coords = vec4(14*w, 5*h,14*w+u*14, 6*h); break;
+        case 127: uv_coords = vec4(15*w, 5*h,15*w+u*14, 6*h); break;
+        
+        default: uv_coords = vec4(15*w, 5*h,15*w+u*14, 6*h); break;
+    }
+    return uv_coords;
+}
 
 void main(){
     geom_coord = view_mat * model_mat * vec4(vert_coord, 1.0);
-    geom_id = vert_id;
+    geom_text_uv = get_uv_coordinates(vert_id);
 }
 """
 g_shader_text = """
@@ -2496,16 +2614,42 @@ g_shader_text = """
 layout (points) in;
 layout (triangle_strip, max_vertices = 4) out;
 
-const float xyz_offset = 0.5;
+const float xyz_offset = 0.1;
 
 uniform mat4 proj_mat;
 
 in vec4 geom_coord[];
-flat in int geom_id[];
+in vec4 geom_text_uv[];
 
 out vec2 frag_text;
 
+void calculate_uv(in vec4 coord, out vec2 uvA, out vec2 uvB, out vec2 uvC, out vec2 uvD){
+    // Taking the data from the upper-left and lower-right points of the quad,
+    // it generates the coordinates of two triangles to form the letter.
+    // The quad is created using the following pattern:
+    //                                
+    // uvA       uvD     uvA      uvD 
+    //  |         |       |     /  |  
+    //  |         |  -->  |   /    |  
+    //  |         |       | /      |  
+    // uvB-------uvC     uvB      uvC 
+    //                                
+    uvA = vec2(coord.xy);
+    uvB = vec2(coord.xw);
+    uvC = vec2(coord.zw);
+    uvD = vec2(coord.zy);
+}
+
 void calculate_points(in vec4 coord, out vec4 pA, out vec4 pB, out vec4 pC, out vec4 pD){
+    // Creates the coordinates for a quad using the coord vector as center and
+    // the xyz_offset as margins, defining the letter size. You can change the
+    // xyz_value to get a bigger letter, but this will reduce the resolution.
+    // Using # as a coordinate example, the quad is constructed as:
+    //                                
+    //                \|/         ┌--┐ 
+    //      #   -->   -#-   -->   |  | 
+    //                /|\         └--┘ 
+    //                                
     pA = vec4(coord.x - xyz_offset, coord.y + xyz_offset, coord.z, 1.0);
     pB = vec4(coord.x - xyz_offset, coord.y - xyz_offset, coord.z, 1.0);
     pC = vec4(coord.x + xyz_offset, coord.y - xyz_offset, coord.z, 1.0);
@@ -2513,88 +2657,18 @@ void calculate_points(in vec4 coord, out vec4 pA, out vec4 pB, out vec4 pC, out 
 }
 
 void main(){
-    vec2 geom_color;
+    vec2 textA, textB, textC, textD;
     vec4 pointA, pointB, pointC, pointD;
+    calculate_uv(geom_text_uv[0], textA, textB, textC, textD);
     calculate_points(geom_coord[0], pointA, pointB, pointC, pointD);
-    if (geom_id[0] == 3.0)
-        geom_color = vec2(0.5,0.5);
-    else
-        geom_color = vec2(0,1);
-    gl_Position = proj_mat * pointA;
-    frag_text = vec2(0,0);
-    EmitVertex();
-    gl_Position = proj_mat * pointB;
-    frag_text = geom_color;
-    EmitVertex();
-    gl_Position = proj_mat * pointD;
-    frag_text = vec2(1,0);
-    EmitVertex();
-    gl_Position = proj_mat * pointC;
-    frag_text = vec2(1,1);
-    EmitVertex();
+    gl_Position = proj_mat * pointA; frag_text = textA; EmitVertex();
+    gl_Position = proj_mat * pointB; frag_text = textB; EmitVertex();
+    gl_Position = proj_mat * pointD; frag_text = textD; EmitVertex();
+    gl_Position = proj_mat * pointC; frag_text = textC; EmitVertex();
     EndPrimitive();
 }
 """
 f_shader_text = """
-#version 330
-
-uniform sampler2D textu;
-
-in vec2 frag_text;
-
-out vec4 final_color;
-
-void main(){
-    vec4 my_text = texture(textu, frag_text);
-    if (my_text.a==0.0)
-        discard;
-    final_color = my_text;
-}
-"""
-v_shader_text_NEW =  """
-#version 330
-
-uniform mat4 model_mat;
-uniform mat4 view_mat;
-
-in vec3 vert_coord;
-in vec2 vert_text;
-
-out vec4 geom_coord;
-out vec2 geom_text;
-
-void main(){
-    geom_coord = view_mat * model_mat * vec4(vert_coord, 1.0);
-    geom_text = vert_text;
-}
-"""
-g_shader_text_NEW = """
-#version 330
-
-layout (triangles) in;
-layout (triangle_strip, max_vertices = 3) out;
-
-uniform mat4 proj_mat;
-
-in vec4 geom_coord[];
-in vec2 geom_text[];
-
-out vec2 frag_text;
-
-void main(){
-    gl_Position = proj_mat * geom_coord[0];
-    frag_text = geom_text[0];
-    EmitVertex();
-    gl_Position = proj_mat * geom_coord[1];
-    frag_text = geom_text[1];
-    EmitVertex();
-    gl_Position = proj_mat * geom_coord[2];
-    frag_text = geom_text[2];
-    EmitVertex();
-    EndPrimitive();
-}
-"""
-f_shader_text_NEW = """
 #version 330
 
 uniform sampler2D textu;

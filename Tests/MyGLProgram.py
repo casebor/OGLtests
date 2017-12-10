@@ -408,16 +408,16 @@ class MyGLProgram(Gtk.GLArea):
                 self.edit_mode_vao, self.edit_mode_vbos, self.edit_mode_elemns = vaos.make_edit_mode(self.gl_program_edit_mode, self.edit_points)
                 self.modified_points = False
             self._draw_edit_mode()
-        #if self.texture:
-            #if self.texture_vao is None:
-                #self.make_texture()
-                #self.texture_vao, self.texture_vbos, self.texture_elemns = vaos.make_texture(self.gl_program_texture)
-                #self.queue_draw()
-            #else:
-                #self._draw_texture()
+        if self.texture:
+            if self.texture_vao is None:
+                self.tex = vaos.make_texture_texture()
+                self.texture_vao, self.texture_vbos, self.texture_elemns = vaos.make_texture(self.gl_program_texture)
+                self.queue_draw()
+            else:
+                self._draw_texture()
         if self.text:
             if self.text_vao is None:
-                self.make_text_texture()
+                self.text_texture = vaos.make_text_texture()
                 self.text_vao, self.text_vbos, self.text_elemns = vaos.make_text(self.gl_program_text)
                 self.queue_draw()
             else:
@@ -569,37 +569,6 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
-    def make_texture(self):
-        """ Function doc """
-        from PIL import Image as img
-        image_a = img.open("test.tga")
-        print('opened file: size=', image_a.size, 'format=', image_a.format)
-        ix = image_a.size[0]
-        iy = image_a.size[1]
-        #print(image_a,"<--before")
-        image_a = np.array(list(image_a.getdata()),np.uint8)
-        #print(image_a,"<--after")
-        #self.tex = GL.glGenTextures(2)
-        self.tex = GL.glGenTextures(1)
-        GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
-        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_a)
-        #image_b = img.open("cry.bmp")
-        #ix = image_b.size[0]
-        #iy = image_b.size[1]
-        #image_b = image_b.tobytes("raw", "RGBX", 0, -1)
-        #GL.glActiveTexture(GL.GL_TEXTURE1)
-        #GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
-        #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
-        #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
-        #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
-        #GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
-        #GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_b)
-    
     def _draw_texture(self):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
@@ -615,35 +584,14 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
-    def make_text_texture(self):
-        """ Function doc """
-        from PIL import Image as img
-        image_a = img.open("yu.tga")
-        print('opened file: size=', image_a.size, 'format=', image_a.format)
-        ix = image_a.size[0]
-        iy = image_a.size[1]
-        image_a = np.array(list(image_a.getdata()),np.uint8)
-        self.text_texture = GL.glGenTextures(1)
-        GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.text_texture)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
-        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_a)
-    
     def _draw_text(self):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
-        #GL.glEnable(GL.GL_BLEND)
-        #GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_SRC_ALPHA)
         GL.glUseProgram(self.gl_program_text)
         self.load_matrices(self.gl_program_text)
         self.load_text(self.gl_program_text)
         GL.glBindVertexArray(self.text_vao)
         GL.glDrawElements(GL.GL_POINTS, self.text_elemns, GL.GL_UNSIGNED_INT, None)
-        #GL.glDrawArrays(GL.GL_POINTS, 0, self.text_elemns)
-        #GL.glDisable(GL.GL_BLEND)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
