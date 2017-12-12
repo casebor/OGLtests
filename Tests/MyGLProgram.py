@@ -177,6 +177,12 @@ class MyGLProgram(Gtk.GLArea):
         self.text_elemns = None
         self.text = False
         self.text_texture = None
+        self.gl_program_freetype = None
+        self.freetype_vao = None
+        self.freetype_vbos = None
+        self.freetype_elemns = None
+        self.freetype = False
+        self.freetype_texture = None
         self.gl_program_cylinders = None
         self.cylinders_vao = None
         self.cylinders_vbos = None
@@ -224,6 +230,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_texture = self.load_shaders(sh.v_shader_texture, sh.f_shader_texture)
         #self.gl_program_text = self.load_shaders(sh.v_shader_text, sh.f_shader_text, sh.g_shader_text)
         self.gl_program_text = self.load_shaders(sh.v_shader_text, sh.f_shader_text, sh.g_shader_text)
+        self.gl_program_freetype = self.load_shaders(sh.v_shader_freetype, sh.f_shader_freetype)
         self.gl_program_cylinders = self.load_shaders(sh.v_shader_cylinders, sh.f_shader_cylinders, sh.g_shader_cylinders)
         self.gl_program_dots_surface = self.load_shaders(sh.v_shader_dots_surface, sh.f_shader_dots_surface, sh.g_shader_dots_surface)
         self.gl_program_icosahedron = self.load_shaders(sh.v_shader_icosahedron, sh.f_shader_icosahedron, sh.g_shader_icosahedron)
@@ -422,6 +429,13 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_text()
+        if self.freetype:
+            if self.freetype_vao is None:
+                self.freetype_chars_dic = vaos.make_freetype("VeraMono.ttf", 64)
+                self.freetype_vao, self.freetype_vbos, self.freetype_elemns = vaos.make_freetype_texture(self.gl_program_freetype)
+                self.queue_draw()
+            else:
+                self._draw_freetype()
         if self.cylinders:
             if self.cylinders_vao is None:
                 self.cylinders_vao, self.cylinders_vbos, self.cylinders_elemns = vaos.make_cylinders(self.gl_program_cylinders)
@@ -592,6 +606,42 @@ class MyGLProgram(Gtk.GLArea):
         self.load_text(self.gl_program_text)
         GL.glBindVertexArray(self.text_vao)
         GL.glDrawElements(GL.GL_POINTS, self.text_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_freetype(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glUseProgram(self.gl_program_freetype)
+        self.load_matrices(self.gl_program_freetype)
+        GL.glBindVertexArray(self.freetype_vao)
+        texto = "Hello World!!! :)"
+        point = np.array((-2, 0, 0),np.float32)
+        x,y,z = point
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.freetype_chars_dic[0])
+        for i,c in enumerate(texto):
+            c_id = ord(c)
+            x = c_id%16
+            y = c_id//16-2
+            xyz_pos = np.array([point[0]+i*self.freetype_chars_dic[1],point[1],0,
+                                point[0]+i*self.freetype_chars_dic[1],point[1]+self.freetype_chars_dic[2],0,
+                                point[0]+i*self.freetype_chars_dic[1]+self.freetype_chars_dic[1],point[1],0,
+                                point[0]+i*self.freetype_chars_dic[1]+self.freetype_chars_dic[1],point[1]+self.freetype_chars_dic[2],0],np.float32)
+            uv_coords = np.array([x*self.freetype_chars_dic[3],(y+1)*self.freetype_chars_dic[4],
+                                  x*self.freetype_chars_dic[3],y*self.freetype_chars_dic[4],
+                                  (x+1)*self.freetype_chars_dic[3],(y+1)*self.freetype_chars_dic[4],
+                                  (x+1)*self.freetype_chars_dic[3],y*self.freetype_chars_dic[4]],np.float32)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.freetype_vbos[0])
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, xyz_pos.itemsize*len(xyz_pos), xyz_pos, GL.GL_DYNAMIC_DRAW)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.freetype_vbos[1])
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, uv_coords.itemsize*len(uv_coords), uv_coords, GL.GL_DYNAMIC_DRAW)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+            GL.glDrawArrays(GL.GL_TRIANGLE_STRIP, 0, self.freetype_elemns)
+        GL.glDisable(GL.GL_BLEND)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -910,6 +960,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_u(self):
         self.text = not self.text
+        self.queue_draw()
+    
+    def _pressed_r(self):
+        self.freetype = not self.freetype
         self.queue_draw()
     
     def _pressed_f(self):

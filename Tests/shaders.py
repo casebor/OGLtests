@@ -2684,3 +2684,36 @@ void main(){
     final_color = my_text;
 }
 """
+
+v_shader_freetype =  """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+in vec4 vert_coord;
+in vec2 vert_uv;
+
+out vec2 frag_text_uv;
+
+void main(){
+    gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord.xy, 0.0, 1.0);
+    frag_text_uv = vert_uv;
+}
+"""
+f_shader_freetype = """
+#version 330
+
+uniform sampler2D textu;
+const vec3 text_color = vec3(1, 1, 1);
+
+in vec2 frag_text_uv;
+
+out vec4 final_color;
+
+void main(){
+    vec4 sampled = vec4(1.0, 1.0, 1.0, texture(textu, frag_text_uv).r);
+    final_color = vec4(text_color, 1.0) * sampled;
+}
+"""
