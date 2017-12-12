@@ -28,10 +28,14 @@ import ctypes
 from OpenGL import GL
 
 class VisMolFont():
-    """ Class doc """
+    """ VisMolFont stores the data created using the freetype python binding
+        library, such as filename, character width, character height, character
+        resolution, font color, etc.
+    """
     
     def __init__ (self, font_file='VeraMono.ttf', char_res=64, c_w=0.25, c_h=0.3, color=[1,1,1,1]):
-        """ Class initialiser """
+        """ Class initialiser
+        """
         self.font_file = font_file
         self.char_res = char_res
         self.char_width = c_w
@@ -46,7 +50,8 @@ class VisMolFont():
         self.vbos = None
     
     def make_freetype_font(self):
-        """ Function doc """
+        """ Function doc
+        """
         face = ft.Face(self.font_file)
         face.set_char_size(self.char_res*64)
         # Determine largest glyph size
@@ -80,7 +85,8 @@ class VisMolFont():
         return True
     
     def make_freetype_texture(self, program):
-        """ Function doc """
+        """ Function doc
+        """
         coords = np.zeros(3,np.float32)
         uv_pos = np.zeros(4,np.float32)
         
@@ -110,8 +116,21 @@ class VisMolFont():
         self.vbos = (coord_vbo, tex_vbo)
         return True
     
-    def load_font_params(self, program):
+    def load_matrices(self, program, model_mat, view_mat, proj_mat):
         """ Function doc """
+        model_mat[:3,:3] = np.identity(3)
+        model = GL.glGetUniformLocation(program, 'model_mat')
+        GL.glUniformMatrix4fv(model, 1, GL.GL_FALSE, model_mat)
+        view = GL.glGetUniformLocation(program, 'view_mat')
+        GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, view_mat)
+        proj = GL.glGetUniformLocation(program, 'proj_mat')
+        GL.glUniformMatrix4fv(proj, 1, GL.GL_FALSE, proj_mat)
+    
+    def load_font_params(self, program):
+        """ Loads the uniform parameters for the OpenGL program, such as the
+            offset coordinates (X,Y) to calculate the quad and the color of
+            the font.
+        """
         offset = GL.glGetUniformLocation(program, 'offset')
         GL.glUniform2fv(offset, 1, self.offset)
         color = GL.glGetUniformLocation(program, 'text_color')
@@ -119,18 +138,19 @@ class VisMolFont():
         return True
     
     def print_all(self):
-        """ Function doc """
+        """ Function created only with debuging purposes.
+        """
         print("#############################################")
-        print(self.font_file)
-        print(self.char_res)
-        print(self.char_width)
-        print(self.char_height)
-        print(self.offset)
-        print(self.color)
-        print(self.font_buffer)
-        print(self.texture_id)
-        print(self.text_u)
-        print(self.text_v)
-        print(self.vao)
-        print(self.vbos)
+        print(self.font_file, 'font_file')
+        print(self.char_res, 'char_res')
+        print(self.char_width, 'char_width')
+        print(self.char_height, 'char_height')
+        print(self.offset, 'offset')
+        print(self.color, 'color')
+        print(self.font_buffer, 'font_buffer')
+        print(self.texture_id, 'texture_id')
+        print(self.text_u, 'text_u')
+        print(self.text_v, 'text_v')
+        print(self.vao, 'vao')
+        print(self.vbos, 'vbos')
     

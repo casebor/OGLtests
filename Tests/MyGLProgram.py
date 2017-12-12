@@ -619,11 +619,11 @@ class MyGLProgram(Gtk.GLArea):
         GL.glEnable(GL.GL_BLEND)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
         GL.glUseProgram(self.gl_program_freetype)
-        self.load_matrices(self.gl_program_freetype)
+        self.vm_font.load_matrices(self.gl_program_freetype, np.copy(self.model_mat), self.view_mat, self.proj_mat)
         self.vm_font.load_font_params(self.gl_program_freetype)
         GL.glBindVertexArray(self.vm_font.vao)
         texto = "Hello World!!! :)"
-        point = np.array((-2, 0, 0),np.float32)
+        point = np.array((-2,-1, 0),np.float32)
         x,y,z = point
         GL.glBindTexture(GL.GL_TEXTURE_2D, self.vm_font.texture_id)
         for i,c in enumerate(texto):
@@ -634,7 +634,6 @@ class MyGLProgram(Gtk.GLArea):
             uv_coords = np.array([x*self.vm_font.text_u, y*self.vm_font.text_v, (x+1)*self.vm_font.text_u, (y+1)*self.vm_font.text_v],np.float32)
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vm_font.vbos[0])
             GL.glBufferData(GL.GL_ARRAY_BUFFER, xyz_pos.itemsize*len(xyz_pos), xyz_pos, GL.GL_DYNAMIC_DRAW)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vm_font.vbos[1])
             GL.glBufferData(GL.GL_ARRAY_BUFFER, uv_coords.itemsize*len(uv_coords), uv_coords, GL.GL_DYNAMIC_DRAW)
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
