@@ -26,6 +26,7 @@ import numpy as np
 import math
 import camera as cam
 import shaders as sh
+import VisMolFont as vmf
 import vaos
 import time
 
@@ -178,11 +179,12 @@ class MyGLProgram(Gtk.GLArea):
         self.text = False
         self.text_texture = None
         self.gl_program_freetype = None
-        self.freetype_vao = None
-        self.freetype_vbos = None
-        self.freetype_elemns = None
+        #self.freetype_vao = None
+        #self.freetype_vbos = None
+        #self.freetype_elemns = None
         self.freetype = False
-        self.freetype_texture = None
+        #self.freetype_texture = None
+        self.vm_font = vmf.VisMolFont()
         self.gl_program_cylinders = None
         self.cylinders_vao = None
         self.cylinders_vbos = None
@@ -230,7 +232,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_texture = self.load_shaders(sh.v_shader_texture, sh.f_shader_texture)
         #self.gl_program_text = self.load_shaders(sh.v_shader_text, sh.f_shader_text, sh.g_shader_text)
         self.gl_program_text = self.load_shaders(sh.v_shader_text, sh.f_shader_text, sh.g_shader_text)
-        self.gl_program_freetype = self.load_shaders(sh.v_shader_freetype, sh.f_shader_freetype)
+        self.gl_program_freetype = self.load_shaders(sh.v_shader_freetype, sh.f_shader_freetype, sh.g_shader_freetype)
         self.gl_program_cylinders = self.load_shaders(sh.v_shader_cylinders, sh.f_shader_cylinders, sh.g_shader_cylinders)
         self.gl_program_dots_surface = self.load_shaders(sh.v_shader_dots_surface, sh.f_shader_dots_surface, sh.g_shader_dots_surface)
         self.gl_program_icosahedron = self.load_shaders(sh.v_shader_icosahedron, sh.f_shader_icosahedron, sh.g_shader_icosahedron)
@@ -430,9 +432,10 @@ class MyGLProgram(Gtk.GLArea):
             else:
                 self._draw_text()
         if self.freetype:
-            if self.freetype_vao is None:
-                self.freetype_chars_dic = vaos.make_freetype("VeraMono.ttf", 64)
-                self.freetype_vao, self.freetype_vbos, self.freetype_elemns = vaos.make_freetype_texture(self.gl_program_freetype)
+            if self.vm_font.vao is None:
+                self.vm_font.make_freetype_font()
+                self.vm_font.make_freetype_texture(self.gl_program_freetype)
+                #self.vm_font.print_all()
                 self.queue_draw()
             else:
                 self._draw_freetype()
@@ -617,30 +620,25 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
         GL.glUseProgram(self.gl_program_freetype)
         self.load_matrices(self.gl_program_freetype)
-        GL.glBindVertexArray(self.freetype_vao)
+        self.vm_font.load_font_params(self.gl_program_freetype)
+        GL.glBindVertexArray(self.vm_font.vao)
         texto = "Hello World!!! :)"
         point = np.array((-2, 0, 0),np.float32)
         x,y,z = point
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.freetype_chars_dic[0])
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.vm_font.texture_id)
         for i,c in enumerate(texto):
             c_id = ord(c)
             x = c_id%16
             y = c_id//16-2
-            xyz_pos = np.array([point[0]+i*self.freetype_chars_dic[1],point[1],0,
-                                point[0]+i*self.freetype_chars_dic[1],point[1]+self.freetype_chars_dic[2],0,
-                                point[0]+i*self.freetype_chars_dic[1]+self.freetype_chars_dic[1],point[1],0,
-                                point[0]+i*self.freetype_chars_dic[1]+self.freetype_chars_dic[1],point[1]+self.freetype_chars_dic[2],0],np.float32)
-            uv_coords = np.array([x*self.freetype_chars_dic[3],(y+1)*self.freetype_chars_dic[4],
-                                  x*self.freetype_chars_dic[3],y*self.freetype_chars_dic[4],
-                                  (x+1)*self.freetype_chars_dic[3],(y+1)*self.freetype_chars_dic[4],
-                                  (x+1)*self.freetype_chars_dic[3],y*self.freetype_chars_dic[4]],np.float32)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.freetype_vbos[0])
+            xyz_pos = np.array([point[0]+i*self.vm_font.char_width, point[1], point[2]],np.float32)
+            uv_coords = np.array([x*self.vm_font.text_u, y*self.vm_font.text_v, (x+1)*self.vm_font.text_u, (y+1)*self.vm_font.text_v],np.float32)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vm_font.vbos[0])
             GL.glBufferData(GL.GL_ARRAY_BUFFER, xyz_pos.itemsize*len(xyz_pos), xyz_pos, GL.GL_DYNAMIC_DRAW)
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.freetype_vbos[1])
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vm_font.vbos[1])
             GL.glBufferData(GL.GL_ARRAY_BUFFER, uv_coords.itemsize*len(uv_coords), uv_coords, GL.GL_DYNAMIC_DRAW)
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-            GL.glDrawArrays(GL.GL_TRIANGLE_STRIP, 0, self.freetype_elemns)
+            GL.glDrawArrays(GL.GL_POINTS, 0, 1)
         GL.glDisable(GL.GL_BLEND)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)

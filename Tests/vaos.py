@@ -617,17 +617,17 @@ def make_freetype(font_file, size):
     height = ascender+descender
     
     # Generate texture data
-    GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
     Z = np.zeros((height*6, width*16), dtype=np.ubyte)
     for j in range(6):
         for i in range(16):
-            face.load_char(chr(32+j*16+i), ft.FT_LOAD_RENDER | ft.FT_LOAD_FORCE_AUTOHINT )
+            face.load_char(chr(32+j*16+i), ft.FT_LOAD_RENDER | ft.FT_LOAD_FORCE_AUTOHINT)
             bitmap = face.glyph.bitmap
             x = i*width  + face.glyph.bitmap_left
             y = j*height + ascender - face.glyph.bitmap_top
             Z[y:y+bitmap.rows,x:x+bitmap.width].flat = bitmap.buffer
     #print(Z)
     # Bound texture
+    GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
     texid = GL.glGenTextures(1)
     GL.glBindTexture(GL.GL_TEXTURE_2D, texid)
     GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RED, Z.shape[1], Z.shape[0], 0, GL.GL_RED, GL.GL_UNSIGNED_BYTE, Z)
@@ -640,31 +640,31 @@ def make_freetype(font_file, size):
 
 def make_freetype_texture(program):
     """ Function doc """
-    null_c = np.zeros(12,np.float32)
-    uv_pos = np.array([0,1, 0,0, 1,1, 1,0],np.float32)
+    coords = np.zeros(3,np.float32)
+    uv_pos = np.zeros(4,np.float32)
     
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, null_c.itemsize*len(null_c), null_c, GL.GL_DYNAMIC_DRAW)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_DYNAMIC_DRAW)
     gl_coord = GL.glGetAttribLocation(program, 'vert_coord')
     GL.glEnableVertexAttribArray(gl_coord)
-    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*null_c.itemsize, ctypes.c_void_p(0))
+    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
     
     tex_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, tex_vbo)
     GL.glBufferData(GL.GL_ARRAY_BUFFER, uv_pos.itemsize*len(uv_pos), uv_pos, GL.GL_DYNAMIC_DRAW)
     gl_texture = GL.glGetAttribLocation(program, 'vert_uv')
     GL.glEnableVertexAttribArray(gl_texture)
-    GL.glVertexAttribPointer(gl_texture, 2, GL.GL_FLOAT, GL.GL_FALSE, 2*uv_pos.itemsize, ctypes.c_void_p(0))
+    GL.glVertexAttribPointer(gl_texture, 4, GL.GL_FLOAT, GL.GL_FALSE, 4*uv_pos.itemsize, ctypes.c_void_p(0))
     
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_coord)
     GL.glDisableVertexAttribArray(gl_texture)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, tex_vbo), int(len(null_c)/3)
+    return vertex_array_object, (coord_vbo, tex_vbo), int(len(coords)/3)
 
 def make_text_texture():
     """ Function doc """
