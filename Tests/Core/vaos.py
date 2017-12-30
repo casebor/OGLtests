@@ -24,7 +24,7 @@
 
 import ctypes
 import numpy as np
-import sphere_data as spd
+import sphere_data as sphd
 
 from OpenGL import GL
 
@@ -60,7 +60,7 @@ def make_dots(program):
     GL.glDisableVertexAttribArray(position)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords))
+    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
 
 def make_diamonds(program):
     """ Function doc """
@@ -90,7 +90,7 @@ def make_diamonds(program):
     GL.glDisableVertexAttribArray(position)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords))
+    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
 
 def make_circles(program):
     """ Function doc """
@@ -120,7 +120,7 @@ def make_circles(program):
     GL.glDisableVertexAttribArray(position)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords))
+    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
 
 def make_cylinders(program):
     """ Function doc """
@@ -228,7 +228,7 @@ def make_antialias(program):
     GL.glDisableVertexAttribArray(position)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(coords))
+    return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(indexes))
 
 def make_pseudospheres(program):
     """ Function doc """
@@ -478,7 +478,7 @@ def make_geom_cones(program):
     GL.glDisableVertexAttribArray(gl_color)
     GL.glDisableVertexAttribArray(gl_norm)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo, norm_vbo), int(len(coords))
+    return vertex_array_object, (coord_vbo, col_vbo, norm_vbo), int(len(coords)/3)
 
 def make_select_box(program):
     """ Function doc """
@@ -525,7 +525,7 @@ def make_edit_mode(program, points):
     indexes = np.array([], dtype=np.uint32)
     for i in range(0, amount, 3):
         center = [points[i], points[i+1], points[i+2]]
-        verts, inds, cols = spd.get_sphere(center, 1.1, [0, 1, 0], level='level_2')
+        verts, inds, cols = sphd.get_sphere(center, 1.1, [0, 1, 0], level='level_2')
         center *= int(verts.size/3)
         to_add = int(verts.size/3) * int(i/3)
         inds += to_add
@@ -769,5 +769,68 @@ def make_icosahedron(program):
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_coord)
     GL.glDisableVertexAttribArray(gl_color)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(indexes))
+
+def make_sphere(program, level='level_2'):
+    """ Function doc """
+    nucleus = [-1.0, 1.0, 0.0, 1.0, 1.0, 0.0,-1.0,-1.0, 0.0, 1.0,-1.0, 0.0]
+    colores = [ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5]
+    qtty = int(len(nucleus)/3)
+    coords = np.array([], dtype=np.float32)
+    centers = np.array([], dtype=np.float32)
+    colors = np.array([], dtype=np.float32)
+    indexes = np.array([], dtype=np.uint32)
+    for i in range(qtty):
+        crds = np.copy(sphd.sphere_vertices[level])
+        inds = np.copy(sphd.sphere_triangles[level])
+        offset = int(len(crds)/3)
+        cols = np.array(colores[i*3:(i+1)*3]*offset, dtype=np.float32)
+        cnts = np.array(nucleus[i*3:(i+1)*3]*offset, dtype=np.float32)
+        for j in range(offset):
+            crds[j*3] = crds[j*3] + nucleus[i*3]
+            crds[j*3+1] = crds[j*3+1] + nucleus[i*3+1]
+            crds[j*3+2] = crds[j*3+2] + nucleus[i*3+2]
+        inds += i*offset
+        coords = np.concatenate((coords, crds))
+        centers = np.concatenate((centers, cnts))
+        colors = np.concatenate((colors, cols))
+        indexes = np.concatenate((indexes, inds))
+    #coords = np.array(coords, dtype=np.float32)
+    #indexes = np.array(indexes, dtype=np.uint32)
+    #colors = np.array(colors, dtype=np.float32)
+    
+    vertex_array_object = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vertex_array_object)
+    
+    ind_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
+    gl_coord = GL.glGetAttribLocation(program, 'vert_coord')
+    GL.glEnableVertexAttribArray(gl_coord)
+    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    centr_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, centr_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, centers.itemsize*len(centers), centers, GL.GL_STATIC_DRAW)
+    gl_center = GL.glGetAttribLocation(program, 'vert_centr')
+    GL.glEnableVertexAttribArray(gl_center)
+    GL.glVertexAttribPointer(gl_center, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*centers.itemsize, ctypes.c_void_p(0))
+    
+    col_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
+    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
+    GL.glEnableVertexAttribArray(gl_colors)
+    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coord)
+    GL.glDisableVertexAttribArray(gl_center)
+    GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(indexes))

@@ -200,6 +200,11 @@ class MyGLProgram(Gtk.GLArea):
         self.icosahedron_vbos = None
         self.icosahedron_elemns = None
         self.icosahedron = False
+        self.gl_program_sphere = None
+        self.sphere_vao = None
+        self.sphere_vbos = None
+        self.sphere_elemns = None
+        self.sphere = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -236,6 +241,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_cylinders = self.load_shaders(sh.v_shader_cylinders, sh.f_shader_cylinders, sh.g_shader_cylinders)
         self.gl_program_dots_surface = self.load_shaders(sh.v_shader_dots_surface, sh.f_shader_dots_surface, sh.g_shader_dots_surface)
         self.gl_program_icosahedron = self.load_shaders(sh.v_shader_icosahedron, sh.f_shader_icosahedron, sh.g_shader_icosahedron)
+        self.gl_program_sphere = self.load_shaders(sh.v_shader_sphere, sh.f_shader_sphere)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -457,6 +463,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_icosahedron()
+        if self.sphere:
+            if self.sphere_vao is None:
+                self.sphere_vao, self.sphere_vbos, self.sphere_elemns = vaos.make_sphere(self.gl_program_sphere)
+                self.queue_draw()
+            else:
+                self._draw_sphere()
     
     def _draw_dots(self):
         """ Function doc """
@@ -624,7 +636,6 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(self.vm_font.vao)
         texto = "Hello World!!! :)"
         point = np.array((-2,-1, 0),np.float32)
-        x,y,z = point
         GL.glBindTexture(GL.GL_TEXTURE_2D, self.vm_font.texture_id)
         for i,c in enumerate(texto):
             c_id = ord(c)
@@ -676,6 +687,18 @@ class MyGLProgram(Gtk.GLArea):
         self.load_lights(self.gl_program_cylinders)
         GL.glBindVertexArray(self.icosahedron_vao)
         GL.glDrawElements(GL.GL_POINTS, self.icosahedron_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_sphere(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_sphere)
+        self.load_matrices(self.gl_program_sphere)
+        self.load_lights(self.gl_program_sphere)
+        GL.glBindVertexArray(self.sphere_vao)
+        GL.glDrawElements(GL.GL_TRIANGLES, self.sphere_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -898,6 +921,22 @@ class MyGLProgram(Gtk.GLArea):
     def _released_Control_L(self):
         self.ctrl = False
     
+    def _pressed_Up(self):
+        self.model_mat = cam.my_glRotateXf(self.model_mat, 5)
+        self.queue_draw()
+    
+    def _pressed_Down(self):
+        self.model_mat = cam.my_glRotateXf(self.model_mat,-5)
+        self.queue_draw()
+    
+    def _pressed_Left(self):
+        self.model_mat = cam.my_glRotateYf(self.model_mat, 5)
+        self.queue_draw()
+    
+    def _pressed_Right(self):
+        self.model_mat = cam.my_glRotateYf(self.model_mat,-5)
+        self.queue_draw()
+    
     def _pressed_q(self):
         print("------------------------------------")
         print(self.edit_points,"<- points")
@@ -977,6 +1016,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_i(self):
         self.icosahedron = not self.icosahedron
+        self.queue_draw()
+    
+    def _pressed_w(self):
+        self.sphere = not self.sphere
         self.queue_draw()
     
     
