@@ -79,7 +79,7 @@ class MyGLProgram():
         if self.coords is None:
             pass
         else:
-            GL.glDrawArrays(GL.GL_POINTS, 0, len(self.coords)/3)
+            GL.glDrawArrays(GL.GL_POINTS, 0, int(len(self.coords)/3))
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
         #degrees += 1
@@ -137,7 +137,7 @@ class MyGLProgram():
         GL.glEnableVertexAttribArray(att_asize)
         GL.glVertexAttribPointer(att_asize, 1, GL.GL_FLOAT, GL.GL_FALSE, a_size.itemsize, ctypes.c_void_p(0))
         
-        a_fg_color = [0, 0, 0, 1]*(len(self.coords)/3)
+        a_fg_color = [0, 0, 0, 1]*int(len(self.coords)/3)
         a_fg_color = np.array(a_fg_color, dtype=np.float32)
         afgcol_vbo = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, afgcol_vbo)

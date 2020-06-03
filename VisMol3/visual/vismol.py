@@ -125,6 +125,7 @@ class MyGLProgram(Gtk.GLArea):
         self.CRYSTAL = False
         self.RIBBON = False
         self.BALL_STICK = False
+        self.GLUMPY = False
         self.create_vaos()
         self.zero_pt_ref = np.array([0.0, 0.0, 0.0],dtype=np.float32)
     
@@ -143,8 +144,8 @@ class MyGLProgram(Gtk.GLArea):
         self.height = height
         self.center_x = width/2
         self.center_y = height/2
-        print(width)
-        print(height)
+        # print(width)
+        # print(height)
         self.glcamera.viewport_aspect_ratio = float(width)/height
         self.queue_draw()
         return True
@@ -160,6 +161,7 @@ class MyGLProgram(Gtk.GLArea):
         self.dot_surface_program = self.load_shaders(vm_shader.vertex_shader_dot_surface, vm_shader.fragment_shader_dot_surface)
         self.dots_program = self.load_shaders(vm_shader.vertex_shader_dots, vm_shader.fragment_shader_dots)
         self.lines_program = self.load_shaders(vm_shader.vertex_shader_lines, vm_shader.fragment_shader_lines)
+        self.glumpy_program = self.load_shaders(vm_shader.v_s_glumpy, vm_shader.f_s_glumpy)
     
     def create_vaos(self):
         """ Function doc
@@ -183,6 +185,8 @@ class MyGLProgram(Gtk.GLArea):
         self.inner_cryst_vao = []
         self.bond_cryst_vao = []
         self.outer_cryst_vao = []
+        # GLUMPY
+        self.glumpy_vao = []
     
     def load_shaders(self, vertex, fragment):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -290,6 +294,14 @@ class MyGLProgram(Gtk.GLArea):
                 self.draw_dots()
                 GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
                 GL.glUseProgram(0)
+            if self.GLUMPY:
+                GL.glUseProgram(self.glumpy_program)
+                GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+                self.load_matrices(self.glumpy_program)
+                # self.load_lights(self.glumpy_program)
+                self.draw_glumpy()
+                GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+                GL.glUseProgram(0)
             
         else:
             GL.glClearColor(self.bckgrnd_color[0],self.bckgrnd_color[1],
@@ -376,6 +388,7 @@ class MyGLProgram(Gtk.GLArea):
         self.pretty_vdw_list  = []
         self.dot_surface_list = []
         self.crystal_list = []
+        self.glumpy_list = []
         for chain in self.data[self.frame_i].chains.values():
             for residue in chain.residues.values():
                 for atom in residue.atoms.values():
@@ -391,17 +404,20 @@ class MyGLProgram(Gtk.GLArea):
                         self.dot_surface_list.append(atom)
                     if atom.crystal:
                         self.crystal_list.append(atom)
+                    if atom.glumpy:
+                        self.glumpy_list.append(atom)
         
-        #self.make_gl_sphere(self.ball_stick_program, self.ball_stick_list, self.inner_cryst_vao, False)
-        #self.make_gl_cylinder(self.ball_stick_program, self.data[0].bonds, self.bond_cryst_vao, False)
-        #self.make_gl_sphere(self.crystal_program, self.crystal_list, self.outer_cryst_vao)
-        #self.make_gl_sphere(self.sphere_program, self.sphere_list, self.spheres_vao)
-        #self.make_gl_dot_sphere(self.dots_program, self.dot_surface_list, self.dots_surf_vao)
+        self.make_gl_sphere(self.ball_stick_program, self.ball_stick_list, self.inner_cryst_vao, False)
+        self.make_gl_cylinder(self.ball_stick_program, self.data[0].bonds, self.bond_cryst_vao, False)
+        self.make_gl_sphere(self.crystal_program, self.crystal_list, self.outer_cryst_vao)
+        self.make_gl_sphere(self.sphere_program, self.sphere_list, self.spheres_vao)
+        self.make_gl_dot_sphere(self.dots_program, self.dot_surface_list, self.dots_surf_vao)
         self.make_gl_dot(self.dots_program, self.dot_surface_list, self.dots_vao)
-        #self.make_gl_sphere(self.ball_stick_program, self.ball_stick_list, self.ball_stick_vao, False)
-        #self.make_gl_cylinder(self.ball_stick_program, self.data[0].bonds, self.bond_stick_vao, False)
-        #self.make_gl_cylinder(self.ribbon_program, self.data[0].ribbons, self.ribbons_vao)
+        self.make_gl_sphere(self.ball_stick_program, self.ball_stick_list, self.ball_stick_vao, False)
+        self.make_gl_cylinder(self.ball_stick_program, self.data[0].bonds, self.bond_stick_vao, False)
+        self.make_gl_cylinder(self.ribbon_program, self.data[0].ribbons, self.ribbons_vao)
         self.make_gl_lines(self.dots_program, self.data[0].bonds, self.lines_vao)
+        self.make_gl_glumpy(self.glumpy_program, self.glumpy_list, self.glumpy_vao)
         print("ended")
         self.modified_data = False
     
@@ -688,6 +704,52 @@ class MyGLProgram(Gtk.GLArea):
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
             GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
     
+    def make_gl_glumpy(self, program, atom_list, vao_list):
+        """ Function doc
+        """
+        coords = np.array([], dtype=np.float32)
+        colors = []
+        dot_sizes = []
+        for atom in atom_list:
+            coords = np.hstack((coords, atom.pos))
+            colors = np.hstack((colors, atom.color))
+            dot_sizes.append(atom.vdw_rad)
+        colors = np.array(colors, dtype=np.float32)
+        dot_sizes = np.array(dot_sizes, dtype=np.float32)
+        self.glumpy_qtty = int(len(coords)/3)
+        
+        vao = GL.glGenVertexArrays(1)
+        GL.glBindVertexArray(vao)
+        
+        coord_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*int(len(coords)), coords, GL.GL_STATIC_DRAW)
+        att_position = GL.glGetAttribLocation(program, 'vert_coord')
+        GL.glEnableVertexAttribArray(att_position)
+        GL.glVertexAttribPointer(att_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+        
+        col_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*int(len(colors)), colors, GL.GL_STATIC_DRAW)
+        att_colors = GL.glGetAttribLocation(program, 'vert_color')
+        GL.glEnableVertexAttribArray(att_colors)
+        GL.glVertexAttribPointer(att_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+        
+        dot_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, dot_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, dot_sizes.itemsize*len(dot_sizes), dot_sizes, GL.GL_STATIC_DRAW)
+        att_size = GL.glGetAttribLocation(program, 'vert_dot_size')
+        GL.glEnableVertexAttribArray(att_size)
+        GL.glVertexAttribPointer(att_size, 1, GL.GL_FLOAT, GL.GL_FALSE, dot_sizes.itemsize, ctypes.c_void_p(0))
+        
+        vao_list.append(vao)
+        GL.glBindVertexArray(0)
+        GL.glDisableVertexAttribArray(att_position)
+        GL.glDisableVertexAttribArray(att_colors)
+        GL.glDisableVertexAttribArray(att_size)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, 0)
+    
     def draw_dots(self):
         """ Function doc
         """
@@ -769,6 +831,14 @@ class MyGLProgram(Gtk.GLArea):
             GL.glDrawElements(GL.GL_TRIANGLES, self.ribbon_indexes, GL.GL_UNSIGNED_INT, None)
             GL.glBindVertexArray(0)
     
+    def draw_glumpy(self):
+        """ Function doc
+        """
+        assert(len(self.glumpy_vao)>0)
+        GL.glBindVertexArray(self.glumpy_vao[0])
+        GL.glDrawArrays(GL.GL_POINTS, 0, self.glumpy_qtty)
+        GL.glBindVertexArray(0)
+    
     def key_press(self, widget, event):
         """ The mouse_button function serves, as the names states, to catch
             events in the keyboard, e.g. letter 'l' pressed, 'backslash'
@@ -844,6 +914,11 @@ class MyGLProgram(Gtk.GLArea):
         """ Function doc
         """
         print(self.model_mat, '<-- pos model_mat')
+    
+    def pressed_g(self):
+        self.GLUMPY = not self.GLUMPY
+        print("Glumpy", self.GLUMPY)
+        self.queue_draw()
     
     def delete_vaos(self):
         """ Function doc

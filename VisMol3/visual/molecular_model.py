@@ -109,6 +109,7 @@ class Atom:
         self.dot_surface = False
         self.surface     = False
         self.wires       = False
+        self.glumpy      = True
         
         # OpenGL atributes
         self.vertices    = None

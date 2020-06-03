@@ -61,11 +61,12 @@ class MyGLProgram():
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         #print self.program, 'rendereing'
         GL.glUseProgram(self.program)
+        GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         
         global degrees
         model = view = proj = np.identity(4, dtype=np.float32)
         model = cam.my_glRotateYf(model, degrees)
-        view = cam.my_glTranslatef(view, np.array([0,0,-3],dtype=np.float32))
+        view = cam.my_glTranslatef(view, np.array([0,0,-5],dtype=np.float32))
         aloc = self.glarea.get_allocation()
         w = np.float32(aloc.width)
         h = np.float32(aloc.height)
@@ -82,7 +83,8 @@ class MyGLProgram():
         if self.coords is None:
             pass
         else:
-            GL.glDrawArrays(GL.GL_LINES, 0, len(self.coords))
+            # GL.glDrawArrays(GL.GL_LINES, 0, len(self.coords))
+            GL.glDrawArrays(GL.GL_POINTS, 0, len(self.coords))
         
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -163,7 +165,98 @@ void main()
 }
 """
 
-test = MyGLProgram(vertex_shader, fragment_shader)
+v_s_glumpy = """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 projection_mat;
+
+in vec3 coordinate;        // attribute vec3 position;
+in vec3 my_color;        // attribute vec3 color;
+const float vert_dot_size = 0.3;    // attribute float radius;
+
+out vec3 frag_color;       // varying vec3 v_color;
+out float f_radius;        // varying float v_radius;
+out float f_size;          // varying float v_size;
+out vec4 frag_coord;       // varying vec4 v_eye_position;
+
+varying vec3 v_light_direction;
+
+void main (void)
+{
+    frag_color = my_color;
+    f_radius = vert_dot_size;
+    frag_coord = view_mat * model_mat * vec4(coordinate, 1.0);
+    v_light_direction = normalize(vec3(0,0,2));
+    gl_Position = projection_mat * frag_coord;
+    vec4 p = projection_mat * vec4(vert_dot_size, vert_dot_size, frag_coord.z, frag_coord.w);
+    f_size = 512.0 * p.x / p.w;
+    gl_PointSize = f_size + 5.0;
+}
+"""
+f_s_glumpy = """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 projection_mat;
+
+vec4 outline(float distance, float linewidth, float antialias, vec4 fg_color, vec4 bg_color){
+    vec4 frag_color;
+    float t = linewidth/2.0 - antialias;
+    float signed_distance = distance;
+    float border_distance = abs(signed_distance) - t;
+    float alpha = border_distance/antialias;
+    alpha = exp(-alpha*alpha);
+
+    if( border_distance < 0.0 )
+        frag_color = fg_color;
+    else if( signed_distance < 0.0 )
+        frag_color = mix(bg_color, fg_color, sqrt(alpha));
+    else {
+        if( abs(signed_distance) < (linewidth/2.0 + antialias) ) {
+            frag_color = vec4(fg_color.rgb, fg_color.a * alpha);
+        } else {
+            discard;
+        }
+    }
+    return frag_color;
+}
+
+in vec3 frag_color;       // varying vec3 v_color;
+in float f_radius;        // varying float v_radius;
+in float f_size;          // varying float v_size;
+in vec4 frag_coord;       // varying vec4 v_eye_position;
+
+varying vec3 v_light_direction;
+
+void main()
+{
+    vec2 P = gl_PointCoord.xy - vec2(0.5,0.5);
+    float point_size = f_size  + 5.0;
+    float distance = length(P*point_size) - f_size/2;
+    vec2 texcoord = gl_PointCoord* 2.0 - vec2(1.0);
+    float x = texcoord.x;
+    float y = texcoord.y;
+    float d = 1.0 - x*x - y*y;
+    if (d <= 0.0) discard;
+    float z = sqrt(d);
+    vec4 pos = frag_coord;
+    pos.z += f_radius*z;
+    vec3 pos2 = pos.xyz;
+    pos = projection_mat * pos;
+    gl_FragDepth = 0.5*(pos.z / pos.w)+0.5;
+    vec3 normal = vec3(x,y,z);
+    float diffuse = clamp(dot(normal, v_light_direction), 0.0, 1.0);
+    vec4 color = vec4((0.5 + 0.5*diffuse)*frag_color, 1.0);
+    gl_FragColor = outline(distance, 1.0, 1.0, vec4(0,0,0,1), color);
+    // gl_FragColor = color;
+}
+"""
+
+# test = MyGLProgram(vertex_shader, fragment_shader)
+test = MyGLProgram(v_s_glumpy, f_s_glumpy)
 wind = Gtk.Window()
 wind.add(test.glarea)
 
