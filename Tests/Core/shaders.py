@@ -33,20 +33,62 @@ in vec3 vert_coord;
 in vec3 vert_color;
 
 out vec3 frag_color;
+out vec4 frag_pos;
 
 void main(){
     frag_color = vert_color;
     gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
+    gl_PointSize = 100;
+    frag_pos = view_mat * model_mat * vec4(vert_coord, 1.0);
 }
 """
 f_shader_dots = """
 #version 330
+uniform mat4 proj_mat;
 
 in vec3 frag_color;
+in vec4 frag_pos;
 
 out vec4 final_color;
 
 void main(){
+    //vec2 P = gl_PointCoord.xy - vec2(0.5,0.5);
+    //float point_size = 5.0;
+    //float distance = length(P);
+    //vec2 texcoord = gl_PointCoord* 2.0 - vec2(1.0);
+    //float x = texcoord.x;
+    //float y = texcoord.y;
+    //float d = 1.0 - x*x - y*y;
+    //if (d <= 0.0)
+    //    discard;
+    //float z = sqrt(d);
+    //vec4 pos = frag_pos;
+    //pos.z += z;
+    //pos = proj_mat * pos;
+    //gl_FragDepth = 0.5*(pos.z / pos.w)+0.5;
+    //float ligth_dist = length(gl_PointCoord - vec2(0.3, 0.3));
+    //gl_FragColor = mix(vec4(frag_color, 1), vec4(0, 0, 0, 1), sqrt(ligth_dist)*.78);
+    
+    float dist = length(gl_PointCoord.xy - vec2(0.5,0.5));
+    if (dist > 0.5)
+        discard;
+    // if (dist < 0.1){
+    //     final_color = vec4(1-frag_color, 1);
+    // }
+    // else{
+    //     if (dist < 0.3)
+    //         final_color = vec4(frag_color, 1);
+    //     else{
+    //         if (dist < 0.4)
+    //             final_color = vec4(1-frag_color, 1);
+    //         else
+    //             final_color = vec4(frag_color, 1);
+    //         }
+    //     }
+    //float ligth_dist = length(gl_PointCoord - vec2(0.3, 0.3));
+    //final_color = mix(final_color, vec4(0, 0, 0, 1), sqrt(ligth_dist)*.78);
+    // gl_FragColor = mix(vec4(index_color, 1), vec4(0, 0, 0, 1), sqrt(ligth_dist)*.78);
+    // gl_FragColor = vec4(index_color,0.5);
     final_color = vec4(frag_color, 1.0);
 }
 """
@@ -2845,5 +2887,143 @@ void main(){
     specular = specular * (vec3(1) - diffuse);
     
     final_color = vec4(ambient + diffuse + specular, 1.0);
+}
+"""
+
+v_shader_lines_1 = """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+in vec3 vert_coord;
+in vec3 vert_color;
+
+out vec4 geom_coord;
+out vec3 geom_color;
+
+void main(){
+    geom_color = vert_color;
+    geom_coord = view_mat * model_mat * vec4(vert_coord, 1);
+}
+"""
+g_shader_lines_1 = """
+#version 330
+
+layout (lines) in;
+layout (line_strip, max_vertices = 4) out;
+
+uniform mat4 proj_mat;
+
+in vec4 geom_coord[];
+in vec3 geom_color[];
+
+out vec3 frag_color;
+
+void main(){
+    vec4 dir_vec, point_a, point_b, point_c;
+    dir_vec  = normalize(geom_coord[1] - geom_coord[0]);
+    point_a = geom_coord[0] + dir_vec * 0.1;
+    point_b = geom_coord[0] + dir_vec * 0.5;
+    point_c = geom_coord[0] + dir_vec * 0.6;
+    
+    gl_Position = proj_mat * point_a;
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * point_b;
+    frag_color = geom_color[0];
+    EmitVertex();
+    EndPrimitive();
+    
+    gl_Position = proj_mat * point_c;
+    frag_color = geom_color[1];
+    EmitVertex();
+    gl_Position = proj_mat * geom_coord[1];
+    frag_color = geom_color[1];
+    EmitVertex();
+    EndPrimitive();
+}
+"""
+f_shader_lines_1 = """
+#version 330
+
+in vec3 frag_color;
+
+out vec4 final_color;
+
+void main(){
+    float dist = gl_FragCoord.y - 0.5;
+    if (dist<0)
+        discard;
+    final_color = vec4(frag_color, 1);
+}
+"""
+g_shader_lines_2 = """
+#version 330
+
+layout (lines) in;
+layout (line_strip, max_vertices = 10) out;
+
+uniform mat4 proj_mat;
+
+in vec4 geom_coord[];
+in vec3 geom_color[];
+
+out vec3 frag_color;
+
+void main(){
+    vec4 dir_vec, point_a, point_b, point_c, point_d, point_e;
+    vec4 point_f, point_g, point_h, point_i;
+    dir_vec  = normalize(geom_coord[1] - geom_coord[0]);
+    point_a = geom_coord[0] + dir_vec * 0.1;
+    point_b = geom_coord[0] + dir_vec * 0.2;
+    point_c = geom_coord[0] + dir_vec * 0.3;
+    point_d = geom_coord[0] + dir_vec * 0.4;
+    point_e = geom_coord[0] + dir_vec * 0.5;
+    point_f = geom_coord[0] + dir_vec * 0.6;
+    point_g = geom_coord[0] + dir_vec * 0.7;
+    point_h = geom_coord[0] + dir_vec * 0.8;
+    point_i = geom_coord[0] + dir_vec * 0.9;
+    
+    gl_Position = proj_mat * point_a;
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * point_b;
+    frag_color = geom_color[0];
+    EmitVertex();
+    EndPrimitive();
+    
+    gl_Position = proj_mat * point_c;
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * point_d;
+    frag_color = geom_color[0];
+    EmitVertex();
+    EndPrimitive();
+
+    gl_Position = proj_mat * point_e;
+    frag_color = geom_color[0];
+    EmitVertex();
+    gl_Position = proj_mat * point_f;
+    frag_color = geom_color[1];
+    EmitVertex();
+    EndPrimitive();
+
+    gl_Position = proj_mat * point_g;
+    frag_color = geom_color[1];
+    EmitVertex();
+    gl_Position = proj_mat * point_h;
+    frag_color = geom_color[1];
+    EmitVertex();
+    EndPrimitive();
+
+    gl_Position = proj_mat * point_i;
+    frag_color = geom_color[1];
+    EmitVertex();
+    gl_Position = proj_mat * geom_coord[1];
+    frag_color = geom_color[1];
+    EmitVertex();
+    EndPrimitive();
 }
 """

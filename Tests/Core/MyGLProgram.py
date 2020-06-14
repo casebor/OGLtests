@@ -205,6 +205,11 @@ class MyGLProgram(Gtk.GLArea):
         self.sphere_vbos = None
         self.sphere_elemns = None
         self.sphere = False
+        self.gl_program_lines_1 = None
+        self.lines_1_vao = None
+        self.lines_1_vbos = None
+        self.lines_1_elemns = None
+        self.lines_1 = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -219,8 +224,8 @@ class MyGLProgram(Gtk.GLArea):
         """ Function doc """
         print('OpenGL version: ',GL.glGetString(GL.GL_VERSION))
         try:
-            print('OpenGL major version: ',GL.glGetDoublev(GL.GL_MAJOR_VERSION))
-            print('OpenGL minor version: ',GL.glGetDoublev(GL.GL_MINOR_VERSION))
+            print('OpenGL major version: ',GL.glGetDoublev(GL.GL_MINOR_VERSION))
+            print('OpenGL minor version: ',GL.glGetDoublev(GL.GL_MAJOR_VERSION))
         except:
             print('OpenGL major version not found')
         self.gl_program_diamonds = self.load_shaders(sh.v_shader_diamonds, sh.f_shader_diamonds, sh.g_shader_diamonds)
@@ -242,6 +247,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_dots_surface = self.load_shaders(sh.v_shader_dots_surface, sh.f_shader_dots_surface, sh.g_shader_dots_surface)
         self.gl_program_icosahedron = self.load_shaders(sh.v_shader_icosahedron, sh.f_shader_icosahedron, sh.g_shader_icosahedron)
         self.gl_program_sphere = self.load_shaders(sh.v_shader_sphere, sh.f_shader_sphere)
+        self.gl_program_lines_1 = self.load_shaders(sh.v_shader_lines_1, sh.f_shader_lines_1, sh.g_shader_lines_2)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -469,14 +475,22 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_sphere()
+        if self.lines_1:
+            if self.lines_1_vao is None:
+                self.lines_1_vao, self.lines_1_vbos, self.lines_1_elemns = vaos.make_lines(self.gl_program_lines_1)
+                self.queue_draw()
+            else:
+                self._draw_lines_1()
     
     def _draw_dots(self):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glUseProgram(self.gl_program_dots)
+        GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         self.load_matrices(self.gl_program_dots)
         GL.glBindVertexArray(self.dots_vao)
         GL.glDrawArrays(GL.GL_POINTS, 0, self.dots_elemns)
+        GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -703,6 +717,19 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
+    def _draw_lines_1(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glLineWidth(10)
+        GL.glUseProgram(self.gl_program_lines_1)
+        self.load_matrices(self.gl_program_lines_1)
+        GL.glBindVertexArray(self.lines_1_vao)
+        GL.glDrawElements(GL.GL_LINES, self.lines_1_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glLineWidth(1)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
     def mouse_pressed(self, widget, event):
         """ Function doc """
         left = event.button == 1
@@ -891,6 +918,15 @@ class MyGLProgram(Gtk.GLArea):
         self.modified_points = True
         print("Point added")
     
+    def save_image(self, filename):
+        from PIL import Image
+        pixels = GL.glReadPixels(0, 0, self.width, self.height, GL.GL_RGB, GL.GL_UNSIGNED_BYTE)
+        image = Image.frombytes("RGB", (self.width, self.height), pixels)
+        image = image.transpose(Image.FLIP_TOP_BOTTOM)
+        image.save(filename, "png")
+        print('Saved image to %s'% (filename))
+        # return image
+
     def key_pressed(self, widget, event):
         """ Function doc """
         k_name = Gdk.keyval_name(event.keyval)
@@ -910,10 +946,6 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_Escape(self):
         Gtk.main_quit()
-    
-    def _pressed_e(self):
-        self.editing = not self.editing
-        print("Editing mode:", self.editing)
     
     def _pressed_Control_L(self):
         self.ctrl = True
@@ -937,14 +969,52 @@ class MyGLProgram(Gtk.GLArea):
         self.model_mat = cam.my_glRotateYf(self.model_mat,-5)
         self.queue_draw()
     
-    def _pressed_q(self):
-        print("------------------------------------")
-        print(self.edit_points,"<- points")
+    def _pressed_a(self):
+        self.arrow = not self.arrow
+        self.queue_draw()
     
-    def _pressed_o(self):
-        print("------------------------------------")
-        print(self.cam_pos,"<- camera position")
-        print(np.linalg.norm(self.cam_pos),"<- camera dist to 0")
+    def _pressed_b(self):
+        self.select_box = not self.select_box
+        self.queue_draw()
+    
+    def _pressed_c(self):
+        self.circles = not self.circles
+        self.queue_draw()
+    
+    def _pressed_d(self):
+        self.diamonds = not self.diamonds
+        self.queue_draw()
+    
+    def _pressed_e(self):
+        self.editing = not self.editing
+        print("Editing mode:", self.editing)
+    
+    def _pressed_f(self):
+        self.non_bonded = not self.non_bonded
+        self.queue_draw()
+    
+    def _pressed_g(self):
+        self.dots_surface = not self.dots_surface
+        self.queue_draw()
+    
+    def _pressed_h(self):
+        self.lines_1 = not self.lines_1
+        self.queue_draw()
+    
+    def _pressed_i(self):
+        self.icosahedron = not self.icosahedron
+        self.queue_draw()
+    
+    def _pressed_j(self):
+        pass
+
+    def _pressed_k(self):
+        self.antialias = not self.antialias
+        self.queue_draw()
+    
+    def _pressed_l(self):
+        self.lines = not self.lines
+        self.queue_draw()
     
     def _pressed_m(self):
         print("------------------------------------")
@@ -954,40 +1024,29 @@ class MyGLProgram(Gtk.GLArea):
         print("------------------------------------")
         print(self.proj_mat,"<- projection matrix")
     
-    def _pressed_p(self):
-        self.dots = not self.dots
-        self.queue_draw()
-    
-    def _pressed_d(self):
-        self.diamonds = not self.diamonds
-        self.queue_draw()
-    
-    def _pressed_c(self):
-        self.circles = not self.circles
-        self.queue_draw()
-    
-    def _pressed_l(self):
-        self.lines = not self.lines
-        self.queue_draw()
-    
-    def _pressed_k(self):
-        self.antialias = not self.antialias
-        self.queue_draw()
-    
-    def _pressed_s(self):
-        self.pseudospheres = not self.pseudospheres
-        self.queue_draw()
-    
     def _pressed_n(self):
         self.geom_cones = not self.geom_cones
         self.queue_draw()
     
-    def _pressed_a(self):
-        self.arrow = not self.arrow
+    def _pressed_o(self):
+        print("------------------------------------")
+        print(self.cam_pos,"<- camera position")
+        print(np.linalg.norm(self.cam_pos),"<- camera dist to 0")
+    
+    def _pressed_p(self):
+        self.dots = not self.dots
         self.queue_draw()
     
-    def _pressed_b(self):
-        self.select_box = not self.select_box
+    def _pressed_q(self):
+        print("------------------------------------")
+        print(self.edit_points,"<- points")
+    
+    def _pressed_r(self):
+        self.freetype = not self.freetype
+        self.queue_draw()
+    
+    def _pressed_s(self):
+        self.pseudospheres = not self.pseudospheres
         self.queue_draw()
     
     def _pressed_t(self):
@@ -998,30 +1057,23 @@ class MyGLProgram(Gtk.GLArea):
         self.text = not self.text
         self.queue_draw()
     
-    def _pressed_r(self):
-        self.freetype = not self.freetype
-        self.queue_draw()
-    
-    def _pressed_f(self):
-        self.non_bonded = not self.non_bonded
-        self.queue_draw()
-    
-    def _pressed_y(self):
-        self.cylinders = not self.cylinders
-        self.queue_draw()
-    
-    def _pressed_g(self):
-        self.dots_surface = not self.dots_surface
-        self.queue_draw()
-    
-    def _pressed_i(self):
-        self.icosahedron = not self.icosahedron
-        self.queue_draw()
+    def _pressed_v(self):
+        pass
     
     def _pressed_w(self):
         self.sphere = not self.sphere
         self.queue_draw()
     
+    def _pressed_x(self):
+        import time
+        self.save_image("screenshot_{}.bmp".format(time.time()))
+    
+    def _pressed_y(self):
+        self.cylinders = not self.cylinders
+        self.queue_draw()
+    
+    def _pressed_z(self):
+        pass
     
 
 test = MyGLProgram()
