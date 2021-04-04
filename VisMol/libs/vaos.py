@@ -9,12 +9,13 @@ import numpy as np
 
 from OpenGL import GL
 
-def points(program, data):
+def _make_vbos(program, coords, colors, indexes=None):
     """ Function doc """
-    vertex_array_object = GL.glGenVertexArrays(1)
-    GL.glBindVertexArray(vertex_array_object)
-    coords = data.xyz.flatten()
-    colors = data.colors.flatten()
+    if indexes:
+        ind_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+        GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*indexes.shape[0], indexes, GL.GL_DYNAMIC_DRAW)
+    
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
     GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*coords.shape[0], coords, GL.GL_STATIC_DRAW)
@@ -29,143 +30,38 @@ def points(program, data):
     GL.glEnableVertexAttribArray(gl_colors)
     GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
     
-    GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(position)
-    GL.glDisableVertexAttribArray(gl_colors)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, coords.shape[0]
+    return position, gl_colors
 
-def make_diamonds(program):
+def points(program, data):
     """ Function doc """
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
-    coords = np.array([-1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-                       -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-                       -1.0,-1.0, 0.0, 0.0,-1.0, 0.0, 1.0,-1.0, 0.0],dtype=np.float32)
-    colors = np.array([ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0,
-                        1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0,
-                        0.5, 0.5, 0.5, 0.2, 0.3, 0.4, 0.9, 0.5, 0.1],dtype=np.float32)
+    coords = data.xyz.flatten()
+    colors = data.colors.flatten()
     coord_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    position = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(position)
-    GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
-    
-    col_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
-    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
-    GL.glEnableVertexAttribArray(gl_colors)
-    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    pos, cols = _make_vbos(program, coords, colors)
     
     GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(position)
-    GL.glDisableVertexAttribArray(gl_colors)
+    GL.glDisableVertexAttribArray(pos)
+    GL.glDisableVertexAttribArray(cols)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
+    return vertex_array_object, data.xyz.shape[0]
 
-def make_circles(program):
+def lines(program, data):
     """ Function doc """
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
-    coords = np.array([ 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
-                       -1.0, 0.0, 0.0,-1.0, 1.0, 0.0,-1.0,-1.0, 0.0,
-                        0.0,-1.0, 0.0, 1.0,-1.0, 0.0, 0.0, 0.0, 0.0],dtype=np.float32)
-    colors = np.array([ 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0,
-                        0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-                        0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0],dtype=np.float32)
+    coords = data.xyz.flatten()
+    colors = data.colors.flatten()
     coord_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    position = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(position)
-    GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
-    
-    col_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
-    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
-    GL.glEnableVertexAttribArray(gl_colors)
-    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    indexes = data.indexes
+    pos, cols = _make_vbos(program, coords, colors, indexes)
     
     GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(position)
-    GL.glDisableVertexAttribArray(gl_colors)
+    GL.glDisableVertexAttribArray(pos)
+    GL.glDisableVertexAttribArray(cols)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
-
-def make_cylinders(program):
-    """ Function doc """
-    vertex_array_object = GL.glGenVertexArrays(1)
-    GL.glBindVertexArray(vertex_array_object)
-    coords = np.array([-1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-                       -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-                       -1.0,-1.0, 0.0, 0.0,-1.0, 0.0, 1.0,-1.0, 0.0],dtype=np.float32)
-    colors = np.array([ 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0,
-                        0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-                        0.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.0, 1.0, 0.0],dtype=np.float32)
-    indexes = np.array([0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 7, 8], dtype=np.uint32)
-    
-    ind_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
-    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
-    
-    coord_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    position = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(position)
-    GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
-    
-    col_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
-    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
-    GL.glEnableVertexAttribArray(gl_colors)
-    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
-    
-    GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(position)
-    GL.glDisableVertexAttribArray(gl_colors)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(indexes))
-
-def make_lines(program):
-    """ Function doc """
-    vertex_array_object = GL.glGenVertexArrays(1)
-    GL.glBindVertexArray(vertex_array_object)
-    coords = np.array([-1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-                       -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-                       -1.0,-1.0, 0.0, 0.0,-1.0, 0.0, 1.0,-1.0, 0.0],dtype=np.float32)
-    colors = np.array([ 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0,
-                        0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-                        0.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.0, 1.0, 0.0],dtype=np.float32)
-    indexes = np.array([0, 1, 1, 2, 3, 4, 4, 5, 6, 7, 7, 8], dtype=np.uint32)
-    
-    ind_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
-    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
-    
-    coord_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    position = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(position)
-    GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
-    
-    col_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
-    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
-    GL.glEnableVertexAttribArray(gl_colors)
-    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
-    
-    GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(position)
-    GL.glDisableVertexAttribArray(gl_colors)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(indexes))
+    return vertex_array_object, indexes.shape[0]
 
 def make_antialias(program):
     """ Function doc """
