@@ -36,14 +36,18 @@ def make_dots(program):
     """ Function doc """
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
-    cas = np.loadtxt("cas.txt", dtype=np.float32)
-    ss = [0, 7, 18, 24, 38]
-    points = build_new_spline(cas[7:18], s=.75, pieces=8)
+    cas = np.loadtxt("cas.txt", dtype=np.float32)*10
+    # ss = [0, 7, 18, 24, 38]
+    points = build_new_spline(cas, s=.75, pieces=15)
     # points = build_spline(cas, s=.75, pieces=8)
     # print(points.shape)
     coords = [p for p in points]
-    for i in range(1, len(points)-2):
-        [coords.append(c) for c in cartoon(points[i], points[i+1])[0]]
+    [coords.append(c) for c in cartoon(points[2], points[1], False)]
+    [coords.append(c) for c in cartoon(points[1], points[2], True)]
+    flag = False
+    for i in range(2, len(points)-2):
+        [coords.append(c) for c in cartoon(points[i], points[i+1], flag)]
+        flag = not flag
     # coords.append(points[-1])
     coords = np.array(coords, dtype=np.float32)
     colors = [1.0,0.0,0.0] * points.shape[0]
@@ -57,7 +61,7 @@ def make_dots(program):
     # colors.extend([0.0,1.0,1.0] * 40)
     colors = np.array(colors, dtype=np.float32)
     colors = colors.flatten()
-    print(coords.shape, colors.shape)
+    # print(coords.shape, colors.shape)
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
@@ -944,7 +948,7 @@ def get_rotmat(angle, dir_vec):
     rot_matrix[2,2] = z*z*(1-c)+c
     return rot_matrix
 
-def cartoon(p1, p2):
+def cartoon(p1, p2, flag=False):
     ellipse = np.array([[[-2.0, 0.00, 0], [-1.6, 0.60, 0], [-1.2, 0.800, 0], [-0.8, 0.917, 0],
                          [-0.4, 0.98, 0], [ 0.0, 1.00, 0], [ 0.4, 0.980, 0], [ 0.8, 0.917, 0],
                          [ 1.2, 0.80, 0], [ 1.6, 0.60, 0], [ 2.0, 0.000, 0],
@@ -957,38 +961,65 @@ def cartoon(p1, p2):
                          [ 1.8,-0.436, 0], [ 1.4,-0.714, 0], [ 1.0,-0.866, 0], [ 0.6,-0.954, 0],
                          [ 0.2,-0.995, 0], [-0.2,-0.995, 0], [-0.6,-0.954, 0], [-1.0,-0.866, 0],
                          [-1.4,-0.714, 0], [-1.8,-0.436, 0]]
-        ])/15
-    indexes = np.arange(40, dtype=np.uint32)
+        ])
+    circle = np.array([[[ 1.000000000000, 0.000000000000, 0.0],
+                        [ 0.866025403784, 0.500000000000, 0.0],
+                        [ 0.500000000000, 0.866025403784, 0.0],
+                        [ 0.000000000000, 1.000000000000, 0.0],
+                        [-0.500000000000, 0.866025403784, 0.0],
+                        [-0.866025403784, 0.500000000000, 0.0],
+                        [-1.000000000000, 0.000000000000, 0.0],
+                        [-0.866025403784,-0.500000000000, 0.0],
+                        [-0.500000000000,-0.866025403784, 0.0],
+                        [-0.000000000000,-1.000000000000, 0.0],
+                        [ 0.500000000000,-0.866025403784, 0.0],
+                        [ 0.866025403784,-0.500000000000, 0.0]],
+                       [[ 0.965925826289, 0.258819045103, 0.0],
+                        [ 0.707106781187, 0.707106781187, 0.0],
+                        [ 0.258819045103, 0.965925826289, 0.0],
+                        [-0.258819045103, 0.965925826289, 0.0],
+                        [-0.707106781187, 0.707106781187, 0.0],
+                        [-0.965925826289, 0.258819045103, 0.0],
+                        [-0.965925826289,-0.258819045103, 0.0],
+                        [-0.707106781187,-0.707106781187, 0.0],
+                        [-0.258819045103,-0.965925826289, 0.0],
+                        [ 0.258819045103,-0.965925826289, 0.0],
+                        [ 0.707106781187,-0.707106781187, 0.0],
+                        [ 0.965925826289,-0.258819045103, 0.0]]],dtype=np.float32)/2
+    # indexes = np.arange(40, dtype=np.uint32)
     vec = p2 - p1
     vec /= np.linalg.norm(vec)
-    # Build the base
-    # vec = p1/np.linalg.norm(p1)
     normal = np.cross([0,0,1], vec)
     normal /= np.linalg.norm(normal)
-    angle = np.arccos(np.dot(vec, normal))
+    angle = np.arccos(np.dot([0,0,1], vec))
     rotmat = get_rotmat(angle, normal)[:3,:3]
-    # print(rotmat)
-    base = np.zeros([20,3], dtype=np.float32)
-    for i, e in enumerate(ellipse[0]):
-        base[i,:] = np.matmul(e, rotmat)
-    base += p1
-    # Build the top
-    # vec = p2/np.linalg.norm(p2)
-    # normal = np.cross([0,0,1], vec)
-    # normal /= np.linalg.norm(normal)
-    # angle = np.dot(normal, vec)
-    # rotmat = get_rotmat(angle, normal)[:3,:3]
-    top = np.zeros([20,3], dtype=np.float32)
-    for i, e in enumerate(ellipse[1]):
-        top[i,:] = np.matmul(e, rotmat)
-    top += p2
-    # Join base and top
-    joined = np.zeros([40,3], dtype=np.float32)
-    for i, b, t in zip(np.arange(20), base, top):
-        joined[i*2,:] = b
-        joined[i*2+1,:] = t
-    # joined[-1,:] = base[0,:]
-    return np.copy(joined), indexes
+    
+    disc = np.zeros([circle[int(flag)].shape[0], 3], dtype=np.float32)
+    for i, e in enumerate(circle[int(flag)]):
+        disc[i,:] = np.matmul(rotmat, e)
+    disc += p2
+    
+    return disc
+    # # Build the base
+    # base = np.zeros([20,3], dtype=np.float32)
+    # # for i, e in enumerate(ellipse[0]):
+    # for i, e in enumerate(circle[0]):
+    #     base[i,:] = np.matmul(rotmat, e)
+    # base += p1
+    
+    # # Build the top
+    # top = np.zeros([20,3], dtype=np.float32)
+    # # for i, e in enumerate(ellipse[1]):
+    # for i, e in enumerate(circle[1]):
+    #     top[i,:] = np.matmul(rotmat, e)
+    # top += p2
+    
+    # # Join base and top
+    # joined = np.zeros([40,3], dtype=np.float32)
+    # for i, b, t in zip(np.arange(20), base, top):
+    #     joined[i*2,:] = b
+    #     joined[i*2+1,:] = t
+    # return joined, indexes
 
 def make_cartoon(program):
     """ Function doc """
