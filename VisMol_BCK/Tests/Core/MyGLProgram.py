@@ -210,6 +210,11 @@ class MyGLProgram(Gtk.GLArea):
         self.lines_1_vbos = None
         self.lines_1_elemns = None
         self.lines_1 = False
+        self.gl_program_triangles = None
+        self.triangles_vao = None
+        self.triangles_vbos = None
+        self.triangles_elemns = None
+        self.triangles = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -248,6 +253,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_icosahedron = self.load_shaders(sh.v_shader_icosahedron, sh.f_shader_icosahedron, sh.g_shader_icosahedron)
         self.gl_program_sphere = self.load_shaders(sh.v_shader_sphere, sh.f_shader_sphere)
         self.gl_program_lines_1 = self.load_shaders(sh.v_shader_lines_1, sh.f_shader_lines_1, sh.g_shader_lines_2)
+        self.gl_program_triangles = self.load_shaders(sh.v_shader_triangles, sh.f_shader_triangles)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -481,6 +487,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_lines_1()
+        if self.triangles:
+            if self.triangles_vao is None:
+                self.triangles_vao, self.triangles_vbos, self.triangles_elemns = vaos.make_cartoon(self.gl_program_triangles)
+                self.queue_draw()
+            else:
+                self._draw_triangles()
     
     def _draw_dots(self):
         """ Function doc """
@@ -726,6 +738,18 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(self.lines_1_vao)
         GL.glDrawElements(GL.GL_LINES, self.lines_1_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glLineWidth(1)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_triangles(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_triangles)
+        self.load_matrices(self.gl_program_triangles)
+        self.load_lights(self.gl_program_triangles)
+        GL.glBindVertexArray(self.triangles_vao)
+        GL.glDrawElements(GL.GL_TRIANGLES, self.triangles_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -1073,7 +1097,8 @@ class MyGLProgram(Gtk.GLArea):
         self.queue_draw()
     
     def _pressed_z(self):
-        pass
+        self.triangles = not self.triangles
+        self.queue_draw()
     
 
 test = MyGLProgram()

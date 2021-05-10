@@ -39,6 +39,7 @@ def make_dots(program):
     cas = np.loadtxt("cas.txt", dtype=np.float32)*10
     # ss = [0, 7, 18, 24, 38]
     points = build_new_spline(cas, s=.75, pieces=15)
+    points = build_new_spline(cas, s=.75, pieces=3)
     # points = build_spline(cas, s=.75, pieces=8)
     # print(points.shape)
     coords = [p for p in points]
@@ -963,29 +964,29 @@ def cartoon(p1, p2, flag=False):
                          [-1.4,-0.714, 0], [-1.8,-0.436, 0]]
         ])
     circle = np.array([[[ 1.000000000000, 0.000000000000, 0.0],
-                        [ 0.866025403784, 0.500000000000, 0.0],
-                        [ 0.500000000000, 0.866025403784, 0.0],
-                        [ 0.000000000000, 1.000000000000, 0.0],
-                        [-0.500000000000, 0.866025403784, 0.0],
-                        [-0.866025403784, 0.500000000000, 0.0],
-                        [-1.000000000000, 0.000000000000, 0.0],
-                        [-0.866025403784,-0.500000000000, 0.0],
-                        [-0.500000000000,-0.866025403784, 0.0],
-                        [-0.000000000000,-1.000000000000, 0.0],
+                        [ 0.866025403784,-0.500000000000, 0.0],
                         [ 0.500000000000,-0.866025403784, 0.0],
-                        [ 0.866025403784,-0.500000000000, 0.0]],
-                       [[ 0.965925826289, 0.258819045103, 0.0],
-                        [ 0.707106781187, 0.707106781187, 0.0],
-                        [ 0.258819045103, 0.965925826289, 0.0],
-                        [-0.258819045103, 0.965925826289, 0.0],
-                        [-0.707106781187, 0.707106781187, 0.0],
-                        [-0.965925826289, 0.258819045103, 0.0],
-                        [-0.965925826289,-0.258819045103, 0.0],
-                        [-0.707106781187,-0.707106781187, 0.0],
-                        [-0.258819045103,-0.965925826289, 0.0],
-                        [ 0.258819045103,-0.965925826289, 0.0],
+                        [-0.000000000000,-1.000000000000, 0.0],
+                        [-0.500000000000,-0.866025403784, 0.0],
+                        [-0.866025403784,-0.500000000000, 0.0],
+                        [-1.000000000000, 0.000000000000, 0.0],
+                        [-0.866025403784, 0.500000000000, 0.0],
+                        [-0.500000000000, 0.866025403784, 0.0],
+                        [ 0.000000000000, 1.000000000000, 0.0],
+                        [ 0.500000000000, 0.866025403784, 0.0],
+                        [ 0.866025403784, 0.500000000000, 0.0]],
+                       [[ 0.965925826289,-0.258819045103, 0.0],
                         [ 0.707106781187,-0.707106781187, 0.0],
-                        [ 0.965925826289,-0.258819045103, 0.0]]],dtype=np.float32)/2
+                        [ 0.258819045103,-0.965925826289, 0.0],
+                        [-0.258819045103,-0.965925826289, 0.0],
+                        [-0.707106781187,-0.707106781187, 0.0],
+                        [-0.965925826289,-0.258819045103, 0.0],
+                        [-0.965925826289, 0.258819045103, 0.0],
+                        [-0.707106781187, 0.707106781187, 0.0],
+                        [-0.258819045103, 0.965925826289, 0.0],
+                        [ 0.258819045103, 0.965925826289, 0.0],
+                        [ 0.707106781187, 0.707106781187, 0.0],
+                        [ 0.965925826289, 0.258819045103, 0.0]]],dtype=np.float32)/2
     # indexes = np.arange(40, dtype=np.uint32)
     vec = p2 - p1
     vec /= np.linalg.norm(vec)
@@ -1021,13 +1022,45 @@ def cartoon(p1, p2, flag=False):
     #     joined[i*2+1,:] = t
     # return joined, indexes
 
+def get_indexes(num_points, pts_per_ring):
+    num_rings = num_points // pts_per_ring
+    indexes = []
+    for i in range(num_rings-1):
+        for j in range(pts_per_ring-1):
+            indexes.extend([i*pts_per_ring+j, i*pts_per_ring+j+1, (i+1)*pts_per_ring+j])
+        indexes.extend([(i+1)*pts_per_ring-j, i*pts_per_ring, (i+2)*pts_per_ring-1])
+        for j in range(pts_per_ring-1):
+            indexes.extend([(i+1)*pts_per_ring+j, i*pts_per_ring+j+1, (i+1)*pts_per_ring+j+1])
+        indexes.extend([(i+2)*pts_per_ring-1, i*pts_per_ring, (i+1)*pts_per_ring])
+    return indexes
+
 def make_cartoon(program):
     """ Function doc """
-    cas = np.loadtxt("cas.txt", dtype=np.float32)
-    points = build_spline(cas, s=.75, pieces=11)
-
+    cas = np.loadtxt("cas.txt", dtype=np.float32)*10
+    # ss = [0, 7, 18, 24, 38]
+    points = build_new_spline(cas, s=.75, pieces=3)
+    # coords = [p for p in points]
+    # coords = [points[0]]
+    coords = []
+    [coords.append(c) for c in cartoon(points[2], points[1], False)]
+    [coords.append(c) for c in cartoon(points[1], points[2], True)]
+    flag = False
+    for i in range(2, len(points)-2):
+        [coords.append(c) for c in cartoon(points[i], points[i+1], flag)]
+        flag = not flag
+    # coords.append(points[-1])
+    coords = np.array(coords, dtype=np.float32)
+    colors = [0.0,1.0,0.0]*12
+    colors.extend([1.0,0.0,0.0]*12)
+    colors.extend([1.0,1.0,0.0]*12)
+    colors = np.array(colors, dtype=np.float32)
     colors = np.array(([0.0,1.0,0.0] * coords.shape[0]), dtype=np.float32)
-    colors = colors.flatten()
+    # colors = [1.0,0.0,0.0] * points.shape[0]
+    # colors.extend([0.0,1.0,0.0] * (coords.shape[0]-points.shape[0]))
+    coords = coords.flatten()
+    norms = np.copy(coords)
+    indexes = np.array(get_indexes(coords.shape[0]//3, 12), dtype=np.uint32)
+    print(coords.shape, len(colors), indexes.shape)
     
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
@@ -1062,4 +1095,4 @@ def make_cartoon(program):
     GL.glDisableVertexAttribArray(gl_color)
     GL.glDisableVertexAttribArray(gl_norm)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo, norm_vbo), int(len(coords)/3)
+    return vertex_array_object, (coord_vbo, col_vbo, norm_vbo), indexes.shape[0]
