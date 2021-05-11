@@ -998,9 +998,13 @@ def cartoon(p1, p2, flag=False):
     disc = np.zeros([circle[int(flag)].shape[0], 3], dtype=np.float32)
     for i, e in enumerate(circle[int(flag)]):
         disc[i,:] = np.matmul(rotmat, e)
+    normals = disc - p2
+    mods = np.linalg.norm(normals, axis=1)
+    for i in range(normals.shape[0]):
+        normals[i,:] /= mods[i]
     disc += p2
-    
-    return disc
+
+    return disc, normals
     # # Build the base
     # base = np.zeros([20,3], dtype=np.float32)
     # # for i, e in enumerate(ellipse[0]):
@@ -1034,19 +1038,55 @@ def get_indexes(num_points, pts_per_ring):
         indexes.extend([(i+2)*pts_per_ring-1, i*pts_per_ring, (i+1)*pts_per_ring])
     return indexes
 
+def get_indexes2(num_points, pts_per_ring):
+    num_rings = num_points // pts_per_ring
+    a = np.array([[ 0,  1, 12,  1,  2, 13,  2,  3, 14,  3,  4, 15,
+                    4,  5, 16,  5,  6, 17,  6,  7, 18,  7,  8, 19,
+                    8,  9, 20,  9, 10, 21, 10, 11, 22, 11,  0, 23,
+                   12, 13,  1, 13, 14,  2, 14, 15,  3, 15, 16,  4,
+                   16, 17,  5, 17, 18,  6, 18, 19,  7, 19, 20,  8,
+                   20, 21,  9, 21, 22, 10, 22, 23, 11, 23, 12, 11],
+                  [ 0,  1, 13,  1,  2, 14,  2,  3, 15,  3,  4, 16,
+                    4,  5, 17,  5,  6, 18,  6,  7, 19,  7,  8, 20,
+                    8,  9, 21,  9, 10, 22, 10, 11, 23, 11,  0, 12,
+                   12, 13,  0, 13, 14,  1, 14, 15,  2, 15, 16,  3,
+                   16, 17,  4, 17, 18,  5, 18, 19,  6, 19, 20,  7,
+                   20, 21,  8, 21, 22,  9, 22, 23, 10, 23, 12, 11]], dtype=np.uint32)
+    indexes = np.array([], dtype=np.uint32)
+    flag = False
+    for i in range(num_rings - 1):
+        indexes = np.hstack((indexes, a[int(flag)]+i*pts_per_ring))
+        flag = not flag
+    return indexes
+
 def make_cartoon(program):
     """ Function doc """
     cas = np.loadtxt("cas.txt", dtype=np.float32)*10
     # ss = [0, 7, 18, 24, 38]
-    points = build_new_spline(cas, s=.75, pieces=3)
+    points = build_new_spline(cas, s=.75, pieces=6)
     # coords = [p for p in points]
     # coords = [points[0]]
     coords = []
-    [coords.append(c) for c in cartoon(points[2], points[1], False)]
-    [coords.append(c) for c in cartoon(points[1], points[2], True)]
+    norms = []
+    _c, _n = cartoon(points[2], points[1], False)
+    for i in range(_c.shape[0]):
+        coords.append(_c[i])
+        norms.append(_n[i])
+    _c, _n = cartoon(points[1], points[2], True)
+    for i in range(_c.shape[0]):
+        coords.append(_c[i])
+        norms.append(_n[i])
+    # [coords.append(c) for c in cartoon(points[2], points[1], False)]
+    # [coords.append(c) for c in cartoon(points[1], points[2], True)]
     flag = False
+    # for i in range(2, len(points)-2):
+    #     [coords.append(c) for c in cartoon(points[i], points[i+1], flag)]
+    #     flag = not flag
     for i in range(2, len(points)-2):
-        [coords.append(c) for c in cartoon(points[i], points[i+1], flag)]
+        _c, _n = cartoon(points[i], points[i+1], flag)
+        for j in range(_c.shape[0]):
+            coords.append(_c[j])
+            norms.append(_n[j])
         flag = not flag
     # coords.append(points[-1])
     coords = np.array(coords, dtype=np.float32)
@@ -1058,16 +1098,19 @@ def make_cartoon(program):
     # colors = [1.0,0.0,0.0] * points.shape[0]
     # colors.extend([0.0,1.0,0.0] * (coords.shape[0]-points.shape[0]))
     coords = coords.flatten()
-    norms = np.copy(coords)
-    indexes = np.array(get_indexes(coords.shape[0]//3, 12), dtype=np.uint32)
-    print(coords.shape, len(colors), indexes.shape)
+    norms = np.array(norms, dtype=np.float32)
+    norms = norms.flatten()
+    # norms = np.copy(coords)
+    # indexes = np.array(get_indexes(coords.shape[0]//3, 12), dtype=np.uint32)
+    indexes = get_indexes2(coords.shape[0]//3, 12)
+    print(coords.shape, colors.shape, norms.shape, indexes.shape)
     
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
     
     ind_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
-    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*indexes.shape[0], indexes, GL.GL_DYNAMIC_DRAW)
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
