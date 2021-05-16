@@ -108,7 +108,7 @@ out vec3 geom_color;
 
 void main(){
     geom_color = vert_color;
-    geom_coord = view_mat * model_mat * vec4(vert_coord, 1);
+    geom_coord = view_mat * model_mat * vec4(vert_coord, 1.0);
     //geom_coord = proj_mat * view_mat * model_mat * vec4(vert_coord, 1);
     //gl_Position = vec4(vert_coord, 1.0);
 }
@@ -127,76 +127,76 @@ in vec3 geom_color[];
 out vec3 frag_color;
 
 void main(){
-    vec4 offset = vec4(0.0, 0.5, 0.0, 1.0);
+    vec4 offset = vec4(0.0, 0.5, 0.0, 0.0);
     vec4 vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
-    offset = vec4(-.5, 0.0, 0.0, 1.0);
+    offset = vec4(-.5, 0.0, 0.0, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
-    offset = vec4(0.0, 0.0, 0.5, 1.0);
+    offset = vec4(0.0, 0.0, 0.5, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
-    offset = vec4(0.0,-0.5, 0.0, 1.0);
+    offset = vec4(0.0,-0.5, 0.0, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
-    offset = vec4(0.5, 0.0, 0.0, 1.0);
+    offset = vec4(0.5, 0.0, 0.0, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
-    offset = vec4(0.0, 0.0,-0.5, 1.0);
+    offset = vec4(0.0, 0.0,-0.5, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
-    offset = vec4(0.0, 0.5, 0.0, 1.0);
+    offset = vec4(0.0, 0.5, 0.0, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
-    offset = vec4(-.5, 0.0, 0.0, 1.0);
-    vertPos = offset + geom_coord[0];
-    gl_Position = proj_mat * vertPos;
-    frag_color = geom_color[0];
-    EmitVertex();
-    EndPrimitive();
-    
-    offset = vec4(-.5, 0.0, 0.0, 1.0);
-    vertPos = offset + geom_coord[0];
-    gl_Position = proj_mat * vertPos;
-    frag_color = geom_color[0];
-    EmitVertex();
-    offset = vec4(0.0, 0.0,-0.5, 1.0);
-    vertPos = offset + geom_coord[0];
-    gl_Position = proj_mat * vertPos;
-    frag_color = geom_color[0];
-    EmitVertex();
-    offset = vec4(0.0,-0.5, 0.0, 1.0);
+    offset = vec4(-.5, 0.0, 0.0, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
     EndPrimitive();
     
-    offset = vec4(0.0, 0.5, 0.0, 1.0);
+    offset = vec4(-.5, 0.0, 0.0, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
-    offset = vec4(0.0, 0.0, 0.5, 1.0);
+    offset = vec4(0.0, 0.0,-0.5, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
     EmitVertex();
-    offset = vec4(0.5, 0.0, 0.0, 1.0);
+    offset = vec4(0.0,-0.5, 0.0, 0.0);
+    vertPos = offset + geom_coord[0];
+    gl_Position = proj_mat * vertPos;
+    frag_color = geom_color[0];
+    EmitVertex();
+    EndPrimitive();
+    
+    offset = vec4(0.0, 0.5, 0.0, 0.0);
+    vertPos = offset + geom_coord[0];
+    gl_Position = proj_mat * vertPos;
+    frag_color = geom_color[0];
+    EmitVertex();
+    offset = vec4(0.0, 0.0, 0.5, 0.0);
+    vertPos = offset + geom_coord[0];
+    gl_Position = proj_mat * vertPos;
+    frag_color = geom_color[0];
+    EmitVertex();
+    offset = vec4(0.5, 0.0, 0.0, 0.0);
     vertPos = offset + geom_coord[0];
     gl_Position = proj_mat * vertPos;
     frag_color = geom_color[0];
@@ -3126,5 +3126,146 @@ void main(){
         discard;
     float ligth_dist = length(gl_PointCoord - vec2(0.3, 0.3));
     final_color = mix(vec4(frag_color, 1), vec4(0, 0, 0, 1), sqrt(ligth_dist)*.78);
+}
+"""
+
+v_shader_test = """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+in vec3 vert_coord;
+in vec3 vert_color;
+
+out vec3 frag_color;
+out vec4 frag_pos;
+
+void main(){
+    frag_color = vert_color;
+    gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
+    frag_pos = vec4(vert_coord, 1.0);
+    gl_PointSize = 10;
+}
+"""
+f_shader_test = """
+#version 330
+uniform mat4 proj_mat;
+uniform vec2 u_resolution;
+
+in vec3 frag_color;
+in vec4 frag_pos;
+
+vec3 get_circle(vec2 pos, float radius){
+    float circle = sqrt(pow(pos.x,2.) + pow(pos.y,2.));
+    circle = smoothstep(radius, radius+0.1, circle);
+    return vec3(circle);
+}
+
+void main(){
+    vec2 st = gl_PointCoord.xy / u_resolution;
+    //vec2 st = gl_FragCoord.xy / u_resolution;
+    //vec3 circle1 = get_circle(frag_pos.xy, 0.5);
+    //
+    //if (circle1.x<=0.0 || circle1.x>1.0) discard;
+    //if (circle1.y<=0.0 || circle1.y>1.0) discard;
+    //if (circle1.z<=0.0 || circle1.z>1.0) discard;
+    //vec3 color = frag_color * circle1;
+    //color += vec3(st.x, st.y, 0.0);
+    
+    vec3 circle1 = get_circle(gl_PointCoord.xy, 0.5);
+    float dist = length(gl_PointCoord.xy - vec2(0.5));
+    if (dist > 0.5)
+        discard;
+    
+    gl_FragColor = vec4(circle1.xyz, frag_color.x + 1.0);
+}
+"""
+
+v_shader_imposter = """
+#version 330
+precision highp float;
+
+in vec3 cube_coord;
+in vec3 vert_coord;
+in vec3 vert_color;
+//attribute float aRadius;
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+//uniform float uAtomScale;
+//uniform float uRelativeAtomScale;
+//uniform float uAtomShade;
+const float uAtomScale = 0.8;
+const float uRelativeAtomScale = 0.01;
+const float atom_rad = 1.0;
+const float uAtomShade = 0.9;
+
+out vec3 frag_color;
+out vec3 frag_coord;
+out float frag_radius;
+//out vec3 frag_z;
+
+void main() {
+    frag_radius = uAtomScale * (1.0 + (atom_rad - 1.0) * uRelativeAtomScale);
+    gl_Position = proj_mat * view_mat * model_mat * vec4(frag_radius * cube_coord + vert_coord, 1.0);
+    frag_color = mix(vert_color, vec3(1.0), uAtomShade);
+    //frag_color = vert_color;
+    frag_coord = vec3(view_mat * model_mat * vec4(vert_coord, 1.0));
+    //frag_z = vec3(model_mat * vec4(frag_radius * cube_coord + vert_coord, 1.0));
+}
+"""
+f_shader_imposter = """
+#version 330
+#extension GL_EXT_frag_depth: enable
+precision highp float;
+
+uniform vec2 uBottomLeft;
+uniform vec2 uTopRight;
+//uniform float uRes;
+uniform vec2 uRes;
+uniform float uDepth;
+uniform int uMode;
+//const float uRes = 256;
+//const float uDepth = 1;
+
+in vec3 frag_coord;
+in float frag_radius;
+in vec3 frag_color;
+//in vec3 frag_z;
+
+//vec2 res = vec2(uRes, uRes);
+
+float raySphereIntersect(vec3 r0, vec3 rd) {
+    float a = dot(rd, rd);
+    vec3 s0_r0 = r0 - frag_coord;
+    float b = 2.0 * dot(rd, s0_r0);
+    float c = dot(s0_r0, s0_r0) - (frag_radius * frag_radius);
+    
+    float disc = b*b - 4.0*a*c;
+    if (disc <= 0.0) {
+        return -1.0;
+    }
+    return (-b - sqrt(disc))/(2.0*a);
+}
+
+void main() {
+    vec3 r0 = vec3(uBottomLeft + (gl_FragCoord.xy/uRes) * (uTopRight - uBottomLeft), 1.0);
+    vec3 rd = vec3(0.0, 0.0, -1.0);
+    float t = raySphereIntersect(r0, rd);
+    if (t < 0.0) {
+        discard;
+    }
+    vec3 coord = r0 + rd * t;
+    vec3 normal = normalize(coord - frag_coord);
+    if (uMode == 0) {
+        gl_FragColor = vec4(frag_color, 1.0);
+    } else if (uMode == 1) {
+        gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);
+    }
+    gl_FragDepthEXT = coord.z/uDepth;
 }
 """

@@ -55,7 +55,7 @@ def my_glRotateZf(in_matrix, angle):
 def my_glPerspectivef(fovy, aspect, z_near, z_far):
     assert(aspect>0)
     assert(z_far>z_near)
-    f = np.float32(1/(math.tan(fovy*math.pi/180.0)))
+    f = np.float32(1.0/(math.tan(fovy*math.pi/180.0)))
     pers_matrix = np.zeros((4,4), dtype=np.float32)
     pers_matrix[0,0] = f/aspect
     pers_matrix[1,1] = f
@@ -173,21 +173,21 @@ def get_xyz_coords(xyz_mat):
     #result_matrix = my_glTranslatef(temp_matrix, -eye)
     #return result_matrix
 
-#def my_gluPerspectived(fovy, aspect, z_near, z_far):
-    #y_max = np.float64(z_near*math.tan(fovy*math.pi/360.0))
-    #x_max = np.float64(y_max*aspect)
-    #return my_gluFrustumd(-x_max, x_max, -y_max, y_max, z_near, z_far)
+def my_gluPerspective(fov, aspect, z_near, z_far):
+    y_max = np.float32(z_near*math.tan(fov*math.pi/180.0))
+    x_max = np.float32(y_max*aspect)
+    return my_gluFrustum(-x_max, x_max, -y_max, y_max, z_near, z_far)
 
-#def my_gluFrustumd(left, right, bottom, top, near, far):
-    #frust = np.zeros((4,4), dtype=np.float64)
-    #frust[0,0] = np.float64((2*near)/(right-left))
-    #frust[1,1] = np.float64((2*near)/(top-bottom))
-    #frust[2,0] = np.float64((right+left)/(right-left))
-    #frust[2,1] = np.float64((top+bottom)/(top-bottom))
-    #frust[2,2] = np.float64((-far-near)/(far-near))
-    #frust[2,3] = np.float64(-1)
-    #frust[3,2] = np.float64((-2*near*far)/(far-near))
-    #return frust
+def my_gluFrustum(left, right, bottom, top, near, far):
+    frust = np.zeros((4,4), dtype=np.float32)
+    frust[0,0] = np.float32((2*near)/(right-left))
+    frust[1,1] = np.float32((2*near)/(top-bottom))
+    frust[2,0] = np.float32((right+left)/(right-left))
+    frust[2,1] = np.float32((top+bottom)/(top-bottom))
+    frust[2,2] = np.float32((-far-near)/(far-near))
+    frust[2,3] = np.float32(-1)
+    frust[3,2] = np.float32((-2*near*far)/(far-near))
+    return frust.T
 
 #def my_gluFrustumf(left, right, bottom, top, near, far):
     #frust = np.zeros((4,4), dtype=np.float32)

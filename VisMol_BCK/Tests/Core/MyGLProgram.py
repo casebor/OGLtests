@@ -68,16 +68,12 @@ class MyGLProgram(Gtk.GLArea):
         self.model_mat = np.identity(4, dtype=np.float32)
         self.view_mat = cam.my_glTranslatef(np.identity(4, dtype=np.float32), [0, 0, -5])
         self.cam_pos = self.get_cam_pos()
-        #----------------------------------------------------------------------#
-        #self.top = self.z_near * np.degrees(np.tan(np.pi*30/360))
-        #self.bottom = -self.top
-        #self.right = self.top * self.width / self.height
-        #self.left = -self.right
-        #self.proj_mat = cam.my_gluFrustumf(self.left, self.right, self.bottom, self.top, self.z_near, self.z_far)
-        #----------------------------------------------------------------------#
         self.fov = 20.0 # Field Of View = fov
         self.var = self.width/self.height # Viewport Aspect Ratio
+        self.top = np.float32(1.0)
+        self.bottom = -self.top
         self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.z_near, self.z_far)
+        # self.proj_mat = cam.my_gluPerspective(self.fov, self.var, self.z_near, self.z_far)
         self.set_has_depth_buffer(True)
         self.set_has_alpha(True)
         self.gl_programs = True
@@ -102,7 +98,7 @@ class MyGLProgram(Gtk.GLArea):
         self.ctrl = False
         self.shift = False
         self.bckgrnd_color = np.array([0.0, 0.0, 0.0, 1.0],dtype=np.float32)
-        #self.bckgrnd_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
+        self.bckgrnd_color = np.array([0.5, 0.5, 0.5, 1.0],dtype=np.float32)
         self.light_position = np.array([-2.5, 2.5, 2.5],dtype=np.float32)
         self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_ambient_coef = 0.5
@@ -215,6 +211,16 @@ class MyGLProgram(Gtk.GLArea):
         self.triangles_vbos = None
         self.triangles_elemns = None
         self.triangles = False
+        self.gl_program_imposter = None
+        self.imposter_vao = None
+        self.imposter_vbos = None
+        self.imposter_elemns = None
+        self.imposter = False
+        self.gl_program_test = None
+        self.test_vao = None
+        self.test_vbos = None
+        self.test_elemns = None
+        self.test = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -223,7 +229,10 @@ class MyGLProgram(Gtk.GLArea):
         self.right = self.width / self.height
         self.left = -self.right
         self.var = self.width/self.height # Viewport Aspect Ratio
+        self.top = np.float32(1.0)
+        self.bottom = -self.top
         self.proj_mat = cam.my_glPerspectivef(self.fov, self.var, self.z_near, self.z_far)
+        # self.proj_mat = cam.my_gluPerspective(self.fov, self.var, self.z_near, self.z_far)
     
     def create_gl_programs(self):
         """ Function doc """
@@ -254,6 +263,8 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_sphere = self.load_shaders(sh.v_shader_sphere, sh.f_shader_sphere)
         self.gl_program_lines_1 = self.load_shaders(sh.v_shader_lines_1, sh.f_shader_lines_1, sh.g_shader_lines_2)
         self.gl_program_triangles = self.load_shaders(sh.v_shader_triangles, sh.f_shader_triangles)
+        self.gl_program_imposter = self.load_shaders(sh.v_shader_imposter, sh.f_shader_imposter)
+        self.gl_program_test = self.load_shaders(sh.v_shader_test, sh.f_shader_test)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -303,6 +314,26 @@ class MyGLProgram(Gtk.GLArea):
         GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, self.view_mat)
         proj = GL.glGetUniformLocation(program, 'proj_mat')
         GL.glUniformMatrix4fv(proj, 1, GL.GL_FALSE, self.proj_mat)
+    
+    def load_test_data(self, program):
+        """ Function doc """
+        model = GL.glGetUniformLocation(program, 'u_resolution')
+        GL.glUniform2fv(model, 1, np.array([self.width, self.height], dtype=np.float32))
+    
+    def load_imposter_params(self, program):
+        """ Function doc """
+        uBottomLeft = GL.glGetUniformLocation(program, 'uBottomLeft')
+        GL.glUniform2fv(uBottomLeft, 1, np.array([self.left, self.bottom], dtype=np.float32))
+        uTopRight = GL.glGetUniformLocation(program, 'uTopRight')
+        GL.glUniform2fv(uTopRight, 1, np.array([self.right, self.top], dtype=np.float32))
+        uRes = GL.glGetUniformLocation(program, 'uRes')
+        GL.glUniform2fv(uRes, 1, np.array([self.width, self.height], dtype=np.float32))
+        # uRes = GL.glGetUniformLocation(program, 'uRes')
+        # GL.glUniform1fv(uRes, 1, self.width*self.height)
+        uDepth = GL.glGetUniformLocation(program, 'uDepth')
+        GL.glUniform1fv(uDepth, 1, self.z_near-self.z_far)
+        uMode = GL.glGetUniformLocation(program, 'uMode')
+        GL.glUniform1i(uMode, 1)
     
     def load_lights(self, program):
         """ Function doc
@@ -493,6 +524,18 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_triangles()
+        if self.imposter:
+            if self.imposter_vao is None:
+                self.imposter_vao, self.imposter_vbos, self.imposter_elemns = vaos.make_imposter(self.gl_program_imposter)
+                self.queue_draw()
+            else:
+                self._draw_imposter()
+        if self.test:
+            if self.test_vao is None:
+                self.test_vao, self.test_vbos, self.test_elemns = vaos.make_test(self.gl_program_test)
+                self.queue_draw()
+            else:
+                self._draw_test()
     
     def _draw_dots(self):
         """ Function doc """
@@ -750,6 +793,34 @@ class MyGLProgram(Gtk.GLArea):
         self.load_lights(self.gl_program_triangles)
         GL.glBindVertexArray(self.triangles_vao)
         GL.glDrawElements(GL.GL_TRIANGLES, self.triangles_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_imposter(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_imposter)
+        # GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        self.load_matrices(self.gl_program_imposter)
+        self.load_imposter_params(self.gl_program_imposter)
+        GL.glBindVertexArray(self.imposter_vao)
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.imposter_elemns)
+        # GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+        
+    def _draw_test(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_test)
+        GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        self.load_matrices(self.gl_program_test)
+        self.load_test_data(self.gl_program_test)
+        GL.glBindVertexArray(self.test_vao)
+        GL.glDrawArrays(GL.GL_POINTS, 0, self.test_elemns)
+        GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -1082,7 +1153,8 @@ class MyGLProgram(Gtk.GLArea):
         self.queue_draw()
     
     def _pressed_v(self):
-        pass
+        self.test = not self.test
+        self.queue_draw()
     
     def _pressed_w(self):
         self.sphere = not self.sphere
@@ -1098,6 +1170,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_z(self):
         self.triangles = not self.triangles
+        self.queue_draw()
+    
+    def _pressed_1(self):
+        self.imposter = not self.imposter
         self.queue_draw()
     
 
