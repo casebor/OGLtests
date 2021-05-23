@@ -3187,17 +3187,17 @@ v_shader_imposter = """
 #version 330
 precision highp float;
 
-in vec3 cube_coord;
-in vec3 vert_coord;
-in vec3 vert_color;
-//attribute float aRadius;
-uniform vec3 campos;
-
 uniform mat4 model_mat;
 uniform mat4 view_mat;
 uniform mat4 proj_mat;
 
-const float atom_rad = 1.0;
+in vec3 cube_coord;
+in vec3 vert_coord;
+in vec3 vert_color;
+//attribute float aRadius;
+uniform vec3 u_campos;
+
+const float atom_rad = 0.90;
 const float uAtomShade = 0.9;
 
 out vec3 frag_color;
@@ -3211,7 +3211,7 @@ void main() {
     //frag_color = mix(vert_color, vec3(1.0), uAtomShade);
     frag_color = vert_color;
     frag_center = vec3(model_mat * vec4(vert_coord, 1.0));
-    cam_eye = vec3(model_mat * vec4(campos, 1.0));
+    cam_eye = vec3(model_mat * vec4(u_campos, 1.0));
     frag_coord = vec3(model_mat * vec4(frag_radius * cube_coord + vert_coord, 1.0));
     gl_Position = proj_mat * view_mat * model_mat * vec4(frag_radius * cube_coord + vert_coord, 1.0);
 }
@@ -3221,30 +3221,25 @@ f_shader_imposter = """
 #extension GL_EXT_frag_depth: enable
 precision highp float;
 
-uniform vec2 uBottomLeft;
-uniform vec2 uTopRight;
-uniform vec2 uRes;
-uniform float uDepth;
-uniform int uMode;
+struct Light {
+    vec3 position;
+    //vec3 color;
+    vec3 intensity;
+    //vec3 specular_color;
+    float ambient_coef;
+    float shininess;
+};
+
+uniform Light my_light;
+
+uniform float u_depth;
+uniform int u_mode;
 
 in vec3 frag_color;
 in vec3 frag_coord;
 in vec3 frag_center;
 in vec3 cam_eye;
 in float frag_radius;
-
-float raySphereIntersect(vec3 r0, vec3 rd, vec3 sph, float rad) {
-    float a = dot(rd, rd);
-    vec3 s0_r0 = r0 - sph;
-    float b = 2.0 * dot(rd, s0_r0);
-    float c = dot(s0_r0, s0_r0) - (rad * rad);
-    
-    float disc = b*b - 4.0*a*c;
-    if (disc <= 0.0) {
-        return -1.0;
-    }
-    return (-b - sqrt(disc))/(2.0*a);
-}
 
 float sphIntersect(vec3 ro, vec3 rd, vec3 sph, float rad){
     vec3 oc = ro - sph;
@@ -3256,32 +3251,29 @@ float sphIntersect(vec3 ro, vec3 rd, vec3 sph, float rad){
 }
 
 void main() {
-    //vec3 r0 = vec3(uBottomLeft + (gl_FragCoord.xy/uRes) * (uTopRight - uBottomLeft), 1.0);
-    //vec3 rd = vec3(0.0, 0.0, -1.0);
-    ////float t = raySphereIntersect(r0, rd);
-    //float t = sphIntersect(r0, rd, frag_coord, frag_radius);
-    //if (t < 0.0) discard;
-    //vec3 coord = r0 + rd * t;
-    //vec3 normal = normalize(coord - frag_coord);
-    //if (uMode == 0) {
-    //    gl_FragColor = vec4(frag_color, 1.0);
-    //} else if (uMode == 1) {
-    //    gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);
-    //}
-    //gl_FragDepthEXT = coord.z/uDepth;
-    
     vec3 ro = cam_eye;
     vec3 rd = normalize(frag_coord - cam_eye);
     float t = sphIntersect(ro, rd, frag_center, frag_radius);
     if (t < 0.0) discard;
     vec3 coord = ro + rd * t;
     vec3 normal = normalize(coord - frag_center);
-    if (uMode == 0) {
+    if (u_mode == 0) {
         gl_FragColor = vec4(frag_color, 1.0);
-    } else if (uMode == 1) {
-        gl_FragColor = vec4(normal, 1.0);
+    } else if (u_mode == 1) {
+        //vec3 normal = normalize(frag_norm);
+        vec3 vert_to_light = normalize(my_light.position);
+        vec3 vert_to_cam = normalize(frag_coord);
+        
+        // Ambient Component
+        vec3 ambient = my_light.ambient_coef * frag_color * my_light.intensity;
+        
+        // Diffuse component
+        float diffuse_coef = max(0.0, dot(normal, vert_to_light));
+        vec3 diffuse = diffuse_coef * frag_color * my_light.intensity;
+        
+        gl_FragColor = vec4(ambient + diffuse, 1.0);
     }
-    coord = frag_center + normal * frag_radius;
-    //gl_FragDepthEXT = length(coord - cam_eye)/uDepth;
+    vec3 depth_coord = frag_center + normal * frag_radius;
+    gl_FragDepthEXT = -length(depth_coord - cam_eye)/u_depth;
 }
 """

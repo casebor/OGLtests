@@ -322,20 +322,20 @@ class MyGLProgram(Gtk.GLArea):
     
     def load_imposter_params(self, program):
         """ Function doc """
-        uBottomLeft = GL.glGetUniformLocation(program, 'uBottomLeft')
-        GL.glUniform2fv(uBottomLeft, 1, np.array([self.left, self.bottom], dtype=np.float32))
-        uTopRight = GL.glGetUniformLocation(program, 'uTopRight')
-        GL.glUniform2fv(uTopRight, 1, np.array([self.right, self.top], dtype=np.float32))
-        uRes = GL.glGetUniformLocation(program, 'uRes')
-        GL.glUniform2fv(uRes, 1, np.array([self.width, self.height], dtype=np.float32))
+        # uBottomLeft = GL.glGetUniformLocation(program, 'uBottomLeft')
+        # GL.glUniform2fv(uBottomLeft, 1, np.array([self.left, self.bottom], dtype=np.float32))
+        # uTopRight = GL.glGetUniformLocation(program, 'uTopRight')
+        # GL.glUniform2fv(uTopRight, 1, np.array([self.right, self.top], dtype=np.float32))
+        # uRes = GL.glGetUniformLocation(program, 'uRes')
+        # GL.glUniform2fv(uRes, 1, np.array([self.width, self.height], dtype=np.float32))
         # uRes = GL.glGetUniformLocation(program, 'uRes')
         # GL.glUniform1fv(uRes, 1, self.width*self.height)
-        uDepth = GL.glGetUniformLocation(program, 'uDepth')
-        GL.glUniform1fv(uDepth, 1, (self.z_near-self.z_far))
-        uMode = GL.glGetUniformLocation(program, 'uMode')
-        GL.glUniform1i(uMode, 0)
-        cPos = GL.glGetUniformLocation(program, 'campos')
-        GL.glUniform3fv(cPos, 1, self.get_cam_pos())
+        u_depth = GL.glGetUniformLocation(program, 'u_depth')
+        GL.glUniform1fv(u_depth, 1, (self.z_near-self.z_far))
+        u_mode = GL.glGetUniformLocation(program, 'u_mode')
+        GL.glUniform1i(u_mode, 1)
+        u_campos = GL.glGetUniformLocation(program, 'u_campos')
+        GL.glUniform3fv(u_campos, 1, self.get_cam_pos())
     
     def load_lights(self, program):
         """ Function doc
@@ -806,6 +806,7 @@ class MyGLProgram(Gtk.GLArea):
         # GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         self.load_matrices(self.gl_program_imposter)
         self.load_imposter_params(self.gl_program_imposter)
+        self.load_lights(self.gl_program_imposter)
         GL.glBindVertexArray(self.imposter_vao)
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.imposter_elemns)
         # GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)

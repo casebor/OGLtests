@@ -1196,9 +1196,9 @@ def make_imposter(program):
     # col_pt = [[ 1.0, 0.0, 0.0]]
     colors = [c*36 for c in col_pt]
     colors = np.array(colors, dtype=np.float32).flatten()
-    coords = coords[:216]
-    colors = colors[:216]
-    cubes = cubes[:216]
+    # coords = coords[:216]
+    # colors = colors[:216]
+    # cubes = cubes[:216]
     print(cubes.shape, coords.shape, colors.shape)
 
     vertex_array_object = GL.glGenVertexArrays(1)
