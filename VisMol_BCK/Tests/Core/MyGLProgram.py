@@ -331,9 +331,11 @@ class MyGLProgram(Gtk.GLArea):
         # uRes = GL.glGetUniformLocation(program, 'uRes')
         # GL.glUniform1fv(uRes, 1, self.width*self.height)
         uDepth = GL.glGetUniformLocation(program, 'uDepth')
-        GL.glUniform1fv(uDepth, 1, self.z_near-self.z_far)
+        GL.glUniform1fv(uDepth, 1, (self.z_near-self.z_far))
         uMode = GL.glGetUniformLocation(program, 'uMode')
-        GL.glUniform1i(uMode, 1)
+        GL.glUniform1i(uMode, 0)
+        cPos = GL.glGetUniformLocation(program, 'campos')
+        GL.glUniform3fv(cPos, 1, self.get_cam_pos())
     
     def load_lights(self, program):
         """ Function doc

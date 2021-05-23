@@ -39,18 +39,21 @@ def make_dots(program):
     cas = np.loadtxt("cas.txt", dtype=np.float32)*10
     # ss = [0, 7, 18, 24, 38]
     points = build_new_spline(cas, s=.75, pieces=15)
-    points = build_new_spline(cas, s=.75, pieces=3)
+    points = build_new_spline(cas, s=.75, pieces=5)
     # points = build_spline(cas, s=.75, pieces=8)
     # print(points.shape)
-    coords = [p for p in points]
-    [coords.append(c) for c in cartoon(points[2], points[1], False)]
-    [coords.append(c) for c in cartoon(points[1], points[2], True)]
+    coords = np.array([p for p in points], dtype=np.float32)
+    coords = np.vstack((coords, cartoon(points[2], points[1], False)[0]))
+    coords = np.vstack((coords, cartoon(points[1], points[2], True)[0]))
+    # [coords.append(c) for c in cartoon(points[2], points[1], False)]
+    # [coords.append(c) for c in cartoon(points[1], points[2], True)]
     flag = False
     for i in range(2, len(points)-2):
-        [coords.append(c) for c in cartoon(points[i], points[i+1], flag)]
+        coords = np.vstack((coords, cartoon(points[i], points[i+1], flag)[0]))
+        # [coords.append(c) for c in cartoon(points[i], points[i+1], flag)]
         flag = not flag
     # coords.append(points[-1])
-    coords = np.array(coords, dtype=np.float32)
+    # coords = np.array(coords, dtype=np.float32)
     colors = [1.0,0.0,0.0] * points.shape[0]
     colors.extend([0.0,1.0,0.0] * (coords.shape[0]-points.shape[0]))
     # print(coords.shape)
@@ -1193,9 +1196,9 @@ def make_imposter(program):
     # col_pt = [[ 1.0, 0.0, 0.0]]
     colors = [c*36 for c in col_pt]
     colors = np.array(colors, dtype=np.float32).flatten()
-    # coords = coords[:108]
-    # colors = colors[:108]
-    # cubes = cubes[:108]
+    coords = coords[:216]
+    colors = colors[:216]
+    cubes = cubes[:216]
     print(cubes.shape, coords.shape, colors.shape)
 
     vertex_array_object = GL.glGenVertexArrays(1)

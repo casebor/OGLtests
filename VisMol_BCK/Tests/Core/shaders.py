@@ -3191,31 +3191,29 @@ in vec3 cube_coord;
 in vec3 vert_coord;
 in vec3 vert_color;
 //attribute float aRadius;
+uniform vec3 campos;
 
 uniform mat4 model_mat;
 uniform mat4 view_mat;
 uniform mat4 proj_mat;
 
-//uniform float uAtomScale;
-//uniform float uRelativeAtomScale;
-//uniform float uAtomShade;
-const float uAtomScale = 0.8;
-const float uRelativeAtomScale = 0.01;
 const float atom_rad = 1.0;
 const float uAtomShade = 0.9;
 
 out vec3 frag_color;
 out vec3 frag_coord;
+out vec3 frag_center;
+out vec3 cam_eye;
 out float frag_radius;
-//out vec3 frag_z;
 
 void main() {
-    frag_radius = uAtomScale * (1.0 + (atom_rad - 1.0) * uRelativeAtomScale);
+    frag_radius = atom_rad;
+    //frag_color = mix(vert_color, vec3(1.0), uAtomShade);
+    frag_color = vert_color;
+    frag_center = vec3(model_mat * vec4(vert_coord, 1.0));
+    cam_eye = vec3(model_mat * vec4(campos, 1.0));
+    frag_coord = vec3(model_mat * vec4(frag_radius * cube_coord + vert_coord, 1.0));
     gl_Position = proj_mat * view_mat * model_mat * vec4(frag_radius * cube_coord + vert_coord, 1.0);
-    frag_color = mix(vert_color, vec3(1.0), uAtomShade);
-    //frag_color = vert_color;
-    frag_coord = vec3(view_mat * model_mat * vec4(vert_coord, 1.0));
-    //frag_z = vec3(model_mat * vec4(frag_radius * cube_coord + vert_coord, 1.0));
 }
 """
 f_shader_imposter = """
@@ -3225,25 +3223,21 @@ precision highp float;
 
 uniform vec2 uBottomLeft;
 uniform vec2 uTopRight;
-//uniform float uRes;
 uniform vec2 uRes;
 uniform float uDepth;
 uniform int uMode;
-//const float uRes = 256;
-//const float uDepth = 1;
 
-in vec3 frag_coord;
-in float frag_radius;
 in vec3 frag_color;
-//in vec3 frag_z;
+in vec3 frag_coord;
+in vec3 frag_center;
+in vec3 cam_eye;
+in float frag_radius;
 
-//vec2 res = vec2(uRes, uRes);
-
-float raySphereIntersect(vec3 r0, vec3 rd) {
+float raySphereIntersect(vec3 r0, vec3 rd, vec3 sph, float rad) {
     float a = dot(rd, rd);
-    vec3 s0_r0 = r0 - frag_coord;
+    vec3 s0_r0 = r0 - sph;
     float b = 2.0 * dot(rd, s0_r0);
-    float c = dot(s0_r0, s0_r0) - (frag_radius * frag_radius);
+    float c = dot(s0_r0, s0_r0) - (rad * rad);
     
     float disc = b*b - 4.0*a*c;
     if (disc <= 0.0) {
@@ -3252,20 +3246,42 @@ float raySphereIntersect(vec3 r0, vec3 rd) {
     return (-b - sqrt(disc))/(2.0*a);
 }
 
+float sphIntersect(vec3 ro, vec3 rd, vec3 sph, float rad){
+    vec3 oc = ro - sph;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - rad*rad;
+    float h = b*b - c;
+    if( h<0.0 ) return -1.0;
+    return -b - sqrt(h);
+}
+
 void main() {
-    vec3 r0 = vec3(uBottomLeft + (gl_FragCoord.xy/uRes) * (uTopRight - uBottomLeft), 1.0);
-    vec3 rd = vec3(0.0, 0.0, -1.0);
-    float t = raySphereIntersect(r0, rd);
-    if (t < 0.0) {
-        discard;
-    }
-    vec3 coord = r0 + rd * t;
-    vec3 normal = normalize(coord - frag_coord);
+    //vec3 r0 = vec3(uBottomLeft + (gl_FragCoord.xy/uRes) * (uTopRight - uBottomLeft), 1.0);
+    //vec3 rd = vec3(0.0, 0.0, -1.0);
+    ////float t = raySphereIntersect(r0, rd);
+    //float t = sphIntersect(r0, rd, frag_coord, frag_radius);
+    //if (t < 0.0) discard;
+    //vec3 coord = r0 + rd * t;
+    //vec3 normal = normalize(coord - frag_coord);
+    //if (uMode == 0) {
+    //    gl_FragColor = vec4(frag_color, 1.0);
+    //} else if (uMode == 1) {
+    //    gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);
+    //}
+    //gl_FragDepthEXT = coord.z/uDepth;
+    
+    vec3 ro = cam_eye;
+    vec3 rd = normalize(frag_coord - cam_eye);
+    float t = sphIntersect(ro, rd, frag_center, frag_radius);
+    if (t < 0.0) discard;
+    vec3 coord = ro + rd * t;
+    vec3 normal = normalize(coord - frag_center);
     if (uMode == 0) {
         gl_FragColor = vec4(frag_color, 1.0);
     } else if (uMode == 1) {
-        gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);
+        gl_FragColor = vec4(normal, 1.0);
     }
-    gl_FragDepthEXT = coord.z/uDepth;
+    coord = frag_center + normal * frag_radius;
+    //gl_FragDepthEXT = length(coord - cam_eye)/uDepth;
 }
 """
