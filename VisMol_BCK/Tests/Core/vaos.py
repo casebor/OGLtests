@@ -1242,6 +1242,7 @@ def make_imposter(program):
               [ 0.0, 0.0, 1.0], [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 1.0],
               [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 0.0]]
     colors = np.array(col_pt, dtype=np.float32).flatten()
+    radii = np.array([1.2, 1.0, 0.8, 0.2, 1.0, 0.4, 0.8, 1.1, 0.7], dtype=np.float32)
     # coords = coords[:216]
     # colors = colors[:216]
     # cubes = cubes[:216]
@@ -1264,8 +1265,16 @@ def make_imposter(program):
     GL.glEnableVertexAttribArray(gl_colors)
     GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
     
+    rad_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, rad_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, radii.itemsize*len(radii), radii, GL.GL_STATIC_DRAW)
+    gl_radius = GL.glGetAttribLocation(program, 'vert_rad')
+    GL.glEnableVertexAttribArray(gl_radius)
+    GL.glVertexAttribPointer(gl_radius, 1, GL.GL_FLOAT, GL.GL_FALSE, 1*radii.itemsize, ctypes.c_void_p(0))
+    
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_position)
     GL.glDisableVertexAttribArray(gl_colors)
+    GL.glDisableVertexAttribArray(gl_radius)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
+    return vertex_array_object, (coord_vbo, col_vbo, rad_vbo), int(len(coords)/3)

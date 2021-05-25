@@ -3193,7 +3193,7 @@ uniform mat4 proj_mat;
 
 in vec3 vert_coord;
 in vec3 vert_color;
-//attribute float aRadius;
+in float vert_rad;
 uniform vec3 u_campos;
 
 const float atom_rad = 0.90;
@@ -3210,7 +3210,7 @@ void main() {
     geom_coord = vert_coord;
     geom_center = vert_coord;
     geom_cam = u_campos;
-    geom_radius = atom_rad;
+    geom_radius = vert_rad;
 }
 """
 g_shader_imposter = """
@@ -3409,7 +3409,7 @@ uniform int u_mode;
 in vec3 frag_color;
 in vec3 frag_coord;
 in vec3 frag_center;
-in vec3 cam_eye;
+in vec3 frag_cam;
 in float frag_radius;
 
 float sphIntersect(vec3 ro, vec3 rd, vec3 sph, float rad){
@@ -3422,8 +3422,8 @@ float sphIntersect(vec3 ro, vec3 rd, vec3 sph, float rad){
 }
 
 void main() {
-    vec3 ro = cam_eye;
-    vec3 rd = normalize(frag_coord - cam_eye);
+    vec3 ro = frag_cam;
+    vec3 rd = normalize(frag_coord - frag_cam);
     float t = sphIntersect(ro, rd, frag_center, frag_radius);
     if (t < 0.0) discard;
     vec3 coord = ro + rd * t;
@@ -3445,10 +3445,9 @@ void main() {
         gl_FragColor = vec4(ambient + diffuse, 1.0);
     }
     vec3 depth_coord = frag_center + normal * frag_radius;
-    gl_FragDepthEXT = -length(depth_coord - cam_eye)/u_depth;
+    gl_FragDepthEXT = -length(depth_coord - frag_cam)/u_depth;
 }
 """
-
 
 v_shader_bonds = """
 #version 330
