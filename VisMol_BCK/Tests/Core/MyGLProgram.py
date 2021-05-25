@@ -263,7 +263,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_sphere = self.load_shaders(sh.v_shader_sphere, sh.f_shader_sphere)
         self.gl_program_lines_1 = self.load_shaders(sh.v_shader_lines_1, sh.f_shader_lines_1, sh.g_shader_lines_2)
         self.gl_program_triangles = self.load_shaders(sh.v_shader_triangles, sh.f_shader_triangles)
-        self.gl_program_imposter = self.load_shaders(sh.v_shader_imposter, sh.f_shader_imposter)
+        self.gl_program_imposter = self.load_shaders(sh.v_shader_imposter, sh.f_shader_imposter, sh.g_shader_imposter)
         self.gl_program_test = self.load_shaders(sh.v_shader_test, sh.f_shader_test)
     
     def load_shaders(self, vertex, fragment, geometry=None):
@@ -808,7 +808,7 @@ class MyGLProgram(Gtk.GLArea):
         self.load_imposter_params(self.gl_program_imposter)
         self.load_lights(self.gl_program_imposter)
         GL.glBindVertexArray(self.imposter_vao)
-        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.imposter_elemns)
+        GL.glDrawArrays(GL.GL_POINTS, 0, self.imposter_elemns)
         # GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)

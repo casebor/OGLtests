@@ -1174,7 +1174,7 @@ def make_test(program):
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
 
-def make_imposter(program):
+def make_imposter2(program):
     """ Function doc """
     n, p = -1, 1
     cube = [n, n, n,  n, n, p,  n, p, p,  n, n, n,  n, p, p,  n, p, n, # -X
@@ -1227,6 +1227,44 @@ def make_imposter(program):
     
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_cube)
+    GL.glDisableVertexAttribArray(gl_position)
+    GL.glDisableVertexAttribArray(gl_colors)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
+
+def make_imposter(program):
+    """ Function doc """
+    points = [[ 1.0, 1.0, 0.5], [ 0.0, 1.0, -0.5], [ 1.0, 0.0, 0.0],
+              [-1.0, 0.0, 0.5], [-1.0, 1.0, -0.5], [-1.0,-1.0, 0.0],
+              [ 0.0,-1.0, 0.5], [ 1.0,-1.0, -0.5], [ 0.0, 0.0, 0.0]]
+    coords = np.array(points, dtype=np.float32).flatten()
+    col_pt = [[ 1.0, 0.0, 0.0], [ 1.0, 1.0, 0.0], [ 1.0, 0.0, 1.0],
+              [ 0.0, 0.0, 1.0], [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 1.0],
+              [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 0.0]]
+    colors = np.array(col_pt, dtype=np.float32).flatten()
+    # coords = coords[:216]
+    # colors = colors[:216]
+    # cubes = cubes[:216]
+    print(coords.shape, colors.shape)
+    
+    vertex_array_object = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vertex_array_object)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
+    gl_position = GL.glGetAttribLocation(program, 'vert_coord')
+    GL.glEnableVertexAttribArray(gl_position)
+    GL.glVertexAttribPointer(gl_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    col_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
+    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
+    GL.glEnableVertexAttribArray(gl_colors)
+    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_position)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
