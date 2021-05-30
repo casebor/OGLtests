@@ -211,11 +211,11 @@ class MyGLProgram(Gtk.GLArea):
         self.triangles_vbos = None
         self.triangles_elemns = None
         self.triangles = False
-        self.gl_program_imposter = None
-        self.imposter_vao = None
-        self.imposter_vbos = None
-        self.imposter_elemns = None
-        self.imposter = False
+        self.gl_program_impostor = None
+        self.impostor_vao = None
+        self.impostor_vbos = None
+        self.impostor_elemns = None
+        self.impostor = False
         self.gl_program_test = None
         self.test_vao = None
         self.test_vbos = None
@@ -263,7 +263,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_sphere = self.load_shaders(sh.v_shader_sphere, sh.f_shader_sphere)
         self.gl_program_lines_1 = self.load_shaders(sh.v_shader_lines_1, sh.f_shader_lines_1, sh.g_shader_lines_2)
         self.gl_program_triangles = self.load_shaders(sh.v_shader_triangles, sh.f_shader_triangles)
-        self.gl_program_imposter = self.load_shaders(sh.v_shader_imposter, sh.f_shader_imposter, sh.g_shader_imposter)
+        self.gl_program_impostor = self.load_shaders(sh.v_shader_impostor, sh.f_shader_impostor, sh.g_shader_impostor)
         self.gl_program_test = self.load_shaders(sh.v_shader_test, sh.f_shader_test)
     
     def load_shaders(self, vertex, fragment, geometry=None):
@@ -320,7 +320,7 @@ class MyGLProgram(Gtk.GLArea):
         model = GL.glGetUniformLocation(program, 'u_resolution')
         GL.glUniform2fv(model, 1, np.array([self.width, self.height], dtype=np.float32))
     
-    def load_imposter_params(self, program):
+    def load_impostor_params(self, program):
         """ Function doc """
         # uBottomLeft = GL.glGetUniformLocation(program, 'uBottomLeft')
         # GL.glUniform2fv(uBottomLeft, 1, np.array([self.left, self.bottom], dtype=np.float32))
@@ -526,12 +526,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_triangles()
-        if self.imposter:
-            if self.imposter_vao is None:
-                self.imposter_vao, self.imposter_vbos, self.imposter_elemns = vaos.make_imposter(self.gl_program_imposter)
+        if self.impostor:
+            if self.impostor_vao is None:
+                self.impostor_vao, self.impostor_vbos, self.impostor_elemns = vaos.make_impostor(self.gl_program_impostor)
                 self.queue_draw()
             else:
-                self._draw_imposter()
+                self._draw_impostor()
         if self.test:
             if self.test_vao is None:
                 self.test_vao, self.test_vbos, self.test_elemns = vaos.make_test(self.gl_program_test)
@@ -799,16 +799,16 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
-    def _draw_imposter(self):
+    def _draw_impostor(self):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glUseProgram(self.gl_program_imposter)
+        GL.glUseProgram(self.gl_program_impostor)
         # GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
-        self.load_matrices(self.gl_program_imposter)
-        self.load_imposter_params(self.gl_program_imposter)
-        self.load_lights(self.gl_program_imposter)
-        GL.glBindVertexArray(self.imposter_vao)
-        GL.glDrawArrays(GL.GL_POINTS, 0, self.imposter_elemns)
+        self.load_matrices(self.gl_program_impostor)
+        self.load_impostor_params(self.gl_program_impostor)
+        self.load_lights(self.gl_program_impostor)
+        GL.glBindVertexArray(self.impostor_vao)
+        GL.glDrawArrays(GL.GL_POINTS, 0, self.impostor_elemns)
         # GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
@@ -1176,7 +1176,7 @@ class MyGLProgram(Gtk.GLArea):
         self.queue_draw()
     
     def _pressed_1(self):
-        self.imposter = not self.imposter
+        self.impostor = not self.impostor
         self.queue_draw()
     
 

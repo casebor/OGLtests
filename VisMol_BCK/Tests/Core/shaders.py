@@ -3183,7 +3183,7 @@ void main(){
 }
 """
 
-v_shader_imposter = """
+v_shader_impostor = """
 #version 330
 precision highp float;
 
@@ -3213,7 +3213,7 @@ void main() {
     geom_radius = vert_rad;
 }
 """
-g_shader_imposter = """
+g_shader_impostor = """
 #version 330
 
 layout (points) in;
@@ -3387,7 +3387,7 @@ void main(){
     EndPrimitive();
 }
 """
-f_shader_imposter = """
+f_shader_impostor = """
 #version 330
 #extension GL_EXT_frag_depth: enable
 precision highp float;
