@@ -39,6 +39,7 @@ ARROW_POINTS = [
 ]
 
 arcDetail = 2.0
+splineDetail = 5
 
 def cubic_hermite_interpolate(p_k1, tan_k1, p_k2, tan_k2, t):
     p = np.zeros(3, dtype=np.float32)
@@ -60,8 +61,7 @@ def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False
         out_len = num_points * subdivs
     else:
         out_len = (num_points - 1) * subdivs + 1
-    out_len *= 3
-    out = np.zeros(out_len, dtype=np.float32)
+    out = np.zeros([out_len, 3], dtype=np.float32)
     index = 0
     dt = 1.0 / subdivs
     tan_k1 = np.zeros(3, dtype=np.float32)
@@ -70,63 +70,58 @@ def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False
     p_k2 = np.zeros(3, dtype=np.float32)
     p_k3 = np.zeros(3, dtype=np.float32)
     p_k4 = np.zeros(3, dtype=np.float32)
-    p_k2[:] = points[:3]
-    p_k3[:] = points[3:6]
+    p_k2[:] = points[0,:]
+    p_k3[:] = points[1,:]
     if circular:
-        p_k1[:] = points[-3:]
+        p_k1[:] = points[-1,:]
         tan_k1[:] = p_k3 - p_k1
         tan_k1 *= strength
     else:
-        p_k1 = points[:3]
+        p_k1[:] = points[0,:]
     i = 1
     e = num_points - 1
     while i < e:
-        p_k4[0] = points[(i+1)*3]
-        p_k4[1] = points[(i+1)*3+1]
-        p_k4[2] = points[(i+1)*3+2]
+        p_k4[:] = points[i+1,:]
         tan_k2[:] = p_k4 - p_k2
         tan_k2 *= strength
         for j in range(subdivs):
-            out[index:index+3] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
-            index += 3
+            out[index,:] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
+            index += 1
         p_k1[:] = p_k2[:]
         p_k2[:] = p_k3[:]
         p_k3[:] = p_k4[:]
         tan_k1[:] = tan_k2[:]
         i += 1
     if circular:
-        p_k4[0] = points[0]
-        p_k4[1] = points[1]
-        p_k4[2] = points[3]
+        p_k4[0] = points[0,0]
+        p_k4[1] = points[0,1]
+        p_k4[2] = points[1,0]
         tan_k1 = p_k4 - p_k2
         tan_k1 *= strength
     else:
         tan_k1 = np.zeros(3, dtype=np.float32)
     for j in range(subdivs):
-        out[index:index+3] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
-        index += 3
+        out[index] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
+        index += 1
     if not circular:
-        out[index:index+3] = points[(num_points-1)*3:(num_points-1)*3+3]
+        out[index] = points[(num_points-1):(num_points-1)+3]
         return out
     p_k1[:] = p_k2[:]
     p_k2[:] = p_k3[:]
     p_k3[:] = p_k4[:]
     tan_k1[:] = tan_k2[:]
-    p_k4[:] = points[3:6]
+    p_k4[:] = points[1,:]
     tan_k1 = p_k4 - p_k2
     tan_k1 *= strength
     for j in range(subdivs):
-        out[index:index+3] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
-        index += 3
+        out[index] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
+        index += 1
     return out
 
-def smoother_3p():
-    pass
 
 calphas = np.loadtxt("cas.txt")
-calphas = calphas.flatten()
-
-spline = catmull_rom_spline(calphas, len(calphas)//3, 1)
-print(calphas.shape, spline.shape)
 print(calphas)
+# calphas = calphas.flatten()
+spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], 1)
 print(spline)
+
