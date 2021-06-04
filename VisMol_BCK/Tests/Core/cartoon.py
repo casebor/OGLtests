@@ -8,35 +8,17 @@ import numpy as np
 
 p = 0.6;
 q = 0.8071;
-COIL_POINTS = [ -p, -p, 0, p, -p, 0, p, p, 0, -p, p, 0 ]
+COIL_POINTS = np.array([[ -p, -p, 0], [p, -p, 0], [p, p, 0], [-p, p, 0]], dtype=np.float32)
 
-HELIX_POINTS = [
-  -6.0 * p, -0.9 * q, 0,
-  -5.8 * p, -1.0 * q, 0,
+HELIX_POINTS = np.array([[-6.0 * p, -0.9 * q, 0], [-5.8 * p, -1.0 * q, 0],
+                         [ 5.8 * p, -1.0 * q, 0], [ 6.0 * p, -0.9 * q, 0],
+                         [ 6.0 * p,  0.9 * q, 0], [ 5.8 * p,  1.0 * q, 0],
+                         [-5.8 * p,  1.0 * q, 0], [-6.0 * p,  0.9 * q, 0]], dtype=np.float32)
 
-   5.8 * p, -1.0 * q, 0,
-   6.0 * p, -0.9 * q, 0,
-
-   6.0 * p,  0.9 * q, 0,
-   5.8 * p,  1.0 * q, 0,
-
-  -5.8 * p,  1.0 * q, 0,
-  -6.0 * p,  0.9 * q, 0
-]
-
-ARROW_POINTS = [
- -10.0 * p, -0.9 * q, 0,
-  -9.8 * p, -1.0 * q, 0,
-
-   9.8 * p, -1.0 * q, 0,
-  10.0 * p, -0.9 * q, 0,
-
-  10.0 * p,  0.9 * q, 0,
-   9.8 * p,  1.0 * q, 0,
-
-  -9.8 * p,  1.0 * q, 0,
- -10.0 * p,  0.9 * q, 0
-]
+ARROW_POINTS = np.array([[-10.0 * p, -0.9 * q, 0], [ -9.8 * p, -1.0 * q, 0],
+                         [  9.8 * p, -1.0 * q, 0], [ 10.0 * p, -0.9 * q, 0],
+                         [ 10.0 * p,  0.9 * q, 0], [  9.8 * p,  1.0 * q, 0],
+                         [ -9.8 * p,  1.0 * q, 0], [-10.0 * p,  0.9 * q, 0]], dtype=np.float32)
 
 arcDetail = 2.0
 splineDetail = 5
@@ -119,9 +101,11 @@ def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False
     return out
 
 
-calphas = np.loadtxt("cas.txt")
-print(calphas)
+# calphas = np.loadtxt("cas.txt")
+# print(calphas)
 # calphas = calphas.flatten()
-spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], 1)
-print(spline)
+# spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], 1)
+# print(spline)
 
+def tube_profile():
+    pass

@@ -3140,12 +3140,12 @@ in vec3 vert_coord;
 in vec3 vert_color;
 
 out vec3 frag_color;
-out vec4 frag_pos;
+//out vec4 frag_pos;
 
 void main(){
     frag_color = vert_color;
     gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
-    frag_pos = vec4(vert_coord, 1.0);
+    //frag_pos = vec4(vert_coord, 1.0);
     gl_PointSize = 10;
 }
 """
@@ -3155,7 +3155,7 @@ uniform mat4 proj_mat;
 uniform vec2 u_resolution;
 
 in vec3 frag_color;
-in vec4 frag_pos;
+//in vec4 frag_pos;
 
 vec3 get_circle(vec2 pos, float radius){
     float circle = sqrt(pow(pos.x,2.) + pow(pos.y,2.));
@@ -3164,7 +3164,7 @@ vec3 get_circle(vec2 pos, float radius){
 }
 
 void main(){
-    vec2 st = gl_PointCoord.xy / u_resolution;
+    //vec2 st = gl_PointCoord.xy / u_resolution;
     //vec2 st = gl_FragCoord.xy / u_resolution;
     //vec3 circle1 = get_circle(frag_pos.xy, 0.5);
     //
@@ -3174,12 +3174,13 @@ void main(){
     //vec3 color = frag_color * circle1;
     //color += vec3(st.x, st.y, 0.0);
     
-    vec3 circle1 = get_circle(gl_PointCoord.xy, 0.5);
+    //vec3 circle1 = get_circle(gl_PointCoord.xy, 0.5);
     float dist = length(gl_PointCoord.xy - vec2(0.5));
     if (dist > 0.5)
         discard;
     
-    gl_FragColor = vec4(circle1.xyz, frag_color.x + 1.0);
+    //gl_FragColor = vec4(circle1.xyz, frag_color.x + 1.0);
+    gl_FragColor = vec4(frag_color, 1.0);
 }
 """
 

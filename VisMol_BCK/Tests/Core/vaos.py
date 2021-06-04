@@ -48,8 +48,7 @@ def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False
         out_len = num_points * subdivs
     else:
         out_len = (num_points - 1) * subdivs + 1
-    out_len *= 3
-    out = np.zeros(out_len, dtype=np.float32)
+    out = np.zeros([out_len, 3], dtype=np.float32)
     index = 0
     dt = 1.0 / subdivs
     tan_k1 = np.zeros(3, dtype=np.float32)
@@ -58,54 +57,52 @@ def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False
     p_k2 = np.zeros(3, dtype=np.float32)
     p_k3 = np.zeros(3, dtype=np.float32)
     p_k4 = np.zeros(3, dtype=np.float32)
-    p_k2[:] = points[:3]
-    p_k3[:] = points[3:6]
+    p_k2[:] = points[0,:]
+    p_k3[:] = points[1,:]
     if circular:
-        p_k1[:] = points[-3:]
+        p_k1[:] = points[-1,:]
         tan_k1[:] = p_k3 - p_k1
         tan_k1 *= strength
     else:
-        p_k1 = points[:3]
+        p_k1[:] = points[0,:]
     i = 1
     e = num_points - 1
     while i < e:
-        p_k4[0] = points[(i+1)*3]
-        p_k4[1] = points[(i+1)*3+1]
-        p_k4[2] = points[(i+1)*3+2]
+        p_k4[:] = points[i+1,:]
         tan_k2[:] = p_k4 - p_k2
         tan_k2 *= strength
         for j in range(subdivs):
-            out[index:index+3] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
-            index += 3
+            out[index,:] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
+            index += 1
         p_k1[:] = p_k2[:]
         p_k2[:] = p_k3[:]
         p_k3[:] = p_k4[:]
         tan_k1[:] = tan_k2[:]
         i += 1
     if circular:
-        p_k4[0] = points[0]
-        p_k4[1] = points[1]
-        p_k4[2] = points[3]
+        p_k4[0] = points[0,0]
+        p_k4[1] = points[0,1]
+        p_k4[2] = points[1,0]
         tan_k1 = p_k4 - p_k2
         tan_k1 *= strength
     else:
         tan_k1 = np.zeros(3, dtype=np.float32)
     for j in range(subdivs):
-        out[index:index+3] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
-        index += 3
+        out[index] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
+        index += 1
     if not circular:
-        out[index:index+3] = points[(num_points-1)*3:(num_points-1)*3+3]
+        out[index] = points[num_points-1:num_points]
         return out
     p_k1[:] = p_k2[:]
     p_k2[:] = p_k3[:]
     p_k3[:] = p_k4[:]
     tan_k1[:] = tan_k2[:]
-    p_k4[:] = points[3:6]
+    p_k4[:] = points[1,:]
     tan_k1 = p_k4 - p_k2
     tan_k1 *= strength
     for j in range(subdivs):
-        out[index:index+3] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
-        index += 3
+        out[index] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
+        index += 1
     return out
 
 def _get_normal(vec1, vec2):
@@ -121,7 +118,7 @@ def make_dots(program):
     # points = build_new_spline(cas, s=.75, pieces=15)
     # points = build_new_spline(cas, s=.75, pieces=5)
     # points = build_spline(cas, s=.75, pieces=8)
-    points = catmull_rom_spline(cas.flatten(), len(cas.flatten())//3, 5)
+    points = catmull_rom_spline(cas, cas.shape[0], 5)
     # print(points.shape)
     coords = np.array([p for p in points], dtype=np.float32)
     # coords = np.vstack((coords, cartoon(points[2], points[1], False)[0]))
@@ -1227,15 +1224,24 @@ def make_cartoon(program):
 
 def make_test(program):
     """ Function doc """
+    import cartoon as cton
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
-    coords = np.array([ 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
-                       -1.0, 0.0, 0.0,-1.0, 1.0, 0.0,-1.0,-1.0, 0.0,
-                        0.0,-1.0, 0.0, 1.0,-1.0, 0.0, 0.0, 0.0, 0.0],dtype=np.float32)
-    colors = np.array([ 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0,
-                        0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-                        0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0],dtype=np.float32)
-    colors = np.zeros(len(coords), dtype=np.float32)
+    # coords = np.array([ 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
+    #                    -1.0, 0.0, 0.0,-1.0, 1.0, 0.0,-1.0,-1.0, 0.0,
+    #                     0.0,-1.0, 0.0, 1.0,-1.0, 0.0, 0.0, 0.0, 0.0],dtype=np.float32)
+    # colors = np.array([ 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0,
+    #                     0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,
+    #                     0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0],dtype=np.float32)
+    # coords = catmull_rom_spline(cton.ARROW_POINTS*.5, 2, 8).flatten()
+    coords = cton.HELIX_POINTS.flatten()*.2
+    coords = np.hstack((coords, cton.ARROW_POINTS.flatten()*.2)) + 1
+    coords = np.hstack((coords, catmull_rom_spline(cton.HELIX_POINTS*.2, 8, 5, 0.1).flatten()))
+
+    colors = [[1,0,0]]*8 + [[0,1,0]]*8
+    colors = np.array(colors, dtype=np.float32).flatten()
+    # colors = np.zeros(len(coords), dtype=np.float32)
+    print(coords.shape, colors.shape)
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
     GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
@@ -1281,7 +1287,7 @@ def make_bonds_impostor(program):
     # coords = coords[:216]
     # colors = colors[:216]
     # cubes = cubes[:216]
-    print(cubes.shape, coords.shape, colors.shape)
+    # print(cubes.shape, coords.shape, colors.shape)
 
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
@@ -1328,7 +1334,7 @@ def make_impostor(program):
     # coords = coords[:216]
     # colors = colors[:216]
     # cubes = cubes[:216]
-    print(coords.shape, colors.shape)
+    # print(coords.shape, colors.shape)
     
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
