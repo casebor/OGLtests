@@ -127,48 +127,76 @@ def get_rotmat(angle, dir_vec):
     rot_matrix[2,2] = z*z*(1-c)+c
     return rot_matrix
 
-def get_dir_vector(p1, p2, p3, p4):
+def get_norm_vector(p1, p2, p3, p4):
     com1234 = (p1 + p2 + p3 + p4) / 4.0
     com12 = (p1 + p2) / 2.0
     com23 = (p2 + p3) / 2.0
     com34 = (p3 + p4) / 2.0
     # com14 = (p1 + p4) / 2.0
-    vec1 = np.cross(com23, com34)
-    vec1 /= np.linalg.norm(vec1)
-    pointA = com1234 + vec1 * np.linalg.norm(com34-com1234)
-    pointB = com1234 - vec1 * np.linalg.norm(com12-com1234)
-    dir_vec = pointA - pointB
+    vec1 = com23 - com1234
+    vec2 = com34 - com1234
+    vec3 = np.cross(vec1, vec2)
+    vec3 /= np.linalg.norm(vec3)
+    pointA = com1234 + vec3 * np.linalg.norm(com34-com1234)
+    pointB = com1234 - vec3 * np.linalg.norm(com34-com1234)
+    com12B = (com12 + pointB) / 2.0
+    com34A = (com34 + pointA) / 2.0
+    dir_vec = com34A - com12B
     return dir_vec / np.linalg.norm(dir_vec)
 
-def get_coil(spline, spline_detail, boundaries):
+def get_coil(spline, spline_detail):
     # TODO: this should return the coil points, but for now is returning the
     # entry points
-    return spline[boundaries[0]*spline_detail:(boundaries[1]+1)*spline_detail]
+    return spline
 
-def get_helix(spline, spline_detail, boundaries):
-    pass
+def get_helix(spline, spline_detail):
+    out = []
+    normal = np.zeros(3, dtype=np.float32)
+    for i in range(spline.shape[0] - spline_detail*3):
+        # if i % spline_detail == 0:
+        normal += get_norm_vector(spline[i], spline[i+spline_detail],
+                 spline[i+spline_detail*2], spline[i+spline_detail*3])
+        normal /= np.linalg.norm(normal)
+        dir_vec = spline[i+1] - spline[i]
+        # dir_vec /= np.linalg.norm(dir_vec)
+        side_vec = np.cross(dir_vec, normal)
+        side_vec /= np.linalg.norm(side_vec)
+        out.append(spline[i]+normal-side_vec*.1)
+        out.append(spline[i]+normal+side_vec*.1)
+        # out.append(spline[i])
+        out.append(spline[i]-normal+side_vec*.1)
+        out.append(spline[i]-normal-side_vec*.1)
+    for i in range(spline_detail*3, 0, -1):
+        out.append(spline[-i]+normal-side_vec*.1)
+        out.append(spline[-i]+normal+side_vec*.1)
+        # out.append(spline[-i])
+        out.append(spline[-i]-normal+side_vec*.1)
+        out.append(spline[-i]-normal-side_vec*.1)
+    return np.array(out, dtype=np.float32)
 
-def get_beta(spline, spline_detail, boundaries):
+def get_beta(spline, spline_detail):
     pass
 
 def cartoon(calphas_file="cas.txt", spline_detail=5):
+    sd = spline_detail
     calphas = np.loadtxt(calphas_file)
-    spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], spline_detail)
+    spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], sd)
     # TODO: function to calculate the boundaries for secondary structures.
     # This list contains the indices of the residues that are alpha helices in
     # zero-based indexing.
-    secstruc = [(0, [0, 1]), (1, [2, 12]), (0, [13, 18]), (1, [19, 33])]
-    output = np.array([], dtype=np.float32)
+    secstruc = [(0, 0, 2), (1, 2, 13), (0, 13, 19), (1, 19, 34)]
+    output = np.zeros(3, dtype=np.float32)
     for ss in secstruc:
         if ss[0] == 0:
-            output = np.vstack(output, get_coil(spline, spline_detail, ss[1]))
+            output = np.vstack((output, get_coil(spline[ss[1]*sd:ss[2]*sd], sd)))
         elif ss[0] == 1:
-            output = np.vstack(output, get_helix(spline, spline_detail, ss[1]))
+            output = np.vstack((output, get_helix(spline[ss[1]*sd:ss[2]*sd], sd)))
         elif ss[0] == 2:
-            output = np.vstack(output, get_beta(spline, spline_detail, ss[1]))
+            output = np.vstack((output, get_beta(spline[ss[1]*sd:ss[2]*sd], sd)))
     # print(calphas.shape, spline.shape)
     # print(calphas)
-    # print(spline)
+    output = output[1:]
+    # print(output)
     # vec_dir = np.array([0.0, 0.0, 1.0], dtype=np.float32)
     # for i in range(spline.shape[0]):
     #     if (i%spline_detail == 0) and ((i//spline_detail) < (calphas.shape[0]-4)):
@@ -180,6 +208,6 @@ def cartoon(calphas_file="cas.txt", spline_detail=5):
     #     for point in HELIX_POINTS:
     #         output.append(np.matmul(rotmat, point) + spline[i])
     # return np.array(output)
-    return spline
+    return output
 
-print(cartoon())
+# print(cartoon())

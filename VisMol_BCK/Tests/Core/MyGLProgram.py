@@ -98,7 +98,7 @@ class MyGLProgram(Gtk.GLArea):
         self.ctrl = False
         self.shift = False
         self.bckgrnd_color = np.array([0.0, 0.0, 0.0, 1.0],dtype=np.float32)
-        self.bckgrnd_color = np.array([0.5, 0.5, 0.5, 1.0],dtype=np.float32)
+        # self.bckgrnd_color = np.array([0.5, 0.5, 0.5, 1.0],dtype=np.float32)
         self.light_position = np.array([-2.5, 2.5, 2.5],dtype=np.float32)
         self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_ambient_coef = 0.5
