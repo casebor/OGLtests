@@ -1234,9 +1234,9 @@ def make_test(program):
     #                     0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,
     #                     0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0],dtype=np.float32)
     # coords = catmull_rom_spline(cton.ARROW_POINTS*.5, 2, 8).flatten()
-    coords = cton.HELIX_POINTS.flatten()*.2
-    coords = np.hstack((coords, cton.ARROW_POINTS.flatten()*.2)) + 1
-    coords = np.hstack((coords, catmull_rom_spline(cton.HELIX_POINTS*.2, 8, 5, 0.1).flatten()))
+    coords = cton.tube_profile().flatten()
+    # coords = cton.HELIX_POINTS.flatten()*.2
+    # coords = np.hstack((coords, cton.ARROW_POINTS.flatten()*.2)) + 1
 
     colors = [[1,0,0]]*8 + [[0,1,0]]*8
     colors = np.array(colors, dtype=np.float32).flatten()

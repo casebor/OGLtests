@@ -107,5 +107,44 @@ def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False
 # spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], 1)
 # print(spline)
 
+def get_rotmat(angle, dir_vec):
+    # vector = np.array(dir_vec, dtype=np.float32)
+    assert(np.linalg.norm(dir_vec)>0.0)
+    # angle = angle*np.pi/180.0
+    # x, y, z = vector/np.linalg.norm(vector)
+    x, y, z = dir_vec
+    c = np.cos(angle)
+    s = np.sin(angle)
+    rot_matrix = np.identity(4, dtype=np.float32)
+    rot_matrix[0,0] = x*x*(1-c)+c
+    rot_matrix[1,0] = y*x*(1-c)+z*s
+    rot_matrix[2,0] = x*z*(1-c)-y*s
+    rot_matrix[0,1] = x*y*(1-c)-z*s
+    rot_matrix[1,1] = y*y*(1-c)+c
+    rot_matrix[2,1] = y*z*(1-c)+x*s
+    rot_matrix[0,2] = x*z*(1-c)+y*s
+    rot_matrix[1,2] = y*z*(1-c)-x*s
+    rot_matrix[2,2] = z*z*(1-c)+c
+    return rot_matrix
+
 def tube_profile():
-    pass
+    spline_detail = 8
+    calphas = np.loadtxt("cas.txt")*10
+    spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], spline_detail)
+    output = []
+    # print(calphas.shape, spline.shape)
+    # print(calphas)
+    # print(spline)
+    vec_dir = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+    for i in range(spline.shape[0]):
+        if (i%spline_detail == 0) and ((i//spline_detail) < (calphas.shape[0]-4)):
+            vec_dir = spline[i+spline_detail*4] - spline[i]
+            vec_dir /= np.linalg.norm(vec_dir)
+        angle = np.degrees(np.arccos(np.dot([-1.0, 0.0, 0.0], vec_dir)))
+        normal = np.cross([-1.0, 0.0, 0.0], vec_dir)
+        rotmat = get_rotmat(angle, normal)[:3,:3]
+        for point in HELIX_POINTS:
+            output.append(np.matmul(rotmat, point) + spline[i])
+    return np.array(output)
+
+# print(tube_profile())
