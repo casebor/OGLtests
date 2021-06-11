@@ -113,7 +113,7 @@ def make_dots(program):
     """ Function doc """
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
-    cas = np.loadtxt("cas.txt", dtype=np.float32)*10
+    cas = np.loadtxt("cas.txt", dtype=np.float32)
     # ss = [0, 7, 18, 24, 38]
     # points = build_new_spline(cas, s=.75, pieces=15)
     # points = build_new_spline(cas, s=.75, pieces=5)

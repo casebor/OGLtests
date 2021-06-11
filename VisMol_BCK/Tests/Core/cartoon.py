@@ -86,7 +86,7 @@ def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False
         out[index] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
         index += 1
     if not circular:
-        out[index] = points[(num_points-1):(num_points-1)+3]
+        out[index] = points[num_points-1:num_points]
         return out
     p_k1[:] = p_k2[:]
     p_k2[:] = p_k3[:]
@@ -127,24 +127,59 @@ def get_rotmat(angle, dir_vec):
     rot_matrix[2,2] = z*z*(1-c)+c
     return rot_matrix
 
-def tube_profile():
-    spline_detail = 8
-    calphas = np.loadtxt("cas.txt")*10
+def get_dir_vector(p1, p2, p3, p4):
+    com1234 = (p1 + p2 + p3 + p4) / 4.0
+    com12 = (p1 + p2) / 2.0
+    com23 = (p2 + p3) / 2.0
+    com34 = (p3 + p4) / 2.0
+    # com14 = (p1 + p4) / 2.0
+    vec1 = np.cross(com23, com34)
+    vec1 /= np.linalg.norm(vec1)
+    pointA = com1234 + vec1 * np.linalg.norm(com34-com1234)
+    pointB = com1234 - vec1 * np.linalg.norm(com12-com1234)
+    dir_vec = pointA - pointB
+    return dir_vec / np.linalg.norm(dir_vec)
+
+def get_coil(spline, spline_detail, boundaries):
+    # TODO: this should return the coil points, but for now is returning the
+    # entry points
+    return spline[boundaries[0]*spline_detail:(boundaries[1]+1)*spline_detail]
+
+def get_helix(spline, spline_detail, boundaries):
+    pass
+
+def get_beta(spline, spline_detail, boundaries):
+    pass
+
+def cartoon(calphas_file="cas.txt", spline_detail=5):
+    calphas = np.loadtxt(calphas_file)
     spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], spline_detail)
-    output = []
+    # TODO: function to calculate the boundaries for secondary structures.
+    # This list contains the indices of the residues that are alpha helices in
+    # zero-based indexing.
+    secstruc = [(0, [0, 1]), (1, [2, 12]), (0, [13, 18]), (1, [19, 33])]
+    output = np.array([], dtype=np.float32)
+    for ss in secstruc:
+        if ss[0] == 0:
+            output = np.vstack(output, get_coil(spline, spline_detail, ss[1]))
+        elif ss[0] == 1:
+            output = np.vstack(output, get_helix(spline, spline_detail, ss[1]))
+        elif ss[0] == 2:
+            output = np.vstack(output, get_beta(spline, spline_detail, ss[1]))
     # print(calphas.shape, spline.shape)
     # print(calphas)
     # print(spline)
-    vec_dir = np.array([0.0, 0.0, 1.0], dtype=np.float32)
-    for i in range(spline.shape[0]):
-        if (i%spline_detail == 0) and ((i//spline_detail) < (calphas.shape[0]-4)):
-            vec_dir = spline[i+spline_detail*4] - spline[i]
-            vec_dir /= np.linalg.norm(vec_dir)
-        angle = np.degrees(np.arccos(np.dot([-1.0, 0.0, 0.0], vec_dir)))
-        normal = np.cross([-1.0, 0.0, 0.0], vec_dir)
-        rotmat = get_rotmat(angle, normal)[:3,:3]
-        for point in HELIX_POINTS:
-            output.append(np.matmul(rotmat, point) + spline[i])
-    return np.array(output)
+    # vec_dir = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+    # for i in range(spline.shape[0]):
+    #     if (i%spline_detail == 0) and ((i//spline_detail) < (calphas.shape[0]-4)):
+    #         vec_dir = spline[i+spline_detail*4] - spline[i]
+    #         vec_dir /= np.linalg.norm(vec_dir)
+    #     angle = np.degrees(np.arccos(np.dot([-1.0, 0.0, 0.0], vec_dir)))
+    #     normal = np.cross([-1.0, 0.0, 0.0], vec_dir)
+    #     rotmat = get_rotmat(angle, normal)[:3,:3]
+    #     for point in HELIX_POINTS:
+    #         output.append(np.matmul(rotmat, point) + spline[i])
+    # return np.array(output)
+    return spline
 
-# print(tube_profile())
+print(cartoon())
