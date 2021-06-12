@@ -107,7 +107,7 @@ def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False
 # spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], 1)
 # print(spline)
 
-def get_rotmat(angle, dir_vec):
+def get_rotmat3f(angle, dir_vec):
     # vector = np.array(dir_vec, dtype=np.float32)
     assert(np.linalg.norm(dir_vec)>0.0)
     # angle = angle*np.pi/180.0
@@ -115,7 +115,7 @@ def get_rotmat(angle, dir_vec):
     x, y, z = dir_vec
     c = np.cos(angle)
     s = np.sin(angle)
-    rot_matrix = np.identity(4, dtype=np.float32)
+    rot_matrix = np.identity(3, dtype=np.float32)
     rot_matrix[0,0] = x*x*(1-c)+c
     rot_matrix[1,0] = y*x*(1-c)+z*s
     rot_matrix[2,0] = x*z*(1-c)-y*s
@@ -144,42 +144,74 @@ def get_norm_vector(p1, p2, p3, p4):
     dir_vec = com34A - com12B
     return dir_vec / np.linalg.norm(dir_vec)
 
-def get_coil(spline, spline_detail):
-    # TODO: this should return the coil points, but for now is returning the
-    # entry points
-    return spline
-
-def get_helix(spline, spline_detail):
-    out = []
-    normal = np.zeros(3, dtype=np.float32)
-    for i in range(spline.shape[0] - spline_detail*3):
-        normal += get_norm_vector(spline[i], spline[i+spline_detail],
-                 spline[i+spline_detail*2], spline[i+spline_detail*3])
-        normal /= np.linalg.norm(normal)
+def get_coil(spline, spline_detail, coil_rad=0.2):
+    coil_points = np.array([[ 0.5, 0.866, 0.0], [ 1.0, 0.0, 0.0],
+                            [ 0.5,-0.866, 0.0], [-0.5,-0.866, 0.0],
+                            [-1.0, 0.0, 0.0], [-0.5, 0.866, 0.0]], dtype=np.float32)
+    coil_points *= coil_rad
+    coords = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
+    normals = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
+    for i in range(spline.shape[0] - 1):
         dir_vec = spline[i+1] - spline[i]
-        side_vec = np.cross(dir_vec, normal)
+        dir_vec /= np.linalg.norm(dir_vec)
+        align_vec = np.cross([0.0, 0.0, 1.0], dir_vec)
+        align_vec /= np.linalg.norm(align_vec)
+        angle = np.arccos(np.dot([0.0, 0.0, 1.0], dir_vec))
+        rotmat = get_rotmat3f(angle, align_vec)
+        for j, point in enumerate(coil_points):
+            coords[i*6+j,:] = np.matmul(rotmat, point) + spline[i]
+            normals[i*6+j,:] = coords[i*6+j,:] - spline[i]
+    for j, point in enumerate(coil_points):
+        coords[-6+j,:] = np.matmul(rotmat, point) + spline[-1]
+        normals[-6+j,:] = coords[-6+j,:] - spline[-1]
+    return coords, normals
+
+def get_helix(spline, spline_detail, helix_rad=0.2):
+    coords = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
+    normals = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
+    helix_vec = np.zeros(3, dtype=np.float32)
+    for i in range(spline.shape[0] - spline_detail*3):
+        helix_vec += get_norm_vector(spline[i], spline[i+spline_detail],
+                 spline[i+spline_detail*2], spline[i+spline_detail*3])
+        helix_vec /= np.linalg.norm(helix_vec)
+        dir_vec = spline[i+1] - spline[i]
+        side_vec = np.cross(dir_vec, helix_vec)
         side_vec /= np.linalg.norm(side_vec)
-        out.append(spline[i]+normal-side_vec*.1)
-        out.append(spline[i]+normal+side_vec*.1)
-        out.append(spline[i]+side_vec*.2)
-        out.append(spline[i]-normal+side_vec*.1)
-        out.append(spline[i]-normal-side_vec*.1)
-        out.append(spline[i]-side_vec*.2)
+        coords[i*6] = spline[i] + helix_vec + side_vec * helix_rad / 2.0
+        coords[i*6+1] = spline[i] + side_vec * helix_rad
+        coords[i*6+2] = spline[i] - helix_vec + side_vec * helix_rad / 2.0
+        coords[i*6+3] = spline[i] - helix_vec - side_vec * helix_rad / 2.0
+        coords[i*6+4] = spline[i] - side_vec * helix_rad
+        coords[i*6+5] = spline[i] + helix_vec - side_vec * helix_rad / 2.0
+        for j in range(6):
+            normals[i*6+j] = coords[i*6+j] - spline[i]
     for i in range(spline.shape[0] - spline_detail*3, spline.shape[0]):
         if i < spline.shape[0] - 1:
             dir_vec = spline[i+1] - spline[i]
-            side_vec = np.cross(dir_vec, normal)
+            side_vec = np.cross(dir_vec, helix_vec)
             side_vec /= np.linalg.norm(side_vec)
-        out.append(spline[i]+normal-side_vec*.1)
-        out.append(spline[i]+normal+side_vec*.1)
-        out.append(spline[i]+side_vec*.2)
-        out.append(spline[i]-normal+side_vec*.1)
-        out.append(spline[i]-normal-side_vec*.1)
-        out.append(spline[i]-side_vec*.2)
-    return np.array(out, dtype=np.float32)
+        coords[i*6] = spline[i] + helix_vec + side_vec * helix_rad / 2.0
+        coords[i*6+1] = spline[i] + side_vec * helix_rad
+        coords[i*6+2] = spline[i] - helix_vec + side_vec * helix_rad / 2.0
+        coords[i*6+3] = spline[i] - helix_vec - side_vec * helix_rad / 2.0
+        coords[i*6+4] = spline[i] - side_vec * helix_rad
+        coords[i*6+5] = spline[i] + helix_vec - side_vec * helix_rad / 2.0
+        for j in range(6):
+            normals[i*6+j] = coords[i*6+j] - spline[i]
+    return coords, normals
 
 def get_beta(spline, spline_detail):
     pass
+
+def get_indexes(rings, points_perring, offset=0):
+    assert points_perring > 2
+    indexes = np.zeros((rings-1)*points_perring*6, dtype=np.uint32)
+    i = offset
+    for r in range(rings-1):
+        for p in range(points_perring):
+            indexes[i] = r*p
+            indexes[i+1] = r*p+1
+            indexes[i] = r*p+points_perring
 
 def cartoon(calphas_file="cas.txt", spline_detail=5):
     sd = spline_detail
@@ -189,29 +221,23 @@ def cartoon(calphas_file="cas.txt", spline_detail=5):
     # This list contains the indices of the residues that are alpha helices in
     # zero-based indexing.
     secstruc = [(0, 0, 2), (1, 2, 13), (0, 13, 19), (1, 19, 34)]
-    output = np.zeros(3, dtype=np.float32)
+    coords = np.zeros(3, dtype=np.float32)
+    normals = np.zeros(3, dtype=np.float32)
     for ss in secstruc:
         if ss[0] == 0:
-            output = np.vstack((output, get_coil(spline[ss[1]*sd:ss[2]*sd], sd)))
+            data = get_coil(spline[ss[1]*sd:ss[2]*sd+1], sd)
+            coords = np.vstack((coords, data[0]))
+            normals = np.vstack((normals, data[1]))
         elif ss[0] == 1:
-            output = np.vstack((output, get_helix(spline[ss[1]*sd:ss[2]*sd], sd)))
+            data = get_helix(spline[ss[1]*sd:ss[2]*sd], sd)
+            coords = np.vstack((coords, data[0]))
+            normals = np.vstack((normals, data[1]))
         elif ss[0] == 2:
-            output = np.vstack((output, get_beta(spline[ss[1]*sd:ss[2]*sd], sd)))
+            data = get_beta(spline[ss[1]*sd:ss[2]*sd], sd)
+            coords = np.vstack((coords, data[0]))
+            normals = np.vstack((normals, data[1]))
     # print(calphas.shape, spline.shape)
     # print(calphas)
-    output = output[1:]
-    # print(output)
-    # vec_dir = np.array([0.0, 0.0, 1.0], dtype=np.float32)
-    # for i in range(spline.shape[0]):
-    #     if (i%spline_detail == 0) and ((i//spline_detail) < (calphas.shape[0]-4)):
-    #         vec_dir = spline[i+spline_detail*4] - spline[i]
-    #         vec_dir /= np.linalg.norm(vec_dir)
-    #     angle = np.degrees(np.arccos(np.dot([-1.0, 0.0, 0.0], vec_dir)))
-    #     normal = np.cross([-1.0, 0.0, 0.0], vec_dir)
-    #     rotmat = get_rotmat(angle, normal)[:3,:3]
-    #     for point in HELIX_POINTS:
-    #         output.append(np.matmul(rotmat, point) + spline[i])
-    # return np.array(output)
-    return output
-
-# print(cartoon())
+    coords = coords[1:]
+    normals = normals[1:]
+    return coords
