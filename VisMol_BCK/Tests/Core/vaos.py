@@ -113,36 +113,13 @@ def make_dots(program):
     """ Function doc """
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
-    # cas = np.loadtxt("cas.txt", dtype=np.float32)
-    # points = catmull_rom_spline(cas, cas.shape[0], 5)
-    # coords = np.array([p for p in points], dtype=np.float32)
-    import cartoon as cton
-    points = cton.cartoon()
-    coords = np.array([p for p in points], dtype=np.float32)
-    # coords = np.vstack((coords, cartoon(points[2], points[1], False)[0]))
-    # coords = np.vstack((coords, cartoon(points[1], points[2], True)[0]))
-    # [coords.append(c) for c in cartoon(points[2], points[1], False)]
-    # [coords.append(c) for c in cartoon(points[1], points[2], True)]
-    # flag = False
-    # for i in range(2, len(points)-2):
-    #     coords = np.vstack((coords, cartoon(points[i], points[i+1], flag)[0]))
-    #     # [coords.append(c) for c in cartoon(points[i], points[i+1], flag)]
-    #     flag = not flag
-    # # coords.append(points[-1])
-    # # coords = np.array(coords, dtype=np.float32)
     
-    colors = [1.0,0.0,0.0] * points.shape[0]
-    colors.extend([0.0,1.0,0.0] * (coords.shape[0]-points.shape[0]))
-    # print(coords.shape)
-    coords = points.flatten()
-    # print(coords.shape)
-    # colors.extend([1.0,0.0,0.0] * 40)
-    # colors.extend([0.0,1.0,0.0] * 1240)
-    # colors.extend([0.0,0.0,1.0] * 40)
-    # colors.extend([0.0,1.0,1.0] * 40)
+    import cartoon as cton
+    coords = cton.cartoon()[0]
+    colors = [1.0,0.0,0.0] * coords.shape[0]
     colors = np.array(colors, dtype=np.float32)
     colors = colors.flatten()
-    # print(coords.shape, colors.shape)
+    coords = coords.flatten()
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
@@ -162,7 +139,7 @@ def make_dots(program):
     GL.glDisableVertexAttribArray(position)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
+    return vertex_array_object, (coord_vbo, col_vbo), coords.shape[0]//3
 
 def make_dots_bck(program):
     """ Function doc """
@@ -981,20 +958,6 @@ def interpolate_points(p1, p2, p3, p4, s=0.25, pieces=7):
         coords[i,:] = np.matmul(v, mat)
     return np.copy(coords[:-1])
 
-def build_new_spline(calphas, s=0.25, pieces=7):
-    ns = (len(calphas)-3) * (pieces-1) + 3
-    new_coords = np.zeros([ns,3], dtype=np.float32)
-    new_coords[0,:] = calphas[0,:]
-    r = 1
-    for i in range(0, calphas.shape[0]-3):
-        _crds = interpolate_points(calphas[i], calphas[i+1], calphas[i+2],
-                                   calphas[i+3], s=s, pieces=pieces)
-        for j in range(_crds.shape[0]):
-            new_coords[r,:] = _crds[j,:]
-            r += 1
-    new_coords[-2:,:] = calphas[-2:,:]
-    return new_coords
-
 def build_spline(calphas, s=0.25, pieces=7):
     ns = (len(calphas)-3) * (pieces-1) + 3
     new_coords = np.zeros([ns,3], dtype=np.float32)
@@ -1141,56 +1104,24 @@ def get_indexes2(num_points, pts_per_ring):
 
 def make_cartoon(program):
     """ Function doc """
-    cas = np.loadtxt("cas.txt", dtype=np.float32)*10
-    # ss = [0, 7, 18, 24, 38]
-    points = build_new_spline(cas, s=.75, pieces=6)
-    # coords = [p for p in points]
-    # coords = [points[0]]
-    coords = []
-    norms = []
-    _c, _n = cartoon(points[2], points[1], False)
-    for i in range(_c.shape[0]):
-        coords.append(_c[i])
-        norms.append(_n[i])
-    _c, _n = cartoon(points[1], points[2], True)
-    for i in range(_c.shape[0]):
-        coords.append(_c[i])
-        norms.append(_n[i])
-    # [coords.append(c) for c in cartoon(points[2], points[1], False)]
-    # [coords.append(c) for c in cartoon(points[1], points[2], True)]
-    flag = False
-    # for i in range(2, len(points)-2):
-    #     [coords.append(c) for c in cartoon(points[i], points[i+1], flag)]
-    #     flag = not flag
-    for i in range(2, len(points)-2):
-        _c, _n = cartoon(points[i], points[i+1], flag)
-        for j in range(_c.shape[0]):
-            coords.append(_c[j])
-            norms.append(_n[j])
-        flag = not flag
-    # coords.append(points[-1])
-    coords = np.array(coords, dtype=np.float32)
-    colors = [0.0,1.0,0.0]*12
-    colors.extend([1.0,0.0,0.0]*12)
-    colors.extend([1.0,1.0,0.0]*12)
-    colors = np.array(colors, dtype=np.float32)
-    colors = np.array(([0.0,1.0,0.0] * coords.shape[0]), dtype=np.float32)
-    # colors = [1.0,0.0,0.0] * points.shape[0]
-    # colors.extend([0.0,1.0,0.0] * (coords.shape[0]-points.shape[0]))
+    
+    import cartoon as cton
+    coords, normals, indexes = cton.cartoon()
+    colors = [0.0, 1.0, 0.0] * coords.shape[0]
+    # print(coords.shape, len(colors), normals.shape, indexes.shape)
+    # print(indexes.reshape((60,3)))
+    # np.savetxt("inds.txt", indexes.reshape((2016,3)))
     coords = coords.flatten()
-    norms = np.array(norms, dtype=np.float32)
-    norms = norms.flatten()
-    # norms = np.copy(coords)
-    # indexes = np.array(get_indexes(coords.shape[0]//3, 12), dtype=np.uint32)
-    indexes = get_indexes2(coords.shape[0]//3, 12)
-    print(coords.shape, colors.shape, norms.shape, indexes.shape)
+    normals = normals.flatten()
+    colors = np.array(colors, dtype=np.float32)
+    # print(coords.shape, colors.shape, normals.shape, indexes.shape)
     
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
     
     ind_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
-    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*indexes.shape[0], indexes, GL.GL_DYNAMIC_DRAW)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*len(indexes), indexes, GL.GL_DYNAMIC_DRAW)
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
@@ -1208,10 +1139,10 @@ def make_cartoon(program):
     
     norm_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, norm_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, norms.itemsize*len(norms), norms, GL.GL_STATIC_DRAW)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, normals.itemsize*len(normals), normals, GL.GL_STATIC_DRAW)
     gl_norm = GL.glGetAttribLocation(program, 'vert_norm')
     GL.glEnableVertexAttribArray(gl_norm)
-    GL.glVertexAttribPointer(gl_norm, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*norms.itemsize, ctypes.c_void_p(0))
+    GL.glVertexAttribPointer(gl_norm, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*normals.itemsize, ctypes.c_void_p(0))
     
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_coord)

@@ -127,7 +127,22 @@ def get_rotmat3f(angle, dir_vec):
     rot_matrix[2,2] = z*z*(1-c)+c
     return rot_matrix
 
-def get_norm_vector(p1, p2, p3, p4):
+def get_beta_vectors(p1, p2, p3):
+    com123 = (p1 + p2 + p3) / 3.0
+    com12 = (p1 - p2) / 2.0
+    com23 = (p2 - p3) / 2.0
+    vec1 = com123 - com12
+    vec1 /= np.linalg.norm(vec1)
+    vec2 = com123 - com23
+    vec2 /= np.linalg.norm(vec2)
+    up_vec = vec1 + vec2
+    up_vec /= np.linalg.norm(up_vec)
+    vec3 = p3 - p1
+    side_vec = np.cross(up_vec, vec3)
+    side_vec /= np.linalg.norm(side_vec)
+    return up_vec, side_vec
+
+def get_helix_vector(p1, p2, p3, p4):
     com1234 = (p1 + p2 + p3 + p4) / 4.0
     com12 = (p1 + p2) / 2.0
     com23 = (p2 + p3) / 2.0
@@ -144,7 +159,8 @@ def get_norm_vector(p1, p2, p3, p4):
     dir_vec = com34A - com12B
     return dir_vec / np.linalg.norm(dir_vec)
 
-def get_coil(spline, spline_detail, coil_rad=0.2):
+def get_coil(spline, coil_rad=0.2):
+    # print(spline)
     coil_points = np.array([[ 0.5, 0.866, 0.0], [ 1.0, 0.0, 0.0],
                             [ 0.5,-0.866, 0.0], [-0.5,-0.866, 0.0],
                             [-1.0, 0.0, 0.0], [-0.5, 0.866, 0.0]], dtype=np.float32)
@@ -161,9 +177,9 @@ def get_coil(spline, spline_detail, coil_rad=0.2):
         for j, point in enumerate(coil_points):
             coords[i*6+j,:] = np.matmul(rotmat, point) + spline[i]
             normals[i*6+j,:] = coords[i*6+j,:] - spline[i]
-    for j, point in enumerate(coil_points):
-        coords[-6+j,:] = np.matmul(rotmat, point) + spline[-1]
-        normals[-6+j,:] = coords[-6+j,:] - spline[-1]
+    for i, point in enumerate(coil_points):
+        coords[-6+i,:] = np.matmul(rotmat, point) + spline[-1]
+        normals[-6+i,:] = coords[-6+i,:] - spline[-1]
     return coords, normals
 
 def get_helix(spline, spline_detail, helix_rad=0.2):
@@ -171,7 +187,7 @@ def get_helix(spline, spline_detail, helix_rad=0.2):
     normals = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
     helix_vec = np.zeros(3, dtype=np.float32)
     for i in range(spline.shape[0] - spline_detail*3):
-        helix_vec += get_norm_vector(spline[i], spline[i+spline_detail],
+        helix_vec += get_helix_vector(spline[i], spline[i+spline_detail],
                  spline[i+spline_detail*2], spline[i+spline_detail*3])
         helix_vec /= np.linalg.norm(helix_vec)
         dir_vec = spline[i+1] - spline[i]
@@ -200,44 +216,154 @@ def get_helix(spline, spline_detail, helix_rad=0.2):
             normals[i*6+j] = coords[i*6+j] - spline[i]
     return coords, normals
 
-def get_beta(spline, spline_detail):
-    pass
+def get_beta(spline, spline_detail, beta_rad=0.2):
+    coords = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
+    normals = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
+    beta_up = np.zeros(3, dtype=np.float32)
+    beta_side = np.zeros(3, dtype=np.float32)
+    beta_dir = 1
+    for i in range(spline.shape[0] - spline_detail):
+        if i < spline.shape[0] - spline_detail * 2:
+            _vecs = get_beta_vectors(spline[i], spline[i+spline_detail], spline[i+spline_detail*2])
+            beta_up += _vecs[0] * beta_dir
+            beta_side += _vecs[1] * beta_dir
+            beta_up /= np.linalg.norm(beta_up)
+            beta_side /= np.linalg.norm(beta_side)
+            beta_dir *= -1
+        coords[i*4] = spline[i] + beta_up * beta_rad / 5.0 + beta_side * beta_rad
+        coords[i*4+1] = spline[i] - beta_up * beta_rad / 5.0 + beta_side * beta_rad
+        coords[i*4+2] = spline[i] - beta_up * beta_rad / 5.0 - beta_side * beta_rad
+        coords[i*4+3] = spline[i] + beta_up * beta_rad / 5.0 - beta_side * beta_rad
+        for j in range(4):
+            normals[i*4+j] = coords[i*4+j] - spline[i]
+    arrow_rads = np.linspace(beta_up, 0.1, spline_detail)
+    arros_inds = np.arange(spline.shape[0] - spline_detail, spline.shape[0], dtype=np.uint32)
+    for i, r in zip(arros_inds, arrow_rads):
+        # _vecs = get_beta_vectors(spline[i], spline[i+spline_detail], spline[i+spline_detail*2])
+        # beta_up += _vecs[0] * beta_dir
+        # beta_side += _vecs[1] * beta_dir
+        # beta_up /= np.linalg.norm(beta_up)
+        # beta_side /= np.linalg.norm(beta_side)
+        # beta_dir *= -1
+        coords[i*4] = spline[i] + beta_up * r / 5.0 + beta_side * r
+        coords[i*4+1] = spline[i] - beta_up * r / 5.0 + beta_side * r
+        coords[i*4+2] = spline[i] - beta_up * r / 5.0 - beta_side * r
+        coords[i*4+3] = spline[i] + beta_up * r / 5.0 - beta_side * r
+        for j in range(4):
+            normals[i*4+j] = coords[i*4+j] - spline[i]
+    return coords, normals
 
-def get_indexes(rings, points_perring, offset=0):
+def get_indexes_BCK(rings, points_perring, offset=0):
     assert points_perring > 2
-    indexes = np.zeros((rings-1)*points_perring*6, dtype=np.uint32)
-    i = offset
+    indexes = np.zeros((rings-1)*points_perring*2*3, dtype=np.uint32)
+    # print("Inside cartoon", rings, points_perring)
+    i = 0
     for r in range(rings-1):
-        for p in range(points_perring):
-            indexes[i] = r*p
-            indexes[i+1] = r*p+1
-            indexes[i] = r*p+points_perring
+        for p in range(points_perring-1):
+            indexes[i] = r*points_perring+p
+            indexes[i+1] = r*points_perring+p+1
+            indexes[i+2] = (r+1)*points_perring+p
+            i += 3
+        indexes[i] = (r+1)*points_perring - 1
+        indexes[i+1] = r*points_perring
+        indexes[i+2] = (r+2)*points_perring - 1
+        i += 3
+        for p in range(points_perring-1):
+            indexes[i] = (r+1)*points_perring+p
+            indexes[i+1] = (r+1)*points_perring+p+1
+            indexes[i+2] = r*points_perring+p+1
+            i += 3
+        indexes[i] = (r+2)*points_perring - 1
+        indexes[i+1] = (r+1)*points_perring
+        indexes[i+2] = r*points_perring
+        i += 3
+    indexes += offset
+    return indexes
 
-def cartoon(calphas_file="cas.txt", spline_detail=5):
+def get_indexes(num_points, points_perring, offset):
+    size_i = (num_points//points_perring)*2*6*3 + 2*4*3
+    indexes = np.zeros(size_i, dtype=np.uint32)
+    # Add indices for the initial cap
+    indexes[:12] = [0,1,2, 2,3,4, 4,5,0, 0,2,4]
+    i = 12
+    for r in range(num_points//points_perring-1):
+        for p in range(points_perring-1):
+            indexes[i] = r*points_perring+p
+            indexes[i+1] = r*points_perring+p+1
+            indexes[i+2] = (r+1)*points_perring+p
+            i += 3
+        indexes[i] = (r+1)*points_perring - 1
+        indexes[i+1] = r*points_perring
+        indexes[i+2] = (r+2)*points_perring - 1
+        i += 3
+        for p in range(points_perring-1):
+            indexes[i] = (r+1)*points_perring+p
+            indexes[i+1] = (r+1)*points_perring+p+1
+            indexes[i+2] = r*points_perring+p+1
+            i += 3
+        indexes[i] = (r+2)*points_perring - 1
+        indexes[i+1] = (r+1)*points_perring
+        indexes[i+2] = r*points_perring
+        i += 3
+    a = num_points - points_perring
+    indexes[-12:] = [a,a+1,a+2, a+2,a+3,a+4, a+4,a+5,a, a,a+2,a+4]
+    indexes += offset
+    return indexes
+
+
+def cartoon(calphas_file="cas2.txt", spline_detail=5):
     sd = spline_detail
     calphas = np.loadtxt(calphas_file)
     spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], sd)
     # TODO: function to calculate the boundaries for secondary structures.
     # This list contains the indices of the residues that are alpha helices in
     # zero-based indexing.
-    secstruc = [(0, 0, 2), (1, 2, 13), (0, 13, 19), (1, 19, 34)]
-    coords = np.zeros(3, dtype=np.float32)
-    normals = np.zeros(3, dtype=np.float32)
+    # secstruc = [(0, 0, 2), (1, 2, 13), (0, 13, 19), (1, 19, 33)]
+    secstruc = [(0,0,1), (2,1,6), (0,6,11), (2,11,16), (0,16,21), (1,21,35),
+                (0,35,40), (2,40,45), (0,45,55), (1,55,60), (0,60,65),
+                (2,65,71), (0,71,74)]
+    coords = np.zeros([1,3], dtype=np.float32)
+    normals = np.zeros([1,3], dtype=np.float32)
+    indexes = np.array([], dtype=np.uint32)
     for ss in secstruc:
         if ss[0] == 0:
-            data = get_coil(spline[ss[1]*sd:ss[2]*sd+1], sd)
+            # _inds = get_indexes((ss[2] - ss[1])*sd + 1, 6, coords.shape[0]-1)
+            # indexes = np.hstack((indexes, _inds))
+            if ss[1] == 0:
+                if ss[2] == calphas.shape[0]:
+                    data = get_coil(spline[ss[1]*sd:ss[2]*sd])
+                else:
+                    data = get_coil(spline[ss[1]*sd:ss[2]*sd+1])
+            else:
+                if ss[2] == calphas.shape[0]:
+                    data = get_coil(spline[ss[1]*sd-1:ss[2]*sd])
+                else:
+                    # print(ss[1]*sd-1,ss[2]*sd+1)
+                    # print(spline.shape)
+                    data = get_coil(spline[ss[1]*sd-1:ss[2]*sd+1])
+            # data = get_coil(spline[ss[1]*sd:ss[2]*sd+1], sd)
+            _inds = get_indexes(data[0].shape[0], 6, coords.shape[0]-1)
+            indexes = np.hstack((indexes, _inds))
             coords = np.vstack((coords, data[0]))
             normals = np.vstack((normals, data[1]))
         elif ss[0] == 1:
+            # _inds = get_indexes((ss[2] - ss[1])*sd, 6, coords.shape[0]-1)
+            # indexes = np.hstack((indexes, _inds))
             data = get_helix(spline[ss[1]*sd:ss[2]*sd], sd)
+            _inds = get_indexes(data[0].shape[0], 6, coords.shape[0]-1)
+            indexes = np.hstack((indexes, _inds))
             coords = np.vstack((coords, data[0]))
             normals = np.vstack((normals, data[1]))
         elif ss[0] == 2:
+            # _inds = get_indexes((ss[2] - ss[1])*sd, 6, coords.shape[0]-1)
+            # indexes = np.hstack((indexes, _inds))
             data = get_beta(spline[ss[1]*sd:ss[2]*sd], sd)
+            _inds = get_indexes(data[0].shape[0], 4, coords.shape[0]-1)
+            indexes = np.hstack((indexes, _inds))
             coords = np.vstack((coords, data[0]))
             normals = np.vstack((normals, data[1]))
-    # print(calphas.shape, spline.shape)
-    # print(calphas)
+    # print(spline.shape, "<- Spline shape")
     coords = coords[1:]
     normals = normals[1:]
-    return coords
+    print(spline.shape, coords.shape, normals.shape, indexes.shape)
+    return coords, normals, indexes
