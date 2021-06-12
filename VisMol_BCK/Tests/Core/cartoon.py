@@ -216,7 +216,7 @@ def get_helix(spline, spline_detail, helix_rad=0.2):
             normals[i*6+j] = coords[i*6+j] - spline[i]
     return coords, normals
 
-def get_beta(spline, spline_detail, beta_rad=0.2):
+def get_beta(spline, spline_detail, beta_rad=1.0):
     coords = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
     normals = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
     beta_up = np.zeros(3, dtype=np.float32)
@@ -226,17 +226,18 @@ def get_beta(spline, spline_detail, beta_rad=0.2):
         if i < spline.shape[0] - spline_detail * 2:
             _vecs = get_beta_vectors(spline[i], spline[i+spline_detail], spline[i+spline_detail*2])
             beta_up += _vecs[0] * beta_dir
-            beta_side += _vecs[1] * beta_dir
+            # beta_side += _vecs[1] * beta_dir
             beta_up /= np.linalg.norm(beta_up)
+            beta_side = np.cross(spline[i+1]-spline[i], beta_up)
             beta_side /= np.linalg.norm(beta_side)
-            beta_dir *= -1
+            # beta_dir *= -1
         coords[i*4] = spline[i] + beta_up * beta_rad / 5.0 + beta_side * beta_rad
         coords[i*4+1] = spline[i] - beta_up * beta_rad / 5.0 + beta_side * beta_rad
         coords[i*4+2] = spline[i] - beta_up * beta_rad / 5.0 - beta_side * beta_rad
         coords[i*4+3] = spline[i] + beta_up * beta_rad / 5.0 - beta_side * beta_rad
         for j in range(4):
             normals[i*4+j] = coords[i*4+j] - spline[i]
-    arrow_rads = np.linspace(beta_up, 0.1, spline_detail)
+    arrow_rads = np.linspace(beta_rad*1.8, 0.1, spline_detail)
     arros_inds = np.arange(spline.shape[0] - spline_detail, spline.shape[0], dtype=np.uint32)
     for i, r in zip(arros_inds, arrow_rads):
         # _vecs = get_beta_vectors(spline[i], spline[i+spline_detail], spline[i+spline_detail*2])
@@ -245,10 +246,10 @@ def get_beta(spline, spline_detail, beta_rad=0.2):
         # beta_up /= np.linalg.norm(beta_up)
         # beta_side /= np.linalg.norm(beta_side)
         # beta_dir *= -1
-        coords[i*4] = spline[i] + beta_up * r / 5.0 + beta_side * r
-        coords[i*4+1] = spline[i] - beta_up * r / 5.0 + beta_side * r
-        coords[i*4+2] = spline[i] - beta_up * r / 5.0 - beta_side * r
-        coords[i*4+3] = spline[i] + beta_up * r / 5.0 - beta_side * r
+        coords[i*4] = spline[i] + beta_up * beta_rad / 5.0 + beta_side * r
+        coords[i*4+1] = spline[i] - beta_up * beta_rad / 5.0 + beta_side * r
+        coords[i*4+2] = spline[i] - beta_up * beta_rad / 5.0 - beta_side * r
+        coords[i*4+3] = spline[i] + beta_up * beta_rad / 5.0 - beta_side * r
         for j in range(4):
             normals[i*4+j] = coords[i*4+j] - spline[i]
     return coords, normals
@@ -280,11 +281,14 @@ def get_indexes_BCK(rings, points_perring, offset=0):
     indexes += offset
     return indexes
 
-def get_indexes(num_points, points_perring, offset):
+def get_indexes(num_points, points_perring, offset, is_beta=False):
     size_i = (num_points//points_perring)*2*6*3 + 2*4*3
     indexes = np.zeros(size_i, dtype=np.uint32)
     # Add indices for the initial cap
-    indexes[:12] = [0,1,2, 2,3,4, 4,5,0, 0,2,4]
+    if is_beta:
+        indexes[:6] = [0,1,2, 2,3,0]
+    else:
+        indexes[:12] = [0,1,2, 2,3,4, 4,5,0, 0,2,4]
     i = 12
     for r in range(num_points//points_perring-1):
         for p in range(points_perring-1):
@@ -306,7 +310,10 @@ def get_indexes(num_points, points_perring, offset):
         indexes[i+2] = r*points_perring
         i += 3
     a = num_points - points_perring
-    indexes[-12:] = [a,a+1,a+2, a+2,a+3,a+4, a+4,a+5,a, a,a+2,a+4]
+    if is_beta:
+        indexes[-6:] = [a,a+1,a+2, a+2,a+3,a]
+    else:
+        indexes[-12:] = [a,a+1,a+2, a+2,a+3,a+4, a+4,a+5,a, a,a+2,a+4]
     indexes += offset
     return indexes
 
@@ -358,7 +365,7 @@ def cartoon(calphas_file="cas2.txt", spline_detail=5):
             # _inds = get_indexes((ss[2] - ss[1])*sd, 6, coords.shape[0]-1)
             # indexes = np.hstack((indexes, _inds))
             data = get_beta(spline[ss[1]*sd:ss[2]*sd], sd)
-            _inds = get_indexes(data[0].shape[0], 4, coords.shape[0]-1)
+            _inds = get_indexes(data[0].shape[0], 4, coords.shape[0]-1, is_beta=True)
             indexes = np.hstack((indexes, _inds))
             coords = np.vstack((coords, data[0]))
             normals = np.vstack((normals, data[1]))
