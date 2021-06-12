@@ -20,9 +20,11 @@ if __name__ == "__main__":
         data = parse_pdb(argv[1])
     elif argv[1].endswith("obj"):
         data = parse_obj(argv[1])
-    test = gtk_stuff.VMWindow(draw_type="points")
+    # test = gtk_stuff.VMWindow(draw_type="points")
     # test = gtk_stuff.VMWindow(vertex_shader=vms.vertex_shader_glumpy,
     #        fragment_shader = vms.fragment_shader_glumpy, draw_type="points")
+    test = gtk_stuff.VMWindow(vertex_shader=vms.vertex_shader_triangles,
+           fragment_shader = vms.fragment_shader_triangles, draw_type="triangles")
     test.load_data(data)
     wind = Gtk.Window()
     wind.add(test)

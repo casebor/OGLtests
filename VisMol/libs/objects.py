@@ -25,17 +25,17 @@ class VMNode():
             self.color = np.array(color)
         # self.bonds = []
     
-    def set_pos(self, new_pos: np.array):
+    def set_pos(self, new_pos):
         """ Function doc """
-        assert new_pos.shape[0] == 3
+        assert len(new_pos) == 3
         self.x, self.y, self.z = new_pos
-        self.pos = new_pos
+        self.pos = np.array(new_pos, dtype=np.float32)
     
-    def set_normal(self, new_normal: np.array):
+    def set_normal(self, new_normal):
         """ Function doc """
-        assert new_normal.shape[0] == 3
-        assert np.linalg.norm(new_normal) == 1.0
-        self.normal = new_normal
+        assert len(new_normal) == 3
+        # assert np.linalg.norm(new_normal) == 1.0
+        self.normal = np.array(new_normal, dtype=np.float32)
     
     # def add_bond(self, other_node):
     #     """ Function doc """

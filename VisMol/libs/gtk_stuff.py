@@ -70,6 +70,12 @@ class VMWindow(Gtk.GLArea):
         self.mouse_rotate = False
         self.mouse_zoom = False
         self.mouse_pan = False
+        self.light_position = np.array([-2.5, 2.5, 2.5],dtype=np.float32)
+        self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
+        self.light_ambient_coef = 0.5
+        self.light_shininess = 5.5
+        self.light_intensity = np.array([0.6, 0.6, 0.6],dtype=np.float32)
+        self.light_specular_color = np.array([1.0, 1.0, 1.0],dtype=np.float32)
         self.make_current()
         if (self.get_error() != None):
             return
@@ -159,6 +165,23 @@ class VMWindow(Gtk.GLArea):
         proj = GL.glGetUniformLocation(self.gl_program, 'projection_mat')
         GL.glUniformMatrix4fv(proj, 1, GL.GL_FALSE, self.proj_mat)
     
+    def _load_lights(self):
+        """ Function doc
+        """
+        light_pos = GL.glGetUniformLocation(self.gl_program, 'my_light.position')
+        GL.glUniform3fv(light_pos, 1, self.light_position)
+        #light_col = GL.glGetUniformLocation(self.gl_program, 'my_light.color')
+        #GL.glUniform3fv(light_col, 1, self.light_color)
+        amb_coef = GL.glGetUniformLocation(self.gl_program, 'my_light.ambient_coef')
+        GL.glUniform1fv(amb_coef, 1, self.light_ambient_coef)
+        shiny = GL.glGetUniformLocation(self.gl_program, 'my_light.shininess')
+        GL.glUniform1fv(shiny, 1, self.light_shininess)
+        intensity = GL.glGetUniformLocation(self.gl_program, 'my_light.intensity')
+        GL.glUniform3fv(intensity, 1, self.light_intensity)
+        #spec_col = GL.glGetUniformLocation(self.gl_program, 'my_light.specular_color')
+        #GL.glUniform3fv(spec_col, 1, self.light_specular_color)
+        return True
+    
     def render(self, area, context):
         """ Function doc """
         if not self.gl_programs_compiled:
@@ -186,11 +209,22 @@ class VMWindow(Gtk.GLArea):
             GL.glDisable(GL.GL_DEPTH_TEST)
             GL.glBindVertexArray(0)
             GL.glUseProgram(0)
+        elif self.draw_type == "triangles":
+            GL.glEnable(GL.GL_DEPTH_TEST)
+            GL.glUseProgram(self.gl_program)
+            self._load_matrices()
+            self._load_lights()
+            GL.glBindVertexArray(self.vao)
+            GL.glDrawElements(GL.GL_TRIANGLES, self.elements, GL.GL_UNSIGNED_INT, None)
+            GL.glDisable(GL.GL_DEPTH_TEST)
+            GL.glBindVertexArray(0)
+            GL.glUseProgram(0)
     
     def make_vaos(self):
         """ Function doc """
         # self.vao, self.elements = getattr(vaos, self.draw_type, [None, None])(self.gl_program, gl_data)
-        self.vao, self.elements = vaos.points(self.gl_program, self.gl_data)
+        # self.vao, self.elements = vaos.points(self.gl_program, self.gl_data)
+        self.vao, self.elements = vaos.triangles(self.gl_program, self.gl_data)
     
     def load_data(self, data):
         """ Function doc """

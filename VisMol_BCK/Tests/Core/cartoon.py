@@ -153,25 +153,29 @@ def get_helix(spline, spline_detail):
     out = []
     normal = np.zeros(3, dtype=np.float32)
     for i in range(spline.shape[0] - spline_detail*3):
-        # if i % spline_detail == 0:
         normal += get_norm_vector(spline[i], spline[i+spline_detail],
                  spline[i+spline_detail*2], spline[i+spline_detail*3])
         normal /= np.linalg.norm(normal)
         dir_vec = spline[i+1] - spline[i]
-        # dir_vec /= np.linalg.norm(dir_vec)
         side_vec = np.cross(dir_vec, normal)
         side_vec /= np.linalg.norm(side_vec)
         out.append(spline[i]+normal-side_vec*.1)
         out.append(spline[i]+normal+side_vec*.1)
-        # out.append(spline[i])
+        out.append(spline[i]+side_vec*.2)
         out.append(spline[i]-normal+side_vec*.1)
         out.append(spline[i]-normal-side_vec*.1)
-    for i in range(spline_detail*3, 0, -1):
-        out.append(spline[-i]+normal-side_vec*.1)
-        out.append(spline[-i]+normal+side_vec*.1)
-        # out.append(spline[-i])
-        out.append(spline[-i]-normal+side_vec*.1)
-        out.append(spline[-i]-normal-side_vec*.1)
+        out.append(spline[i]-side_vec*.2)
+    for i in range(spline.shape[0] - spline_detail*3, spline.shape[0]):
+        if i < spline.shape[0] - 1:
+            dir_vec = spline[i+1] - spline[i]
+            side_vec = np.cross(dir_vec, normal)
+            side_vec /= np.linalg.norm(side_vec)
+        out.append(spline[i]+normal-side_vec*.1)
+        out.append(spline[i]+normal+side_vec*.1)
+        out.append(spline[i]+side_vec*.2)
+        out.append(spline[i]-normal+side_vec*.1)
+        out.append(spline[i]-normal-side_vec*.1)
+        out.append(spline[i]-side_vec*.2)
     return np.array(out, dtype=np.float32)
 
 def get_beta(spline, spline_detail):
