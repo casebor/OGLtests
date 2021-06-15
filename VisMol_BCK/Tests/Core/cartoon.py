@@ -159,14 +159,16 @@ def get_helix_vector(p1, p2, p3, p4):
     dir_vec = com34A - com12B
     return dir_vec / np.linalg.norm(dir_vec)
 
-def get_coil(spline, coil_rad=0.2):
-    # print(spline)
+def get_coil(spline, coil_rad=0.2, color=None):
+    if color is None:
+        color = [0.0, 1.0, 0.0]
     coil_points = np.array([[ 0.5, 0.866, 0.0], [ 1.0, 0.0, 0.0],
                             [ 0.5,-0.866, 0.0], [-0.5,-0.866, 0.0],
                             [-1.0, 0.0, 0.0], [-0.5, 0.866, 0.0]], dtype=np.float32)
     coil_points *= coil_rad
     coords = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
     normals = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
+    colors = np.array([color]*spline.shape[0]*6, dtype=np.float32)
     for i in range(spline.shape[0] - 1):
         dir_vec = spline[i+1] - spline[i]
         dir_vec /= np.linalg.norm(dir_vec)
@@ -180,11 +182,14 @@ def get_coil(spline, coil_rad=0.2):
     for i, point in enumerate(coil_points):
         coords[-6+i,:] = np.matmul(rotmat, point) + spline[-1]
         normals[-6+i,:] = coords[-6+i,:] - spline[-1]
-    return coords, normals
+    return coords, normals, colors
 
-def get_helix(spline, spline_detail, helix_rad=0.2):
+def get_helix(spline, spline_detail, helix_rad=0.2, color=None):
+    if color is None:
+        color = [1.0, 0.0, 0.0]
     coords = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
     normals = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
+    colors = np.array([color]*coords.shape[0], dtype=np.float32)
     helix_vec = np.zeros(3, dtype=np.float32)
     for i in range(spline.shape[0] - spline_detail*3):
         helix_vec += get_helix_vector(spline[i], spline[i+spline_detail],
@@ -214,11 +219,14 @@ def get_helix(spline, spline_detail, helix_rad=0.2):
         coords[i*6+5] = spline[i] + helix_vec - side_vec * helix_rad / 2.0
         for j in range(6):
             normals[i*6+j] = coords[i*6+j] - spline[i]
-    return coords, normals
+    return coords, normals, colors
 
-def get_beta(spline, spline_detail, beta_rad=0.5):
+def get_beta(spline, spline_detail, beta_rad=0.5, color=None):
+    if color is None:
+        color = [1.0, 1.0, 0.0]
     coords = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
     normals = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
+    colors = np.array([color]*coords.shape[0], dtype=np.float32)
     beta_up = np.zeros(3, dtype=np.float32)
     beta_side = np.zeros(3, dtype=np.float32)
     beta_dir = 1
@@ -252,12 +260,11 @@ def get_beta(spline, spline_detail, beta_rad=0.5):
         coords[i*4+3] = spline[i] + beta_up * beta_rad / 5.0 - beta_side * r
         for j in range(4):
             normals[i*4+j] = coords[i*4+j] - spline[i]
-    return coords, normals
+    return coords, normals, colors
 
 def get_indexes_BCK(rings, points_perring, offset=0):
     assert points_perring > 2
     indexes = np.zeros((rings-1)*points_perring*2*3, dtype=np.uint32)
-    # print("Inside cartoon", rings, points_perring)
     i = 0
     for r in range(rings-1):
         for p in range(points_perring-1):
@@ -343,6 +350,7 @@ def cartoon(calphas_file="cas2.txt", spline_detail=5):
                 (2,65,71), (0,71,74)]
     coords = np.zeros([1,3], dtype=np.float32)
     normals = np.zeros([1,3], dtype=np.float32)
+    colors = np.zeros([1,3], dtype=np.float32)
     indexes = np.array([], dtype=np.uint32)
     for ss in secstruc:
         if ss[0] == 0:
@@ -357,14 +365,13 @@ def cartoon(calphas_file="cas2.txt", spline_detail=5):
                 if ss[2] == calphas.shape[0]:
                     data = get_coil(spline[ss[1]*sd-1:ss[2]*sd])
                 else:
-                    # print(ss[1]*sd-1,ss[2]*sd+1)
-                    # print(spline.shape)
                     data = get_coil(spline[ss[1]*sd-1:ss[2]*sd+1])
             # data = get_coil(spline[ss[1]*sd:ss[2]*sd+1], sd)
             _inds = get_indexes(data[0].shape[0], 6, coords.shape[0]-1)
             indexes = np.hstack((indexes, _inds))
             coords = np.vstack((coords, data[0]))
             normals = np.vstack((normals, data[1]))
+            colors = np.vstack((colors, data[2]))
         elif ss[0] == 1:
             # _inds = get_indexes((ss[2] - ss[1])*sd, 6, coords.shape[0]-1)
             # indexes = np.hstack((indexes, _inds))
@@ -373,6 +380,7 @@ def cartoon(calphas_file="cas2.txt", spline_detail=5):
             indexes = np.hstack((indexes, _inds))
             coords = np.vstack((coords, data[0]))
             normals = np.vstack((normals, data[1]))
+            colors = np.vstack((colors, data[2]))
         elif ss[0] == 2:
             # _inds = get_indexes((ss[2] - ss[1])*sd, 6, coords.shape[0]-1)
             # indexes = np.hstack((indexes, _inds))
@@ -381,9 +389,10 @@ def cartoon(calphas_file="cas2.txt", spline_detail=5):
             indexes = np.hstack((indexes, _inds))
             coords = np.vstack((coords, data[0]))
             normals = np.vstack((normals, data[1]))
-    # print(spline.shape, "<- Spline shape")
+            colors = np.vstack((colors, data[2]))
     coords = coords[1:]
     normals = normals[1:]
+    colors = colors[1:]
     normals = make_normals(coords, indexes)
-    print(spline.shape, coords.shape, normals.shape, indexes.shape)
-    return coords, normals, indexes
+    print(spline.shape, coords.shape, normals.shape, colors.shape, indexes.shape)
+    return coords, normals, indexes, colors

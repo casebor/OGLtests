@@ -1106,14 +1106,15 @@ def make_cartoon(program):
     """ Function doc """
     
     import cartoon as cton
-    coords, normals, indexes = cton.cartoon()
-    colors = [0.0, 1.0, 0.0] * coords.shape[0]
+    coords, normals, indexes, colors = cton.cartoon()
+    # colors = [0.0, 1.0, 0.0] * coords.shape[0]
     # print(coords.shape, len(colors), normals.shape, indexes.shape)
     # print(indexes.reshape((60,3)))
     # np.savetxt("inds.txt", indexes.reshape((2016,3)))
     coords = coords.flatten()
     normals = normals.flatten()
-    colors = np.array(colors, dtype=np.float32)
+    colors = colors.flatten()
+    # colors = np.array(colors, dtype=np.float32)
     # print(coords.shape, colors.shape, normals.shape, indexes.shape)
     
     vertex_array_object = GL.glGenVertexArrays(1)
