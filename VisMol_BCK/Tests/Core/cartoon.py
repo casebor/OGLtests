@@ -38,7 +38,7 @@ def cubic_hermite_interpolate(p_k1, tan_k1, p_k2, tan_k2, t):
     p += tan_k2 * h11
     return p
 
-def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False):
+def catmull_rom_spline(points, num_points, subdivs, strength=0.6, circular=False):
     if circular:
         out_len = num_points * subdivs
     else:
@@ -216,14 +216,14 @@ def get_helix(spline, spline_detail, helix_rad=0.2):
             normals[i*6+j] = coords[i*6+j] - spline[i]
     return coords, normals
 
-def get_beta(spline, spline_detail, beta_rad=1.0):
+def get_beta(spline, spline_detail, beta_rad=0.5):
     coords = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
     normals = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
     beta_up = np.zeros(3, dtype=np.float32)
     beta_side = np.zeros(3, dtype=np.float32)
     beta_dir = 1
     for i in range(spline.shape[0] - spline_detail):
-        if i < spline.shape[0] - spline_detail * 2:
+        if i < spline.shape[0] - spline_detail * 2 and i % spline_detail == 0:
             _vecs = get_beta_vectors(spline[i], spline[i+spline_detail], spline[i+spline_detail*2])
             beta_up += _vecs[0] * beta_dir
             # beta_side += _vecs[1] * beta_dir
@@ -237,7 +237,7 @@ def get_beta(spline, spline_detail, beta_rad=1.0):
         coords[i*4+3] = spline[i] + beta_up * beta_rad / 5.0 - beta_side * beta_rad
         for j in range(4):
             normals[i*4+j] = coords[i*4+j] - spline[i]
-    arrow_rads = np.linspace(beta_rad*1.8, 0.1, spline_detail)
+    arrow_rads = np.linspace(beta_rad*2.5, 0.1, spline_detail)
     arros_inds = np.arange(spline.shape[0] - spline_detail, spline.shape[0], dtype=np.uint32)
     for i, r in zip(arros_inds, arrow_rads):
         # _vecs = get_beta_vectors(spline[i], spline[i+spline_detail], spline[i+spline_detail*2])
@@ -318,6 +318,18 @@ def get_indexes(num_points, points_perring, offset, is_beta=False):
     return indexes
 
 
+def make_normals(coords, indexes):
+    normals = np.zeros(coords.shape, dtype=np.float32)
+    for i in range(0, indexes.shape[0], 3):
+        vec1 = coords[indexes[i+1]] - coords[indexes[i]]
+        vec2 = coords[indexes[i+2]] - coords[indexes[i]]
+        normal = np.cross(vec1, vec2)
+        normal /= np.linalg.norm(normal)
+        normals[indexes[i]] = np.copy(normal)
+        normals[indexes[i+1]] = np.copy(normal)
+        normals[indexes[i+2]] = np.copy(normal)
+    return normals
+
 def cartoon(calphas_file="cas2.txt", spline_detail=5):
     sd = spline_detail
     calphas = np.loadtxt(calphas_file)
@@ -372,5 +384,6 @@ def cartoon(calphas_file="cas2.txt", spline_detail=5):
     # print(spline.shape, "<- Spline shape")
     coords = coords[1:]
     normals = normals[1:]
+    normals = make_normals(coords, indexes)
     print(spline.shape, coords.shape, normals.shape, indexes.shape)
     return coords, normals, indexes
