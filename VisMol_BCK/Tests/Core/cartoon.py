@@ -184,7 +184,7 @@ def get_coil(spline, coil_rad=0.2, color=None):
         normals[-6+i,:] = coords[-6+i,:] - spline[-1]
     return coords, normals, colors
 
-def get_helix(spline, spline_detail, helix_rad=0.2, color=None):
+def get_helix(spline, spline_detail, helix_rad=1.0, color=None, factor=0.1):
     if color is None:
         color = [1.0, 0.0, 0.0]
     coords = np.zeros([spline.shape[0]*6, 3], dtype=np.float32)
@@ -198,12 +198,12 @@ def get_helix(spline, spline_detail, helix_rad=0.2, color=None):
         dir_vec = spline[i+1] - spline[i]
         side_vec = np.cross(dir_vec, helix_vec)
         side_vec /= np.linalg.norm(side_vec)
-        coords[i*6] = spline[i] + helix_vec + side_vec * helix_rad / 2.0
-        coords[i*6+1] = spline[i] + side_vec * helix_rad
-        coords[i*6+2] = spline[i] - helix_vec + side_vec * helix_rad / 2.0
-        coords[i*6+3] = spline[i] - helix_vec - side_vec * helix_rad / 2.0
-        coords[i*6+4] = spline[i] - side_vec * helix_rad
-        coords[i*6+5] = spline[i] + helix_vec - side_vec * helix_rad / 2.0
+        coords[i*6] = spline[i] + helix_vec * helix_rad + side_vec * helix_rad * factor
+        coords[i*6+1] = spline[i] + side_vec * helix_rad * factor * 2
+        coords[i*6+2] = spline[i] - helix_vec * helix_rad + side_vec * helix_rad * factor
+        coords[i*6+3] = spline[i] - helix_vec * helix_rad - side_vec * helix_rad * factor
+        coords[i*6+4] = spline[i] - side_vec * helix_rad * factor * 2
+        coords[i*6+5] = spline[i] + helix_vec * helix_rad - side_vec * helix_rad * factor
         for j in range(6):
             normals[i*6+j] = coords[i*6+j] - spline[i]
     for i in range(spline.shape[0] - spline_detail*3, spline.shape[0]):
@@ -211,17 +211,17 @@ def get_helix(spline, spline_detail, helix_rad=0.2, color=None):
             dir_vec = spline[i+1] - spline[i]
             side_vec = np.cross(dir_vec, helix_vec)
             side_vec /= np.linalg.norm(side_vec)
-        coords[i*6] = spline[i] + helix_vec + side_vec * helix_rad / 2.0
-        coords[i*6+1] = spline[i] + side_vec * helix_rad
-        coords[i*6+2] = spline[i] - helix_vec + side_vec * helix_rad / 2.0
-        coords[i*6+3] = spline[i] - helix_vec - side_vec * helix_rad / 2.0
-        coords[i*6+4] = spline[i] - side_vec * helix_rad
-        coords[i*6+5] = spline[i] + helix_vec - side_vec * helix_rad / 2.0
+        coords[i*6] = spline[i] + helix_vec * helix_rad + side_vec * helix_rad * factor
+        coords[i*6+1] = spline[i] + side_vec * helix_rad * factor * 2
+        coords[i*6+2] = spline[i] - helix_vec * helix_rad + side_vec * helix_rad * factor
+        coords[i*6+3] = spline[i] - helix_vec * helix_rad - side_vec * helix_rad * factor
+        coords[i*6+4] = spline[i] - side_vec * helix_rad * factor * 2
+        coords[i*6+5] = spline[i] + helix_vec * helix_rad - side_vec * helix_rad * factor
         for j in range(6):
             normals[i*6+j] = coords[i*6+j] - spline[i]
     return coords, normals, colors
 
-def get_beta(spline, spline_detail, beta_rad=0.5, color=None):
+def get_beta(spline, spline_detail, beta_rad=0.5, color=None, factor=0.1):
     if color is None:
         color = [1.0, 1.0, 0.0]
     coords = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
