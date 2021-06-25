@@ -221,7 +221,54 @@ def get_helix(spline, spline_detail, helix_rad=1.0, color=None, factor=0.1):
             normals[i*6+j] = coords[i*6+j] - spline[i]
     return coords, normals, colors
 
-def get_beta(spline, spline_detail, beta_rad=0.5, color=None, factor=0.1):
+def get_beta(spline, spline_detail, up_vecs, beta_rad=0.5, color=None, factor=0.1):
+    if color is None:
+        color = [1.0, 1.0, 0.0]
+    coords = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
+    normals = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
+    colors = np.array([color]*coords.shape[0], dtype=np.float32)
+    angle = np.arccos(np.dot(up_vecs[0], up_vecs[1])) / spline.shape[0]
+    beta_side = np.cross(up_vecs[0], up_vecs[1])
+    beta_side /= np.linalg.norm(beta_side)
+    rotmat = get_rotmat3f(angle, beta_side)
+    beta_up = np.matmul(rotmat, up_vecs[0])
+    # beta_up = np.copy(up_vecs[0])
+    beta_dir = 1
+    for i in range(spline.shape[0] - spline_detail):
+        # if i < spline.shape[0] - spline_detail * 2 and i % spline_detail == 0:
+        #     _vecs = get_beta_vectors(spline[i], spline[i+spline_detail], spline[i+spline_detail*2])
+        #     beta_up += _vecs[0] * beta_dir
+        #     # beta_side += _vecs[1] * beta_dir
+        #     beta_up /= np.linalg.norm(beta_up)
+        #     beta_side = np.cross(spline[i+1]-spline[i], beta_up)
+        #     beta_side /= np.linalg.norm(beta_side)
+        #     # beta_dir *= -1
+        coords[i*4] = spline[i] + beta_up * beta_rad / 5.0 + beta_side * beta_rad
+        coords[i*4+1] = spline[i] - beta_up * beta_rad / 5.0 + beta_side * beta_rad
+        coords[i*4+2] = spline[i] - beta_up * beta_rad / 5.0 - beta_side * beta_rad
+        coords[i*4+3] = spline[i] + beta_up * beta_rad / 5.0 - beta_side * beta_rad
+        for j in range(4):
+            normals[i*4+j] = coords[i*4+j] - spline[i]
+        beta_up = np.matmul(rotmat, beta_up)
+    arrow_rads = np.linspace(beta_rad*2.5, 0.1, spline_detail)
+    arros_inds = np.arange(spline.shape[0] - spline_detail, spline.shape[0], dtype=np.uint32)
+    for i, r in zip(arros_inds, arrow_rads):
+        # _vecs = get_beta_vectors(spline[i], spline[i+spline_detail], spline[i+spline_detail*2])
+        # beta_up += _vecs[0] * beta_dir
+        # beta_side += _vecs[1] * beta_dir
+        # beta_up /= np.linalg.norm(beta_up)
+        # beta_side /= np.linalg.norm(beta_side)
+        # beta_dir *= -1
+        coords[i*4] = spline[i] + beta_up * beta_rad / 5.0 + beta_side * r
+        coords[i*4+1] = spline[i] - beta_up * beta_rad / 5.0 + beta_side * r
+        coords[i*4+2] = spline[i] - beta_up * beta_rad / 5.0 - beta_side * r
+        coords[i*4+3] = spline[i] + beta_up * beta_rad / 5.0 - beta_side * r
+        for j in range(4):
+            normals[i*4+j] = coords[i*4+j] - spline[i]
+        beta_up = np.matmul(rotmat, beta_up)
+    return coords, normals, colors
+
+def get_beta_BCK(spline, spline_detail, beta_rad=0.5, color=None, factor=0.1):
     if color is None:
         color = [1.0, 1.0, 0.0]
     coords = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
@@ -345,9 +392,13 @@ def cartoon(calphas_file="cas2.txt", spline_detail=5):
     # This list contains the indices of the residues that are alpha helices in
     # zero-based indexing.
     # secstruc = [(0, 0, 2), (1, 2, 13), (0, 13, 19), (1, 19, 33)]
-    secstruc = [(0,0,1), (2,1,6), (0,6,11), (2,11,16), (0,16,21), (1,21,35),
-                (0,35,40), (2,40,45), (0,45,55), (1,55,60), (0,60,65),
-                (2,65,71), (0,71,74)]
+    # secstruc = [(0,0,1), (2,1,6), (0,6,11), (2,11,16), (0,16,21), (1,21,35),
+    #             (0,35,40), (2,40,45), (0,45,55), (1,55,60), (0,60,65),
+    #             (2,65,71), (0,71,74)]
+    secstruc = [(0,0,1), (2,1,6,[-0.21536412,0.41031974,-0.88614672],[0.48156374,-0.23468241,-0.84440543]),
+                (0,6,11), (2,11,16,[0.81881693,0.47119232,0.32789729],[-0.1031107,0.75028351,0.65302591]),
+                (0,16,21), (1,21,35), (0,35,40), (2,40,45,[0.28037025,0.89354455,0.35067172],[0.32516747,0.69181016,0.64472073]),
+                (0,45,55), (1,55,60), (0,60,65), (2,65,71,[-0.27948151,-0.23050034,-0.93207279],[-0.93445935,0.00778068,-0.3559848]), (0,71,74)]
     coords = np.zeros([1,3], dtype=np.float32)
     normals = np.zeros([1,3], dtype=np.float32)
     colors = np.zeros([1,3], dtype=np.float32)
@@ -384,7 +435,7 @@ def cartoon(calphas_file="cas2.txt", spline_detail=5):
         elif ss[0] == 2:
             # _inds = get_indexes((ss[2] - ss[1])*sd, 6, coords.shape[0]-1)
             # indexes = np.hstack((indexes, _inds))
-            data = get_beta(spline[ss[1]*sd:ss[2]*sd], sd)
+            data = get_beta(spline[ss[1]*sd:ss[2]*sd], sd, np.array(ss[3:]))
             _inds = get_indexes(data[0].shape[0], 4, coords.shape[0]-1, is_beta=True)
             indexes = np.hstack((indexes, _inds))
             coords = np.vstack((coords, data[0]))
@@ -396,3 +447,85 @@ def cartoon(calphas_file="cas2.txt", spline_detail=5):
     normals = make_normals(coords, indexes)
     print(spline.shape, coords.shape, normals.shape, colors.shape, indexes.shape)
     return coords, normals, indexes, colors
+
+
+"""
+import numpy as np
+a=np.array([   9.945,   14.825,    3.981])
+b=np.array([  11.137,   14.982,    3.764])
+c=np.array([   9.295,   13.715,    3.625])
+v1=b-a
+v2=c-a
+v1/=np.linalg.norm(v1)
+v2/=np.linalg.norm(v2)
+v1
+v2
+v1=b-a
+v2=c-a
+v3=np.cross(v1, v2)
+v3
+v3+a
+d=np.array([   6.726,    5.515,   -5.153])
+e=np.array([   7.130,    4.473,   -4.633])
+f=np.array([   5.585,    5.588,   -5.824])
+v3/=np.linalg.norm(v3)
+v3
+v4=e-d
+v5=f-d
+v6=np.cross(v4,v5)
+v6/=np.linalg.norm(v6)
+v6
+v6+d
+a=np.array([   4.739,   11.227,   -4.983])
+b=np.array([   4.289,   12.295,   -5.394])
+c=np.array([   4.507,   10.777,   -3.757])
+history
+v1=b-a
+v2=c-a
+v3=np.cross(v1, v2)
+v3/=np.linalg.norm(v3)
+v3
+d=np.array([   5.451,   14.020,    7.896])
+e=np.array([   4.518,   13.427,    8.430])
+f=np.array([   6.719,   13.867,    8.272])
+v4=e-d
+v5=f-d
+v6=np.cross(v4,v5)
+v6/=np.linalg.norm(v6)
+v6
+a=np.array([   3.987,   -2.639,    2.152])
+b=np.array([   4.199,   -3.138,    3.254])
+c=np.array([   4.910,   -2.555,    1.200])
+v1=b-a
+v2=c-a
+v3=np.cross(v1, v2)
+v3/=np.linalg.norm(v3)
+v3
+d=np.array([  16.408,    1.819,    0.987])
+e=np.array([  16.818,    0.932,    1.732])
+f=np.array([  17.139,    2.371,    0.026])
+v4=e-d
+v5=f-d
+v6=np.cross(v4,v5)
+v6/=np.linalg.norm(v6)
+v6
+a=np.array([  12.728,    7.560,   -0.950])
+b=np.array( [  13.718,    6.857,   -1.073])
+c=np.array([  11.575,    7.106,   -0.492])
+history
+v1=b-a
+v2=c-a
+v3=np.cross(v1, v2)
+v3/=np.linalg.norm(v3)
+v3
+d=np.array([   2.411,   -4.834,   -3.195])
+e=np.array([   2.809,   -5.303,   -4.250])
+f=np.array( [   2.011,   -5.566,   -2.161])
+v4=e-d
+v5=f-d
+v6=np.cross(v4,v5)
+v6/=np.linalg.norm(v6)
+v6
+v6+d
+history
+"""
