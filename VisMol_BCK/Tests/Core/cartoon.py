@@ -221,9 +221,16 @@ def get_helix(spline, spline_detail, helix_rad=0.2, color=None):
             normals[i*6+j] = coords[i*6+j] - spline[i]
     return coords, normals, colors
 
-def get_beta(spline, spline_detail, beta_rad=0.5, color=None):
+def get_beta(orig_spline, spline_detail, beta_rad=0.5, color=None):
     if color is None:
         color = [1.0, 1.0, 0.0]
+    p1 = orig_spline[0]
+    p2 = np.zeros(3, dtype=np.float32)
+    for i in range(0, orig_spline.shape[0], spline_detail):
+        p2 += orig_spline[i]
+    p2 /= (orig_spline.shape[0]/spline_detail)
+    p3 = orig_spline[-1]
+    spline = bezier_curve(p1, p2, p3, orig_spline.shape[0])
     coords = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
     normals = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
     colors = np.array([color]*coords.shape[0], dtype=np.float32)
@@ -239,10 +246,10 @@ def get_beta(spline, spline_detail, beta_rad=0.5, color=None):
             beta_side = np.cross(spline[i+1]-spline[i], beta_up)
             beta_side /= np.linalg.norm(beta_side)
             # beta_dir *= -1
-        coords[i*4] = spline[i] + beta_up * beta_rad / 5.0 + beta_side * beta_rad
-        coords[i*4+1] = spline[i] - beta_up * beta_rad / 5.0 + beta_side * beta_rad
-        coords[i*4+2] = spline[i] - beta_up * beta_rad / 5.0 - beta_side * beta_rad
-        coords[i*4+3] = spline[i] + beta_up * beta_rad / 5.0 - beta_side * beta_rad
+        coords[i*4] = spline[i] + beta_up * beta_rad / 1.5 + beta_side * beta_rad
+        coords[i*4+1] = spline[i] - beta_up * beta_rad / 1.5 + beta_side * beta_rad
+        coords[i*4+2] = spline[i] - beta_up * beta_rad / 1.5 - beta_side * beta_rad
+        coords[i*4+3] = spline[i] + beta_up * beta_rad / 1.5 - beta_side * beta_rad
         for j in range(4):
             normals[i*4+j] = coords[i*4+j] - spline[i]
     arrow_rads = np.linspace(beta_rad*2.5, 0.1, spline_detail)
@@ -254,10 +261,10 @@ def get_beta(spline, spline_detail, beta_rad=0.5, color=None):
         # beta_up /= np.linalg.norm(beta_up)
         # beta_side /= np.linalg.norm(beta_side)
         # beta_dir *= -1
-        coords[i*4] = spline[i] + beta_up * beta_rad / 5.0 + beta_side * r
-        coords[i*4+1] = spline[i] - beta_up * beta_rad / 5.0 + beta_side * r
-        coords[i*4+2] = spline[i] - beta_up * beta_rad / 5.0 - beta_side * r
-        coords[i*4+3] = spline[i] + beta_up * beta_rad / 5.0 - beta_side * r
+        coords[i*4] = spline[i] + beta_up * beta_rad / 1.5 + beta_side * r
+        coords[i*4+1] = spline[i] - beta_up * beta_rad / 1.5 + beta_side * r
+        coords[i*4+2] = spline[i] - beta_up * beta_rad / 1.5 - beta_side * r
+        coords[i*4+3] = spline[i] + beta_up * beta_rad / 1.5 - beta_side * r
         for j in range(4):
             normals[i*4+j] = coords[i*4+j] - spline[i]
     return coords, normals, colors
