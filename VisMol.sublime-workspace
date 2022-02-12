@@ -1,0 +1,399 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+			[
+				"Ta",
+				"TabNine::\t⌬ tabnine"
+			],
+			[
+				"in",
+				"in 0\t⌬ tabnine"
+			],
+			[
+				"n",
+				"np.array:\t⌬ tabnine"
+			]
+		]
+	},
+	"buffers":
+	[
+		{
+			"file": "VisMol/__main__.py",
+			"settings":
+			{
+				"buffer_size": 1249,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+			[
+				"Package Control: ins",
+				"Package Control: Install Package"
+			],
+			[
+				"ins",
+				"Package Control: Install Package"
+			]
+		],
+		"width": 0.0
+	},
+	"console":
+	{
+		"height": 0.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": false,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": false,
+		"status_bar_visible": false
+	},
+	"expanded_folders":
+	[
+		"/home/casebor/Programs/VisMol",
+		"/home/casebor/Programs/VisMol/VisMol",
+		"/home/casebor/Programs/VisMol/VisMol/libs",
+		"/home/casebor/Programs/VisMol/VisMol/libs/shaders",
+		"/home/casebor/Programs/VisMol/VisMol_BCK",
+		"/home/casebor/Programs/VisMol/VisMol_BCK/Tests",
+		"/home/casebor/Programs/VisMol/VisMol_BCK/Tests/Core"
+	],
+	"file_history":
+	[
+		"/home/casebor/Programs/VisMol/VisMol/libs/shaders/shaders.py",
+		"/home/casebor/Programs/VisMol/VisMol/libs/gtk_stuff.py",
+		"/home/casebor/Programs/VisMol/VisMol/libs/vaos.py",
+		"/home/casebor/Programs/VisMol/VisMol_BCK/Tests/Core/MyGLProgram.py",
+		"/home/casebor/Programs/VisMol/VisMol/libs/objects.py",
+		"/home/casebor/Programs/VisMol/VisMol/libs/parsers.py",
+		"/home/casebor/Programs/VisMol/VisMol_BCK/VisMol3/visual/vismol.py",
+		"/home/casebor/Programs/VisMol/VisMol_BCK/Tests/Core/shaders.py",
+		"/home/casebor/Programs/VisMol/helix.obj",
+		"/home/casebor/Programs/VisMol/VisMol/__main__.py",
+		"/home/casebor/Programs/EasyHybrid3/GTK3VisMol/VISMOL/glCore/VisMolGLCore.py",
+		"/home/casebor/Programs/EasyHybrid3/GTK3VisMol/VISMOL/glCore/vaos.py",
+		"/home/casebor/Programs/EasyHybrid3/GTK3VisMol/VISMOL/glCore/shaders/glumpy.py",
+		"/home/casebor/Programs/qtf_parser/qtf_parser.cpp",
+		"/home/casebor/Programs/qtf_parser/my_lib/NodeFunctions.cpp",
+		"/home/casebor/Programs/qtf_parser/my_lib/Functions.cpp",
+		"/home/casebor/Programs/VisMol/VisMol_BCK/test_05.py",
+		"/home/casebor/Programs/VisMol/alanine.pdb",
+		"/home/casebor/Programs/VisMol/libs/parsers.py",
+		"/home/casebor/Programs/VisMol/libs/objects.py",
+		"/home/casebor/Programs/VisMol/libs/gtk_stuff.py",
+		"/home/casebor/Programs/VisMol/__main__.py",
+		"/home/casebor/Programs/VisMol/__init__.py",
+		"/home/casebor/Programs/EasyHybrid3/GTK3VisMol/__main__.py",
+		"/home/casebor/Programs/transport_tools/tests/__main__.py",
+		"/home/casebor/Programs/VisMol/libs/vaos.py",
+		"/home/casebor/Programs/VisMol/VisMol_BCK/Tests/Core/vaos.py",
+		"/home/casebor/Programs/VisMol/libs/camera.py",
+		"/home/casebor/Programs/VisMol/VisMol_BCK/Tests/Core/camera.py",
+		"/home/casebor/Programs/VisMol/libs/shaders/shaders.py",
+		"/home/casebor/Programs/VisMol/VisMol_BCK/test_04.py",
+		"/home/casebor/.cache/.fr-yFXU9F/Tests/Core/MyGLProgram.py",
+		"/home/casebor/.cache/.fr-VjEsbJ/Tests/Core/camera.py",
+		"/home/casebor/Programs/VisMol/libs/Atom.py",
+		"/home/casebor/Programs/qtf_parser/test_ctypes.py",
+		"/home/casebor/Programs/EasyHybrid3/GTK3VisMol/__init__.py",
+		"/home/casebor/Programs/EasyHybrid3/GTK3VisMol/VISMOL/environment_bash.com",
+		"/home/casebor/Programs/EasyHybrid3/GTK3VisMol/VISMOL/vCore/VismolSelections.py",
+		"/home/casebor/.cache/.fr-4awzPz/testlib.py",
+		"/home/casebor/Programs/qtf_parser/my_lib/VNode.cpp",
+		"/home/casebor/Programs/qtf_parser/Makefile",
+		"/home/casebor/Programs/qtf_parser/my_lib/CNode.cpp",
+		"/home/casebor/Programs/boost_1_75_0_src/bootstrap.sh",
+		"/home/casebor/Programs/qtf_parser/lib/dbscan.cpp",
+		"/home/casebor/Programs/boost_1_75_0/bootstrap.sh",
+		"/home/casebor/Programs/functions.py",
+		"/home/casebor/Programs/test/testlib.py",
+		"/home/casebor/Documents/python_c/VNode.cpp",
+		"/home/casebor/Documents/python_c/VNode.h",
+		"/home/casebor/Documents/test.obj",
+		"/home/casebor/Programs/pymol_branding.txt",
+		"/home/casebor/Programs/pymol-0.99rc6/setup.py",
+		"/home/casebor/Programs/test.txt",
+		"/home/casebor/Documents/django/book_01/proj_01/proj_01/settings/_base.py",
+		"/home/casebor/Documents/django/book_01/proj_01/manage.py",
+		"/home/casebor/Documents/django/book_01/proj_01/proj_01/settings/dev.py",
+		"/home/casebor/Programs/pymol-0.99rc6/layer0/PyMOLGlobals.h",
+		"/home/casebor/Programs/pymol-0.99rc6/layer4/PopUp.c",
+		"/home/casebor/Programs/pymol-0.99rc6/layer4/Cmd.c",
+		"/home/casebor/Programs/pymol_2.4/lib/python3.7/site-packages/pymol/cmd.py",
+		"/run/user/1000/gvfs/sftp:host=eagle.man.poznan.pl/home/users/casebor/.ssh/known_hosts",
+		"/home/casebor/.config/sublime-text-3/Packages/User/Preferences.sublime-settings",
+		"/home/casebor/.config/sublime-text-3/Packages/Default/Preferences.sublime-settings",
+		"/run/user/1000/gvfs/sftp:host=eagle.man.poznan.pl/home/users/casebor/Documents/Project_membrane_protein/10_MD_with_ligs/14_NEW_CAVER/Y1103A/Y1103A_3/caver_analyses/calculations/DIR_0/run_caver.sh",
+		"/run/user/1000/gvfs/sftp:host=eagle.man.poznan.pl/home/users/casebor/Documents/Project_membrane_protein/10_MD_with_ligs/14_NEW_CAVER/Y1103A/Y1103A_3/caver_analyses/calculations/DIR_0/slurm-17056071.out",
+		"/run/user/1000/gvfs/sftp:host=eagle.man.poznan.pl/home/users/casebor/Documents/Project_membrane_protein/10_MD_with_ligs/14_NEW_CAVER/Y1103A/Y1103A_3/caver_analyses/calculations/DIR_1/out/log.txt",
+		"/run/user/1000/gvfs/sftp:host=eagle.man.poznan.pl/home/users/casebor/Documents/Project_membrane_protein/10_MD_with_ligs/14_NEW_CAVER/Y1103A/Y1103A_3/caver_analyses/calculations/DIR_1/slurm-17056072.out",
+		"/run/user/1000/gvfs/sftp:host=eagle.man.poznan.pl/home/users/casebor/Documents/Project_membrane_protein/10_MD_with_ligs/14_NEW_CAVER/Y1103A/Y1103A_3/caver_analyses/calculations/DIR_1/out/warnings.txt",
+		"/run/user/1000/gvfs/sftp:host=eagle.man.poznan.pl/home/users/casebor/Documents/Project_membrane_protein/10_MD_with_ligs/14_NEW_CAVER/APO/APO_2/caver_analyses/calculations/DIR_1/run_caver.sh",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol/__init__.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pmg_qt/pymol_qt_gui.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pmg_qt/pymol_gl_widget.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pmg_qt/lic_dialog.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol/licensing.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol/cmd.py",
+		"/home/casebor/.pymol/license.lic",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol2/__init__.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol/_gui.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/PyQt5/__init__.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol/opengl/__init__.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol/Qt/__init__.py",
+		"/home/casebor/Programs/labbit_scripts/pymol/export_obj_to_img.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol/Qt/utils.py",
+		"/home/casebor/Programs/pymol/bin/pymol",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol/__main__.py",
+		"/home/casebor/Programs/pymol/lib/python3.7/site-packages/pymol/gui.py",
+		"/run/user/1000/gvfs/sftp:host=150.254.121.118/home/casebor/Programs/pymol_2.4/lib/python3.7/site-packages/pymol/cmd.py",
+		"/run/user/1000/gvfs/sftp:host=150.254.121.118/home/casebor/Programs/pymol_2.4/lib/python3.7/site-packages/pymol/licensing.py",
+		"/home/casebor/Documents/django/django_tutorial/templates/blog/urls.py",
+		"/home/casebor/Documents/django/django_tutorial/templates/blog/blog_list.html",
+		"/home/casebor/Documents/django/django_tutorial/templates/blog/views.py",
+		"/home/casebor/Documents/django/django_tutorial/templates/blog/tests.py",
+		"/home/casebor/Documents/django/django_tutorial/templates/blog/models.py",
+		"/home/casebor/Documents/django/django_tutorial/django_tutorial/settings.py",
+		"/home/casebor/Documents/django/django_tutorial/django_tutorial/urls.py",
+		"/home/casebor/Documents/django/django_tutorial/manage.py",
+		"/home/casebor/Documents/django/django_tutorial/blog/urls.py",
+		"/home/casebor/Documents/django/django_tutorial/blog/views.py",
+		"/home/casebor/Documents/django/django_tutorial/blog/admin.py",
+		"/home/casebor/Documents/django/django_tutorial/blog/models.py",
+		"/mnt/Various/python/dragon_alpha.py",
+		"/mnt/Various/python/dragon_beta.py",
+		"/home/casebor/Templates/pyscript.py",
+		"/home/casebor/Programs/labbit_scripts/care_fit_looping.py",
+		"/home/casebor/Programs/session_to_png.py",
+		"/run/user/1000/gvfs/sftp:host=150.254.121.118/home/casebor/.config/sublime-text-3/Packages/Tabnine/TabNine.py",
+		"/run/user/1000/gvfs/sftp:host=150.254.121.118/home/casebor/.config/TabNine/defaults/tabnine_version_3.3.101.prefs.json",
+		"/run/user/1000/gvfs/sftp:host=150.254.121.118/home/casebor/.config/TabNine/last_heartbeat",
+		"/run/user/1000/gvfs/sftp:host=150.254.121.118/home/casebor/.config/TabNine/tabnine_config.json",
+		"/run/user/1000/gvfs/sftp:host=150.254.121.118/home/casebor/.config/TabNine/TabNineExample.toml",
+		"/run/user/1000/gvfs/sftp:host=150.254.121.118/home/casebor/.config/TabNine/local.settings",
+		"/home/casebor/Programs/labbit_scripts/pymol/session_to_png.py",
+		"/home/casebor/Programs/test.pdb",
+		"/home/casebor/.bashrc",
+		"/home/casebor/Programs/blender-2.92.0/blender-softwaregl",
+		"/home/casebor/Programs/blender-2.92.0/blender.desktop",
+		"/home/casebor/Programs/transport_tools/config.ini",
+		"/home/casebor/Programs/msms_2.6.1/1crn.pdb",
+		"/home/casebor/Programs/msms_2.6.1/msms.html",
+		"/home/casebor/Programs/msms_2.6.1/pdb_to_xyzr",
+		"/home/casebor/Programs/msms_2.6.1/1crn.xyzr",
+		"/home/casebor/.config/sublime-text-3/Packages/User/Monokai.sublime-color-scheme",
+		"/home/casebor/Programs/sublime_text_3/Monokai.sublime-color-scheme",
+		"/home/casebor/Programs/sublime_text_3/sublime_text.desktop",
+		"/home/casebor/.config/sublime-text-3/Cache/Git Formats/Git Config.sublime-syntax.cache",
+		"/home/casebor/Programs/VisMol/Tests/Core/MyGLProgram.py",
+		"/home/casebor/Programs/VisMol/Tests/Core/vaos.py",
+		"/home/casebor/Programs/VisMol/Tests/Core/shaders.py"
+	],
+	"find":
+	{
+		"height": 24.0
+	},
+	"find_in_files":
+	{
+		"height": 0.0,
+		"where_history":
+		[
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"glumpy",
+			"program",
+			"gl_norm",
+			"position",
+			"norms",
+			"_sphere",
+			"sh_color",
+			"shader",
+			"-1",
+			"pdbin",
+			"nid",
+			"/",
+			"load_data",
+			"getattr",
+			"vert_coord",
+			"my_color",
+			"coordinate",
+			"VMNode",
+			"VisMol",
+			"lines_1_vbos",
+			"_get_normal",
+			"gl_program_dots",
+			"program",
+			"create_shader",
+			"gl_area",
+			"vertex",
+			"glarea",
+			"GLArea",
+			"glarea",
+			"arg",
+			"id",
+			"Node",
+			"pos",
+			"LDFLAGS",
+			"po",
+			"PyMOLGlobals",
+			"icen"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 0,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"file": "VisMol/__main__.py",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 1249,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								901,
+								901
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Python/Python.sublime-syntax",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 24.0
+	},
+	"input":
+	{
+		"height": 36.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "VisMol.sublime-project",
+	"replace":
+	{
+		"height": 44.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": false,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 145.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}
