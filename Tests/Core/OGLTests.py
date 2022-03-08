@@ -115,6 +115,13 @@ class MyGLProgram(Gtk.GLArea):
         self.cubes_vbos = None
         self.cubes_elemns = None
         self.cubes = False
+        # Here are the test programs and flags
+        self.gl_program_impostor_cyl = None
+        self.impostor_cyl_vao = None
+        self.impostor_cyl_vbos = None
+        self.impostor_cyl_elemns = None
+        self.impostor_cyl = False
+        
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -299,6 +306,7 @@ class MyGLProgram(Gtk.GLArea):
             print("OpenGL major version not found")
         self.gl_program_cubes = self.load_shaders(sh.v_cubes, sh.f_cubes, sh.g_cubes)
         self.gl_program_impostor_sph = self.load_shaders(sh.v_impostor_sph, sh.f_impostor_sph, sh.g_impostor_sph)
+        self.gl_program_impostor_cyl = self.load_shaders(sh.v_impostor_cyl, sh.f_impostor_cyl, sh.g_impostor_cyl)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -415,6 +423,13 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_cubes()
+        if self.impostor_cyl:
+            if self.impostor_cyl_vao is None:
+                self.impostor_cyl_vao, self.impostor_cyl_vbos, self.impostor_cyl_elemns = vaos.make_impostor_cyl(self.gl_program_impostor_cyl)
+                self.queue_draw()
+            else:
+                self._draw_impostor_cyl()
+        
     
     def _draw_impostor_sph(self):
         """ Function doc """
@@ -442,6 +457,25 @@ class MyGLProgram(Gtk.GLArea):
         self.load_matrices(self.gl_program_cubes)
         GL.glBindVertexArray(self.cubes_vao)
         GL.glDrawElements(GL.GL_POINTS, self.cubes_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_impostor_cyl(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_impostor_cyl)
+        GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        self.load_matrices(self.gl_program_impostor_cyl)
+        self.load_lights(self.gl_program_impostor_cyl)
+        
+        xyz_coords = self.glcamera.get_modelview_position(self.model_mat)
+        u_campos = GL.glGetUniformLocation(self.gl_program_impostor_cyl, "u_campos")
+        GL.glUniform3fv(u_campos, 1, xyz_coords)
+        
+        GL.glBindVertexArray(self.impostor_cyl_vao)
+        GL.glDrawElements(GL.GL_LINES, self.impostor_cyl_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -534,6 +568,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_i(self):
         self.impostor_sph = not self.impostor_sph
+        self.queue_draw()
+    
+    def _pressed_y(self):
+        self.impostor_cyl = not self.impostor_cyl
         self.queue_draw()
     
     def _pressed_m(self):
