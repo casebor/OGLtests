@@ -31,6 +31,8 @@ class MyGLProgram():
         self.flag = True
     
     def load_shaders(self):
+        aloc = self.glarea.get_allocation()
+        self.ratio = np.float32(aloc.width/aloc.height)
         my_vertex = GL.glCreateShader(GL.GL_VERTEX_SHADER)
         GL.glShaderSource(my_vertex, self.vertex_shader)
         GL.glCompileShader(my_vertex)
@@ -68,6 +70,7 @@ class MyGLProgram():
         model = cam.my_glRotateYf(model, degrees)
         view = cam.my_glTranslatef(view, np.array([0,0,-5],dtype=np.float32))
         aloc = self.glarea.get_allocation()
+        self.ratio = np.float32(aloc.width/aloc.height)
         w = np.float32(aloc.width)
         h = np.float32(aloc.height)
         proj = cam.my_gluPerspectivef(proj, 30, w/h, 0.1, 10.0)
@@ -123,9 +126,18 @@ class MyGLProgram():
         GL.glEnableVertexAttribArray(gl_colors)
         GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, GL.GL_FALSE, 6*self.coords.itemsize, ctypes.c_void_p(0))
         GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 6*self.coords.itemsize, ctypes.c_void_p(3*self.coords.itemsize))
-        GL.glBindVertexArray(0)
+        
+        vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, self.ratio.nbytes*10, np.repeat(self.ratio, 10), GL.GL_STATIC_DRAW)
+        gl_ratio = GL.glGetAttribLocation(self.program, 'hw_ratio')
+        GL.glEnableVertexAttribArray(gl_ratio)
+        GL.glVertexAttribPointer(gl_ratio, 1, GL.GL_FLOAT, GL.GL_FALSE, self.ratio.itemsize, ctypes.c_void_p(0))
          
+        GL.glBindVertexArray(0)
         GL.glDisableVertexAttribArray(position)
+        GL.glDisableVertexAttribArray(gl_colors)
+        GL.glDisableVertexAttribArray(gl_ratio)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
 
 
@@ -140,6 +152,7 @@ uniform mat4 projection_mat;
 
 in vec3 coordinate;
 in vec3 my_color;
+in float hw_ratio;
 
 out vec3 sh_color;
 
@@ -180,6 +193,7 @@ out vec3 frag_color;       // varying vec3 v_color;
 out float f_radius;        // varying float v_radius;
 out float f_size;          // varying float v_size;
 out vec4 frag_coord;       // varying vec4 v_eye_position;
+in float hw_ratio;
 
 varying vec3 v_light_direction;
 
@@ -191,7 +205,7 @@ void main (void)
     v_light_direction = normalize(vec3(0,0,2));
     gl_Position = projection_mat * frag_coord;
     vec4 p = projection_mat * vec4(vert_dot_size, vert_dot_size, frag_coord.z, frag_coord.w);
-    f_size = 512.0 * p.x / p.w;
+    f_size = 512.0 * hw_ratio * p.x / (p.w * hw_ratio);
     gl_PointSize = f_size + 5.0;
 }
 """
