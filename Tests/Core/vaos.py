@@ -36,15 +36,16 @@ def make_dots(program):
     """ Function doc """
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
-    coords = np.array([ 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
-                       -1.0, 0.0, 0.0,-1.0, 1.0, 0.0,-1.0,-1.0, 0.0,
-                        0.0,-1.0, 0.0, 1.0,-1.0, 0.0, 0.0, 0.0, 0.0],dtype=np.float32)
+    coords = np.array([[ 1.0, 1.0, 0.0],[ 0.0, 1.0, 0.0],[ 1.0, 0.0, 0.0],
+                       [-1.0, 0.0, 0.0],[-1.0, 1.0, 0.0],[-1.0,-1.0, 0.0],
+                       [ 0.0,-1.0, 0.0],[ 1.0,-1.0, 0.0],[ 0.0, 0.0, 0.0]],dtype=np.float32)
     colors = np.array([ 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0,
                         0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,
                         0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0],dtype=np.float32)
+    # coords = coords.flatten()
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords)*3, coords, GL.GL_STATIC_DRAW)
     position = GL.glGetAttribLocation(program, 'vert_coord')
     GL.glEnableVertexAttribArray(position)
     GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
@@ -60,7 +61,7 @@ def make_dots(program):
     GL.glDisableVertexAttribArray(position)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
+    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords))
 
 def make_diamonds(program):
     """ Function doc """
@@ -834,3 +835,89 @@ def make_sphere(program, level='level_2'):
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(indexes))
+
+
+#------------------------------------------------------------------------------#
+
+def make_impostor_sph(program):
+    """ Function doc """
+    vao = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vao)
+    indexes = np.array([0,1,2],dtype=np.uint32)
+    coords = np.array([[ 0.0, 1.0, 1.0],[-1.0, 0.0, 0.0],[ 0.0,-1.0,-1.0]],dtype=np.float32)
+    colors = np.array([[ 1.0, 0.0, 0.0],[ 0.0, 1.0, 0.0],[ 0.0, 0.0, 1.0]],dtype=np.float32)
+    radii = np.array([ 0.5, 0.5, 0.5],dtype=np.float32)
+    
+    ind_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.nbytes, indexes, GL.GL_DYNAMIC_DRAW)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_STATIC_DRAW)
+    gl_coords = GL.glGetAttribLocation(program, "vert_coord")
+    GL.glEnableVertexAttribArray(gl_coords)
+    GL.glVertexAttribPointer(gl_coords, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    col_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.nbytes, colors, GL.GL_STATIC_DRAW)
+    gl_colors = GL.glGetAttribLocation(program, "vert_color")
+    GL.glEnableVertexAttribArray(gl_colors)
+    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    
+    rad_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, rad_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, radii.nbytes, radii, GL.GL_STATIC_DRAW)
+    gl_rads = GL.glGetAttribLocation(program, "vert_radius")
+    GL.glEnableVertexAttribArray(gl_rads)
+    GL.glVertexAttribPointer(gl_rads, 1, GL.GL_FLOAT, GL.GL_FALSE, radii.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coords)
+    GL.glDisableVertexAttribArray(gl_colors)
+    GL.glDisableVertexAttribArray(gl_rads)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return vao, (ind_vbo, coord_vbo, col_vbo, rad_vbo), np.uint32(coords.shape[0])
+
+
+def make_cubes(program):
+    """ Function doc """
+    vao = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vao)
+    indexes = np.array([0,1,2],dtype=np.uint32)
+    coords = np.array([[ 1.0, 1.0, 1.0],[ 0.0, 0.0, 0.0],[-1.0,-1.0,-1.0]],dtype=np.float32)
+    colors = np.array([[ 1.0, 0.0, 0.0],[ 0.0, 1.0, 0.0],[ 0.0, 0.0, 1.0]],dtype=np.float32)
+    radii = np.array([ 0.5, 0.5, 0.5],dtype=np.float32)
+    
+    ind_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.nbytes, indexes, GL.GL_DYNAMIC_DRAW)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_STATIC_DRAW)
+    gl_coords = GL.glGetAttribLocation(program, "vert_coord")
+    GL.glEnableVertexAttribArray(gl_coords)
+    GL.glVertexAttribPointer(gl_coords, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    col_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.nbytes, colors, GL.GL_STATIC_DRAW)
+    gl_colors = GL.glGetAttribLocation(program, "vert_color")
+    GL.glEnableVertexAttribArray(gl_colors)
+    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    
+    rad_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, rad_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, radii.nbytes, radii, GL.GL_STATIC_DRAW)
+    gl_rads = GL.glGetAttribLocation(program, "vert_radius")
+    GL.glEnableVertexAttribArray(gl_rads)
+    GL.glVertexAttribPointer(gl_rads, 1, GL.GL_FLOAT, GL.GL_FALSE, radii.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coords)
+    GL.glDisableVertexAttribArray(gl_colors)
+    GL.glDisableVertexAttribArray(gl_rads)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return vao, (ind_vbo, coord_vbo, col_vbo, rad_vbo), np.uint32(coords.shape[0])

@@ -231,7 +231,8 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_diamonds = self.load_shaders(sh.v_shader_diamonds, sh.f_shader_diamonds, sh.g_shader_diamonds)
         self.gl_program_dots = self.load_shaders(sh.v_shader_dots, sh.f_shader_dots)
         self.gl_program_circles = self.load_shaders(sh.v_shader_circles, sh.f_shader_circles)
-        self.gl_program_lines = self.load_shaders(sh.v_shader_lines, sh.f_shader_lines, sh.g_shader_lines)
+        # self.gl_program_lines = self.load_shaders(sh.v_shader_lines, sh.f_shader_lines, sh.g_shader_lines)
+        self.gl_program_lines = self.load_shaders(sh.v_impostor, sh.f_impostor, sh.g_impostor)
         self.gl_program_antialias = self.load_shaders(sh.v_shader_antialias, sh.f_shader_antialias, sh.g_shader_antialias)
         self.gl_program_pseudospheres = self.load_shaders(sh.v_shader_pseudospheres, sh.f_shader_pseudospheres, sh.g_shader_pseudospheres5)
         self.gl_program_non_bonded = self.load_shaders(sh.v_shader_non_bonded, sh.f_shader_non_bonded, sh.g_shader_non_bonded)
@@ -475,12 +476,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_sphere()
-        if self.lines_1:
-            if self.lines_1_vao is None:
-                self.lines_1_vao, self.lines_1_vbos, self.lines_1_elemns = vaos.make_lines(self.gl_program_lines_1)
-                self.queue_draw()
-            else:
-                self._draw_lines_1()
+        # if self.lines_1:
+        #     if self.lines_1_vao is None:
+        #         self.lines_1_vao, self.lines_1_vbos, self.lines_1_elemns = vaos.make_lines(self.gl_program_lines_1)
+        #         self.queue_draw()
+        #     else:
+        #         self._draw_lines_1()
     
     def _draw_dots(self):
         """ Function doc """
@@ -522,12 +523,16 @@ class MyGLProgram(Gtk.GLArea):
     def _draw_lines(self):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
-        GL.glLineWidth(10)
+        # GL.glLineWidth(10)
         GL.glUseProgram(self.gl_program_lines)
         self.load_matrices(self.gl_program_lines)
+        
+        u_campos = GL.glGetUniformLocation(self.gl_program_lines, "u_campos")
+        GL.glUniform3fv(u_campos, 1, self.cam_pos)
+        
         GL.glBindVertexArray(self.lines_vao)
         GL.glDrawElements(GL.GL_LINES, self.lines_elemns, GL.GL_UNSIGNED_INT, None)
-        GL.glLineWidth(1)
+        # GL.glLineWidth(1)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
