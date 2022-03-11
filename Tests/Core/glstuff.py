@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-#  glcamera.py
+#  glstuff.py
 #  
-#  Copyright 2016 Carlos Eduardo Sequeiros Borja <casebor@gmail.com>
+#  Copyright 2022 Carlos Eduardo Sequeiros Borja <casebor@gmail.com>
 #  
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -22,9 +22,13 @@
 #  
 #  
 
-import math
+import ctypes
 import numpy as np
+import freetype as ft
 import matrix_operations as mop
+from OpenGL import GL
+from dataclasses import dataclass
+
 
 class GLCamera():
     """ The GLCamera object creates a "camera" to be used in OpenGL.
@@ -172,8 +176,8 @@ class GLCamera():
                position[2]!=target[2])
         direction = target - position
         direction /= np.linalg.norm(direction)
-        self.vertical_angle = -math.asin(direction[1])*180/math.pi
-        self.horizontal_angle = -(math.atan2(-direction[0], -direction[2])*180/math.pi)
+        self.vertical_angle = -np.asin(direction[1])*180/np.pi
+        self.horizontal_angle = -(np.atan2(-direction[0], -direction[2])*180/np.pi)
         self._normalize_angles()
         return True
     
@@ -259,5 +263,161 @@ class GLCamera():
         print("<= projection_matrix =>", self.projection_matrix)
         print("######## GLCAMERA MATRICES ########")
         return True
+
+
+@dataclass()
+class CharsInfo:
+    ax: np.float32
+    ay: np.float32
+    bw: np.float32
+    bh: np.float32
+    bl: np.float32
+    bt: np.float32
+    tx: np.float32
+
+
+class VismolFont():
+    """ VisMolFont stores the data created using the freetype python binding
+        library, such as filename, character width, character height, character
+        resolution, font color, etc.
+    """
     
+    def __init__ (self, font_file="VeraMono.ttf", char_res=64, c_w=0.25, c_h=0.3, color=[1,1,1,1]):
+        """ Class initialiser
+        """
+        self.font_file = font_file
+        self.char_res = char_res
+        self.char_width = c_w
+        self.char_height = c_h
+        self.offset = np.array([c_w/2.0,c_h/2.0],dtype=np.float32)
+        self.color = np.array(color,dtype=np.float32)
+        self.atlas = None
+        
+        self.font_buffer = None
+        self.texture_id = None
+        self.text_u = None
+        self.text_v = None
+        self.vao = None
+        self.vbos = None
+    
+    def make_freetype_font(self):
+        """ Function doc
+        """
+        self.face = ft.Face(self.font_file)
+        self.face.set_pixel_sizes(0, self.char_height)
+        self.glyph = self.face.glyph
+        w, h = 0, 0
+        for i in range(32, 128):
+            if self.face.load_char(chr(i), ft.FT_LOAD_RENDER | ft.FT_LOAD_FORCE_AUTOHINT):
+                self.chars_dict[i]
+                raise RuntimeError("Character {} failed to load".format(chr(i)))
+            w += self.face.glyph.bitmap.width
+            h = np.max(h, self.face.glyph.bitmap.rows)
+        self.atlas_width = w
+        self.font_texture = GL.glGenTextures(1)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.font_texture)
+        GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
+        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RED, self.atlas_width, h, 0,
+                        GL.GL_ALPHA, GL.GL_UNSIGNED_BYTE, 0)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+        
+        self.chars_info = [None] * 128
+        ox, oy = 0, 0
+        w = 0
+        for i in range(32, 128):
+            if face.load_char(chr(i), ft.FT_LOAD_RENDER | ft.FT_LOAD_FORCE_AUTOHINT):
+                raise RuntimeError("Character {} failed to load".format(chr(i)))
+            if ox + self.glyph.bitmap.width + 1 >= 1024:
+                oy += w
+                w = 0
+                ox = 0
+            GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, ox, oy, self.glyph.bitmap.width,
+                               self.glyph.bitmap.rows, GL.GL_ALPHA, GL.GL_UNSIGNED_BYTE,
+                               self.glyph.bitmap.buffer)
+            _ax = self.glyph.advance.x >> 6
+            _ay = self.glyph.advance.y >> 6
+            _bw = self.glyph.bitmap.width
+            _bh = self.glyph.bitmap.rows
+            _bl = self.glyph.bitmap_left
+            _bt = self.glyph.bitmap_top
+            _tx = np.float32(ox / w)
+            _ty = np.float32(oy / h)
+            self.chars_info[i] = CharsInfo()
+            w = np.max(w, self.glyph.bitmap.rows)
+            ox += self.glyph.bitmap.width + 1
+        return True
+        # https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_02
+    
+    def make_freetype_texture(self, program):
+        """ Function doc
+        """
+        coords = np.zeros(3,np.float32)
+        uv_pos = np.zeros(4,np.float32)
+        
+        vertex_array_object = GL.glGenVertexArrays(1)
+        GL.glBindVertexArray(vertex_array_object)
+        
+        coord_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_DYNAMIC_DRAW)
+        gl_coord = GL.glGetAttribLocation(program, "vert_coord")
+        GL.glEnableVertexAttribArray(gl_coord)
+        GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+        
+        tex_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, tex_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, uv_pos.itemsize*len(uv_pos), uv_pos, GL.GL_DYNAMIC_DRAW)
+        gl_texture = GL.glGetAttribLocation(program, "vert_uv")
+        GL.glEnableVertexAttribArray(gl_texture)
+        GL.glVertexAttribPointer(gl_texture, 4, GL.GL_FLOAT, GL.GL_FALSE, 4*uv_pos.itemsize, ctypes.c_void_p(0))
+        
+        GL.glBindVertexArray(0)
+        GL.glDisableVertexAttribArray(gl_coord)
+        GL.glDisableVertexAttribArray(gl_texture)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        
+        self.vao = vertex_array_object
+        self.vbos = (coord_vbo, tex_vbo)
+        return True
+    
+    def load_matrices(self, program, model_mat, view_mat, proj_mat):
+        """ Function doc """
+        model_mat[:3,:3] = np.identity(3)
+        model = GL.glGetUniformLocation(program, "model_mat")
+        GL.glUniformMatrix4fv(model, 1, GL.GL_FALSE, model_mat)
+        view = GL.glGetUniformLocation(program, "view_mat")
+        GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, view_mat)
+        proj = GL.glGetUniformLocation(program, "proj_mat")
+        GL.glUniformMatrix4fv(proj, 1, GL.GL_FALSE, proj_mat)
+    
+    def load_font_params(self, program):
+        """ Loads the uniform parameters for the OpenGL program, such as the
+            offset coordinates (X,Y) to calculate the quad and the color of
+            the font.
+        """
+        offset = GL.glGetUniformLocation(program, "offset")
+        GL.glUniform2fv(offset, 1, self.offset)
+        color = GL.glGetUniformLocation(program, "text_color")
+        GL.glUniform4fv(color, 1, self.color)
+        return True
+    
+    def print_all(self):
+        """ Function created only with debuging purposes.
+        """
+        print("#############################################")
+        print(self.font_file, "font_file")
+        print(self.char_res, "char_res")
+        print(self.char_width, "char_width")
+        print(self.char_height, "char_height")
+        print(self.offset, "offset")
+        print(self.color, "color")
+        print(self.font_buffer, "font_buffer")
+        print(self.texture_id, "texture_id")
+        print(self.text_u, "text_u")
+        print(self.text_v, "text_v")
+        print(self.vao, "vao")
+        print(self.vbos, "vbos")
     

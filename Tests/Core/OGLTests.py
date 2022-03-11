@@ -30,7 +30,8 @@ import VisMolFont as vmf
 import vaos
 import time
 import matrix_operations as mop
-from glcamera import GLCamera
+from glstuff import GLCamera
+from glstuff import VismolFont
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -66,6 +67,7 @@ class MyGLProgram(Gtk.GLArea):
         self.model_mat = np.identity(4, dtype=np.float32)
         self.glcamera = GLCamera(fov=30.0, var=self.width / self.height,
                                  pos=np.array([0,0,5], dtype=np.float32))
+        self.vmfont = VisMolFont()
         self.cam_pos = self.glcamera.get_position()
         self.set_has_depth_buffer(True)
         self.set_has_alpha(True)
@@ -97,9 +99,9 @@ class MyGLProgram(Gtk.GLArea):
         self.shift = False
         self.bckgrnd_color = np.array([0.5, 0.5, 0.5, 1.0],dtype=np.float32)
         #self.bckgrnd_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
-        self.light_position = np.array([-2.5, 2.5, 2.5],dtype=np.float32)
+        self.light_position = np.array([-2.5, 2.5, 3.0],dtype=np.float32)
         self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
-        self.light_ambient_coef = 0.5
+        self.light_ambient_coef = 0.4
         self.light_shininess = 5.5
         self.light_intensity = np.array([0.6, 0.6, 0.6],dtype=np.float32)
         self.light_specular_color = np.array([1.0, 1.0, 1.0],dtype=np.float32)
@@ -121,6 +123,12 @@ class MyGLProgram(Gtk.GLArea):
         self.impostor_cyl_vbos = None
         self.impostor_cyl_elemns = None
         self.impostor_cyl = False
+        # Here are the test programs and flags
+        self.gl_program_glumpy = None
+        self.glumpy_vao = None
+        self.glumpy_vbos = None
+        self.glumpy_elemns = None
+        self.glumpy = False
         
     
     def reshape_window(self, widget, width, height):
@@ -305,6 +313,7 @@ class MyGLProgram(Gtk.GLArea):
         except:
             print("OpenGL major version not found")
         self.gl_program_cubes = self.load_shaders(sh.v_cubes, sh.f_cubes, sh.g_cubes)
+        self.gl_program_glumpy = self.load_shaders(sh.v_glumpy, sh.f_glumpy)
         self.gl_program_impostor_sph = self.load_shaders(sh.v_impostor_sph, sh.f_impostor_sph, sh.g_impostor_sph)
         self.gl_program_impostor_cyl = self.load_shaders(sh.v_impostor_cyl, sh.f_impostor_cyl, sh.g_impostor_cyl)
     
@@ -429,6 +438,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_impostor_cyl()
+        if self.glumpy:
+            if self.glumpy_vao is None:
+                self.glumpy_vao, self.glumpy_vbos, self.glumpy_elemns = vaos.make_glumpy(self.gl_program_glumpy)
+                self.queue_draw()
+            else:
+                self._draw_glumpy()
         
     
     def _draw_impostor_sph(self):
@@ -475,6 +490,23 @@ class MyGLProgram(Gtk.GLArea):
         
         GL.glBindVertexArray(self.impostor_cyl_vao)
         GL.glDrawElements(GL.GL_LINES, self.impostor_cyl_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_glumpy(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        GL.glUseProgram(self.gl_program_glumpy)
+        self.load_matrices(self.gl_program_glumpy)
+        self.load_lights(self.gl_program_glumpy)
+        xyz_coords = self.glcamera.get_modelview_position(self.model_mat)
+        u_campos = GL.glGetUniformLocation(self.gl_program_glumpy, "u_campos")
+        GL.glUniform3fv(u_campos, 1, xyz_coords)
+        GL.glBindVertexArray(self.glumpy_vao)
+        GL.glDrawElements(GL.GL_POINTS, self.glumpy_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
@@ -572,6 +604,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_y(self):
         self.impostor_cyl = not self.impostor_cyl
+        self.queue_draw()
+    
+    def _pressed_g(self):
+        self.glumpy = not self.glumpy
         self.queue_draw()
     
     def _pressed_m(self):

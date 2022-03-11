@@ -4081,7 +4081,127 @@ void main() {
     //vec4 depth = proj_mat * vec4(frag_center + normal * frag_radius, 1.0);
     //gl_FragDepthEXT = depth.z/depth.w;
     //vec4 depth = proj_mat * vec4(coord_on_caps, 1.0);
-    /gl_FragDepth = depth.z/depth.w;
+    //gl_FragDepth = depth.z/depth.w;
     final_color = vec4(ambient + diffuse, 1.0);
+}
+"""
+
+
+v_glumpy = """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+uniform vec3 u_campos;
+
+in vec3 vert_coord;
+in vec3 vert_color;
+in float vert_radius;
+float hw_ratio;
+
+out float frag_radius;
+out float frag_dot_size;
+out vec3 frag_color;
+out vec4 frag_coord;
+
+void main (void){
+    hw_ratio = proj_mat[0][0] * proj_mat[1][1];
+    frag_color = vert_color;
+    frag_radius = vert_radius;
+    frag_coord = view_mat * model_mat * vec4(vert_coord, 1.0);
+    gl_Position = proj_mat * frag_coord;
+    vec4 p = proj_mat * vec4(vert_radius, vert_radius, frag_coord.z, frag_coord.w);
+    frag_dot_size = 256.0 * hw_ratio * vert_radius / p.w;
+    gl_PointSize = frag_dot_size;
+}
+"""
+
+f_glumpy = """
+#version 330
+
+struct Light {
+   vec3 position;
+   //vec3 color;
+   vec3 intensity;
+   //vec3 specular_color;
+   float ambient_coef;
+   float shininess;
+};
+
+uniform Light my_light;
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+vec4 outline(float distance, float linewidth, float antialias, vec4 fg_color, vec4 bg_color){
+    vec4 frag_color;
+    float t = linewidth/2.0 - antialias;
+    float signed_distance = distance;
+    float border_distance = abs(signed_distance) - t;
+    float alpha = border_distance/antialias;
+    alpha = exp(-alpha*alpha);
+
+    if( border_distance < 0.0 )
+        frag_color = fg_color;
+    else if( signed_distance < 0.0 )
+        frag_color = mix(bg_color, fg_color, sqrt(alpha));
+    else {
+        if( abs(signed_distance) < (linewidth/2.0 + antialias) ) {
+            frag_color = vec4(fg_color.rgb, fg_color.a * alpha);
+        } else {
+            discard;
+        }
+    }
+    return frag_color;
+}
+
+in float frag_radius;
+in float frag_dot_size;
+in vec3 frag_color;
+in vec4 frag_coord;
+
+out vec4 final_color;
+
+vec4 calculate_color(vec3 fnrm, vec3 fcrd, vec3 fcol){
+    vec3 normal = normalize(fnrm);
+    vec3 vert_to_light = normalize(my_light.position);
+    vec3 vert_to_cam = normalize(fcrd);
+    // Ambient Component
+    vec3 ambient = my_light.ambient_coef * fcol * my_light.intensity;
+    // Diffuse component
+    float diffuse_coef = max(0.0, dot(normal, vert_to_light));
+    vec3 diffuse = diffuse_coef * fcol * my_light.intensity;
+    // Specular component
+    float specular_coef = 0.0;
+    if (diffuse_coef > 0.0)
+        specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(vert_to_light, normal))), my_light.shininess);
+    vec3 specular = specular_coef * my_light.intensity;
+    specular = specular * (vec3(1) - diffuse);
+    vec4 out_color = vec4(ambient + diffuse + specular, 1.0);
+    return out_color;
+}
+
+void main(){
+    vec2 P = gl_PointCoord.xy - vec2(0.5,0.5);
+    float distance = length(P*frag_dot_size) - frag_dot_size/2;
+    vec2 texcoord = gl_PointCoord* 2.0 - vec2(1.0);
+    float x = texcoord.x;
+    float y = texcoord.y;
+    float d = 1.0 - x*x - y*y;
+    if (d <= 0.0){
+        discard;
+    }
+    float z = sqrt(d);
+    vec4 pos = frag_coord;
+    pos.z += frag_radius*z;
+    vec3 pos2 = pos.xyz;
+    pos = proj_mat * pos;
+    gl_FragDepth = 0.5*(pos.z / pos.w)+0.5;
+    vec3 normal = vec3(x,-y,z);
+    vec4 color = calculate_color(normal, frag_coord.xyz, frag_color);
+    final_color = outline(distance, 1.0, 1.0, vec4(0,0,0,1), color);
 }
 """
