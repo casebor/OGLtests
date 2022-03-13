@@ -67,7 +67,6 @@ class MyGLProgram(Gtk.GLArea):
         self.model_mat = np.identity(4, dtype=np.float32)
         self.glcamera = GLCamera(fov=30.0, var=self.width / self.height,
                                  pos=np.array([0,0,5], dtype=np.float32))
-        self.vmfont = VisMolFont()
         self.cam_pos = self.glcamera.get_position()
         self.set_has_depth_buffer(True)
         self.set_has_alpha(True)
@@ -129,7 +128,16 @@ class MyGLProgram(Gtk.GLArea):
         self.glumpy_vbos = None
         self.glumpy_elemns = None
         self.glumpy = False
-        
+        # Here are the test programs and flags
+        self.gl_program_text = None
+        self.text = False
+        self.vm_font = VismolFont()
+        # Here are the test programs and flags
+        self.gl_program_cartoon = None
+        self.cartoon_vao = None
+        self.cartoon_vbos = None
+        self.cartoon_elemns = None
+        self.cartoon = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -316,6 +324,8 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_glumpy = self.load_shaders(sh.v_glumpy, sh.f_glumpy)
         self.gl_program_impostor_sph = self.load_shaders(sh.v_impostor_sph, sh.f_impostor_sph, sh.g_impostor_sph)
         self.gl_program_impostor_cyl = self.load_shaders(sh.v_impostor_cyl, sh.f_impostor_cyl, sh.g_impostor_cyl)
+        self.gl_program_text = self.load_shaders(sh.v_text, sh.f_text)
+        self.gl_program_cartoon = self.load_shaders(sh.v_cartoon, sh.f_cartoon)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -444,6 +454,18 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_glumpy()
+        if self.text:
+            if self.vm_font.face is None:
+                self.vm_font.make_freetype_font(self.gl_program_text)
+                self.queue_draw()
+            else:
+                self._draw_text()
+        if self.cartoon:
+            if self.cartoon_vao is None:
+                self.cartoon_vao, self.cartoon_vbos, self.cartoon_elemns = vaos.make_cartoon(self.gl_program_cartoon)
+                self.queue_draw()
+            else:
+                self._draw_cubes()
         
     
     def _draw_impostor_sph(self):
@@ -511,6 +533,10 @@ class MyGLProgram(Gtk.GLArea):
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
+    
+    def _draw_text(self):
+        """ Function doc """
+        self.vm_font.render_text(self.gl_program_text, "The Quick Brown Fox Jumps Over The Lazy Dog", 0, 0, 0, 0)
     
     def edit_draw(self, event):
         """ Function doc """
@@ -594,7 +620,7 @@ class MyGLProgram(Gtk.GLArea):
         self.model_mat = cam.my_glRotateYf(self.model_mat,-5)
         self.queue_draw()
     
-    def _pressed_c(self):
+    def _pressed_q(self):
         self.cubes = not self.cubes
         self.queue_draw()
     
@@ -609,6 +635,14 @@ class MyGLProgram(Gtk.GLArea):
     def _pressed_g(self):
         self.glumpy = not self.glumpy
         self.queue_draw()
+    
+    def _pressed_c(self):
+        self.cartoon = not self.cartoon
+        self.queue_draw()
+    
+    # def _pressed_t(self):
+    #     self.text = not self.text
+    #     self.queue_draw()
     
     def _pressed_m(self):
         print("------------------------------------")

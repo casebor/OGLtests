@@ -275,6 +275,13 @@ class CharsInfo:
     bt: np.float32
     tx: np.float32
 
+@dataclass()
+class Point:
+    x: np.float32
+    y: np.float32
+    s: np.float32
+    t: np.float32
+
 
 class VismolFont():
     """ VisMolFont stores the data created using the freetype python binding
@@ -282,7 +289,7 @@ class VismolFont():
         resolution, font color, etc.
     """
     
-    def __init__ (self, font_file="VeraMono.ttf", char_res=64, c_w=0.25, c_h=0.3, color=[1,1,1,1]):
+    def __init__ (self, font_file="VeraMono.ttf", char_res=64, c_w=2, c_h=3, color=[1,1,1,1]):
         """ Class initialiser
         """
         self.font_file = font_file
@@ -291,7 +298,7 @@ class VismolFont():
         self.char_height = c_h
         self.offset = np.array([c_w/2.0,c_h/2.0],dtype=np.float32)
         self.color = np.array(color,dtype=np.float32)
-        self.atlas = None
+        self.face = None
         
         self.font_buffer = None
         self.texture_id = None
@@ -300,22 +307,34 @@ class VismolFont():
         self.vao = None
         self.vbos = None
     
-    def make_freetype_font(self):
+    def make_freetype_font(self, program):
         """ Function doc
         """
         self.face = ft.Face(self.font_file)
         self.face.set_pixel_sizes(0, self.char_height)
         self.glyph = self.face.glyph
+        roww, rowh = 0, 0
         w, h = 0, 0
         for i in range(32, 128):
             if self.face.load_char(chr(i), ft.FT_LOAD_RENDER | ft.FT_LOAD_FORCE_AUTOHINT):
-                self.chars_dict[i]
                 raise RuntimeError("Character {} failed to load".format(chr(i)))
-            w += self.face.glyph.bitmap.width
-            h = np.max(h, self.face.glyph.bitmap.rows)
-        self.atlas_width = w
-        self.font_texture = GL.glGenTextures(1)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.font_texture)
+            if roww + self.glyph.bitmap.width + 1 >= 1024:
+                w = max(w, roww)
+                h += rowh
+                roww, rowh = 0, 0
+            roww += self.face.glyph.bitmap.width + 1
+            rowh = max(rowh, self.face.glyph.bitmap.rows)
+        self.atlas_width = np.uint32(max(w, roww))
+        h += rowh
+        self.atlas_heigth = np.uint32(h)
+        
+        GL.glActiveTexture(GL.GL_TEXTURE0)
+        self.texture = GL.glGenTextures(1)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture)
+        
+        # tex = GL.glGetUniformLocation(program, "tex")
+        # GL.glUniform1i(tex, 0)
+        
         GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
         GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RED, self.atlas_width, h, 0,
                         GL.GL_ALPHA, GL.GL_UNSIGNED_BYTE, 0)
@@ -324,32 +343,72 @@ class VismolFont():
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
         
-        self.chars_info = [None] * 128
-        ox, oy = 0, 0
-        w = 0
-        for i in range(32, 128):
-            if face.load_char(chr(i), ft.FT_LOAD_RENDER | ft.FT_LOAD_FORCE_AUTOHINT):
-                raise RuntimeError("Character {} failed to load".format(chr(i)))
-            if ox + self.glyph.bitmap.width + 1 >= 1024:
-                oy += w
-                w = 0
-                ox = 0
-            GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, ox, oy, self.glyph.bitmap.width,
-                               self.glyph.bitmap.rows, GL.GL_ALPHA, GL.GL_UNSIGNED_BYTE,
-                               self.glyph.bitmap.buffer)
-            _ax = self.glyph.advance.x >> 6
-            _ay = self.glyph.advance.y >> 6
-            _bw = self.glyph.bitmap.width
-            _bh = self.glyph.bitmap.rows
-            _bl = self.glyph.bitmap_left
-            _bt = self.glyph.bitmap_top
-            _tx = np.float32(ox / w)
-            _ty = np.float32(oy / h)
-            self.chars_info[i] = CharsInfo()
-            w = np.max(w, self.glyph.bitmap.rows)
-            ox += self.glyph.bitmap.width + 1
+        # self.chars_info = [None] * 128
+        # ox, oy = 0, 0
+        # rowh = 0
+        # for i in range(32, 128):
+        #     if face.load_char(chr(i), ft.FT_LOAD_RENDER | ft.FT_LOAD_FORCE_AUTOHINT):
+        #         raise RuntimeError("Character {} failed to load".format(chr(i)))
+        #     if ox + self.glyph.bitmap.width + 1 >= 1024:
+        #         oy += rowh
+        #         rowh = 0
+        #         ox = 0
+        #     GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, ox, oy, self.glyph.bitmap.width,
+        #                        self.glyph.bitmap.rows, GL.GL_ALPHA, GL.GL_UNSIGNED_BYTE,
+        #                        self.glyph.bitmap.buffer)
+        #     _ax = self.glyph.advance.x >> 6
+        #     _ay = self.glyph.advance.y >> 6
+        #     _bw = self.glyph.bitmap.width
+        #     _bh = self.glyph.bitmap.rows
+        #     _bl = self.glyph.bitmap_left
+        #     _bt = self.glyph.bitmap_top
+        #     _tx = np.float32(ox / w)
+        #     _ty = np.float32(oy / h)
+        #     self.chars_info[i] = CharsInfo(_ax, _ay, _bw, _bh, _bl, _bt, _tx, _ty)
+        #     rowh = max(rowh, self.glyph.bitmap.rows)
+        #     ox += self.glyph.bitmap.width + 1
         return True
-        # https://en.wikibooks.org/wiki/OpenGL_Programming/Modern_OpenGL_Tutorial_Text_Rendering_02
+    
+    def render_text(self, program, text, x, y, sx, sy):
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture)
+        tex = GL.glGetUniformLocation(program, "tex")
+        GL.glUniform1i(tex, 0)
+        
+        coord_vbo = GL.glGenBuffers(1)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+        # GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_DYNAMIC_DRAW)
+        gl_coord = GL.glGetAttribLocation(program, "coord")
+        GL.glEnableVertexAttribArray(gl_coord)
+        GL.glVertexAttribPointer(gl_coord, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, 0)
+        
+        coords = [None] * 6 * len(text)
+        i = 0
+        for c in text:
+            x2 = x + self.chars_info[ord(c)].bl * sx
+            y2 = -y - self.chars_info[ord(c)].bt * sy
+            w = self.chars_info[ord(c)].bw * sx
+            h = self.chars_info[ord(c)].bh * sy
+            x += self.chars_info[ord(c)].ax * sx
+            y += self.chars_info[ord(c)].ay * sy
+            if not w or not h:
+                continue
+            
+            coords[i] = Point(x2, -y2, self.chars_info[ord(c)].tx, self.chars_info[ord(c)].ty)
+            i += 1
+            coords[i] = Point(x2 + w, -y2, self.chars_info[ord(c)].tx + self.chars_info[ord(c)].bw / self.atlas_width, self.chars_info[ord(c)].ty)
+            i += 1
+            coords[i] = Point(x2, -y2 - h, self.chars_info[ord(c)].tx, self.chars_info[ord(c)].ty + self.chars_info[ord(c)].bh / self.atlas_heigth)
+            i += 1
+            coords[i] = Point(x2 + w, -y2, self.chars_info[ord(c)].tx + self.chars_info[ord(c)].bw / self.atlas_width, self.chars_info[ord(c)].ty)
+            i += 1
+            coords[i] = Point(x2, -y2 - h, self.chars_info[ord(c)].tx, self.chars_info[ord(c)].ty + self.chars_info[ord(c)].bh / self.atlas_heigth)
+            i += 1
+            coords[i] = Point(x2 + w, -y2 - h, self.chars_info[ord(c)].tx + self.chars_info[ord(c)].bw / self.atlas_width, self.chars_info[ord(c)].ty + self.chars_info[ord(c)].bh / self.atlas_heigth)
+            i += 1
+            
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, len(coords), coords, GL.GL_DYNAMIC_DRAW)
+            GL.glDrawArrays(GL.GL_TRIANGLES, 0, i)
+            GL.glDisableVertexAttribArray(gl_coord)
     
     def make_freetype_texture(self, program):
         """ Function doc
