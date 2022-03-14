@@ -1038,15 +1038,18 @@ def make_cartoon(program):
             if " CA " in line:
                 calphas[j,:] = x, y, z
                 j += 1
-    coords, normals, indexes, colors = cartoon.cartoon(coords, calphas)
-    quit()
-    print(ss)
-    ss = cartoon.calculate_secondary_structure(calphas)
+    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, spline_detail=3)
+    # quit()
+    # ss = cartoon.calculate_secondary_structure(calphas)
     
-    colors = np.tile([0, 1, 0], coords.shape[0]).reshape([coords.shape[0], 3]).astype(np.float32)
+    # colors = np.tile([0, 1, 0], coords.shape[0]).reshape([coords.shape[0], 3]).astype(np.float32)
     
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
+    
+    ind_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
@@ -1074,4 +1077,4 @@ def make_cartoon(program):
     GL.glDisableVertexAttribArray(gl_color)
     GL.glDisableVertexAttribArray(gl_norm)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo, norm_vbo), int(len(coords)/3)
+    return vertex_array_object, (coord_vbo, col_vbo, norm_vbo), len(indexes)

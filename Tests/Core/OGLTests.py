@@ -465,8 +465,7 @@ class MyGLProgram(Gtk.GLArea):
                 self.cartoon_vao, self.cartoon_vbos, self.cartoon_elemns = vaos.make_cartoon(self.gl_program_cartoon)
                 self.queue_draw()
             else:
-                self._draw_cubes()
-        
+                self._draw_cartoon()
     
     def _draw_impostor_sph(self):
         """ Function doc """
@@ -530,6 +529,18 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(self.glumpy_vao)
         GL.glDrawElements(GL.GL_POINTS, self.glumpy_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_cartoon(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_cartoon)
+        self.load_matrices(self.gl_program_cartoon)
+        self.load_lights(self.gl_program_cartoon)
+        GL.glBindVertexArray(self.cartoon_vao)
+        GL.glDrawElements(GL.GL_TRIANGLES, self.cartoon_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
