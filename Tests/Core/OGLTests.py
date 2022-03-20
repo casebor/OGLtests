@@ -564,7 +564,7 @@ class MyGLProgram(Gtk.GLArea):
         # self.vm_font.render_text(self.gl_program_text, "The Quick Brown Fox Jumps Over The Lazy Dog", 0, 0, 0, 0)
         self.vm_font.render_text(self.gl_program_text, self.model_mat, self.glcamera.view_matrix,
                                  self.glcamera.projection_matrix,
-                                 ["Hello-,;\"Hello^", "World"], np.zeros([2,3], dtype=np.float32))
+                                 ["Hello-", "World"], np.zeros([2,3], dtype=np.float32))
     
     def _draw_texture(self):
         """ Function doc """
@@ -693,6 +693,16 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_w(self):
         self.text = not self.text
+        self.queue_draw()
+    
+    def _pressed_Up(self):
+        self.vm_font.font_scale += 1
+        self.vm_font.modified = True
+        self.queue_draw()
+    
+    def _pressed_Down(self):
+        self.vm_font.font_scale -= 1
+        self.vm_font.modified = True
         self.queue_draw()
     
     def _pressed_m(self):

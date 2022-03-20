@@ -280,6 +280,7 @@ class VismolFont():
             self.color = np.array(color, dtype=np.float32)
         self.font_image = os.path.join("fonts", font_name + ".png")
         self.font_json = os.path.join("fonts", font_name + ".json")
+        self.font_scale = 1.0
         self.font_data = None
         self.vao = None
         self.texture = None
@@ -376,11 +377,15 @@ class VismolFont():
     def fill_texture_buffers(self, program, words, coords):
         coords[0] = [-1,1,0]
         coords[1] = [0,-1,0]
-        text_uvs = np.empty(2, dtype=np.float32)
-        coords_uv = np.empty(3, dtype=np.float32)
+        w_size = 0
+        for word in words:
+            w_size += len(word) * 6
+        text_uvs = np.empty([w_size,2], dtype=np.float32)
+        coords_uv = np.empty([w_size,3], dtype=np.float32)
+        pos = 0
         for i, word in enumerate(words):
-            c_uv = np.zeros([len(word)*6,3], dtype=np.float32)
             t_uv = np.zeros([len(word)*6,2], dtype=np.float32)
+            c_uv = np.zeros([len(word)*6,3], dtype=np.float32)
             offset_x = 0.0
             offset_y = 0.0
             for j, char in enumerate(word):
@@ -388,24 +393,21 @@ class VismolFont():
                     offset_y -= (self.font_data[word[j-1]]["dir_vec"][1] - self.font_data[char]["dir_vec"][1])
                 offset_x += self.font_data[char]["dir_vec"][0] * 0.6
                 t_uv[j*6:(j+1)*6] = self.font_data[char]["uv"]
-                c_uv[j*6:(j+1)*6] = self.font_data[char]["xyz"]
+                c_uv[j*6:(j+1)*6] = self.font_data[char]["xyz"] * self.font_scale
                 c_uv[j*6:(j+1)*6] += coords[i]
-                c_uv[j*6:(j+1)*6,0] += offset_x
-                c_uv[j*6:(j+1)*6,1] += offset_y
+                c_uv[j*6:(j+1)*6,0] += offset_x * self.font_scale
+                c_uv[j*6:(j+1)*6,1] += offset_y * self.font_scale
                 offset_x += self.font_data[char]["dir_vec"][0] * 0.6
-            coords_uv = np.vstack([coords_uv, c_uv])
-            text_uvs = np.vstack([text_uvs, t_uv])
+            text_uvs[pos:pos+len(word)*6] = t_uv
+            coords_uv[pos:pos+len(word)*6] = c_uv
+            pos += len(word) * 6
         
-        text_uvs = text_uvs[1:]
-        coords = coords_uv[1:]
-        # coords = np.array(coords_uv, dtype=np.float32)
-        self.elements = coords.shape[0]
-        print(coords.shape)
+        self.elements = coords_uv.shape[0]
+        print(coords_uv.shape)
         print(text_uvs.shape)
-        # print(text_uvs)
         
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.coord_vbo)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_STATIC_DRAW)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords_uv.nbytes, coords_uv, GL.GL_STATIC_DRAW)
         
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.texture_vbo)
         GL.glBufferData(GL.GL_ARRAY_BUFFER, text_uvs.nbytes, text_uvs, GL.GL_STATIC_DRAW)
@@ -434,7 +436,7 @@ class VismolFont():
     def load_matrices(self, program, model_mat, view_mat, proj_mat):
         """ Function doc """
         m_mat = np.copy(model_mat)
-        m_mat[:3,:3] = np.identity(3)
+        # m_mat[:3,:3] = np.identity(3)
         model = GL.glGetUniformLocation(program, "model_mat")
         GL.glUniformMatrix4fv(model, 1, GL.GL_FALSE, m_mat)
         view = GL.glGetUniformLocation(program, "view_mat")
