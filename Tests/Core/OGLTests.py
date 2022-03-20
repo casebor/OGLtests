@@ -96,7 +96,7 @@ class MyGLProgram(Gtk.GLArea):
         self.start_time = time.perf_counter()
         self.ctrl = False
         self.shift = False
-        self.bckgrnd_color = np.array([0.5, 0.5, 0.5, 1.0],dtype=np.float32)
+        self.bckgrnd_color = np.array([0.0, 0.0, 0.0, 1.0],dtype=np.float32)
         #self.bckgrnd_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_position = np.array([-2.5, 2.5, 3.0],dtype=np.float32)
         self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
@@ -138,6 +138,12 @@ class MyGLProgram(Gtk.GLArea):
         self.cartoon_vbos = None
         self.cartoon_elemns = None
         self.cartoon = False
+        # Here are the test programs and flags
+        self.gl_program_texture = None
+        self.texture_texture = None
+        self.texture_vbos = None
+        self.texture_elemns = None
+        self.texture = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -326,6 +332,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_impostor_cyl = self.load_shaders(sh.v_impostor_cyl, sh.f_impostor_cyl, sh.g_impostor_cyl)
         self.gl_program_text = self.load_shaders(sh.v_text, sh.f_text)
         self.gl_program_cartoon = self.load_shaders(sh.v_cartoon, sh.f_cartoon)
+        self.gl_program_texture = self.load_shaders(sh.v_texture, sh.f_texture)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -395,20 +402,18 @@ class MyGLProgram(Gtk.GLArea):
     
     def load_texture(self, program):
         """ Function doc """
-        GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex)
-        text = GL.glGetUniformLocation(program, "textu")
-        GL.glUniform1i(text, 0)
+        # GL.glActiveTexture(GL.GL_TEXTURE0)
+        # GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture_texture)
+        # text = GL.glGetUniformLocation(program, "textu")
+        # GL.glUniform1i(text, 0)
         #GL.glActiveTexture(GL.GL_TEXTURE1)
         #GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
         #GL.glUniform1i(text, 1)
-    
-    def load_text(self, program):
-        """ Function doc """
-        GL.glActiveTexture(GL.GL_TEXTURE0)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.text_texture)
-        text = GL.glGetUniformLocation(program, "textu")
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture_texture)
+        text = GL.glGetUniformLocation(program, "font_texture")
         GL.glUniform1i(text, 0)
+        gl_color = GL.glGetUniformLocation(program, "font_color")
+        GL.glUniform3fv(gl_color, 1, [1.0,0.0,0.5])
     
     def load_antialias_params(self, program):
         """ Function doc """
@@ -454,18 +459,27 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_glumpy()
-        if self.text:
-            if self.vm_font.face is None:
-                self.vm_font.make_freetype_font(self.gl_program_text)
-                self.queue_draw()
-            else:
-                self._draw_text()
         if self.cartoon:
             if self.cartoon_vao is None:
                 self.cartoon_vao, self.cartoon_vbos, self.cartoon_elemns = vaos.make_cartoon(self.gl_program_cartoon)
                 self.queue_draw()
             else:
                 self._draw_cartoon()
+        if self.texture:
+            if self.texture_texture is None:
+                # self.texture_texture = vaos.make_texture_OGL()
+                # self.texture_vao, self.texture_vbos, self.texture_elemns = vaos.make_texture_coords(self.gl_program_texture)
+                self.texture_texture, self.texture_vao, self.texture_vbos = vaos.make_texture_OGL(self.gl_program_texture)
+                self.queue_draw()
+            else:
+                self._draw_texture()
+        if self.text:
+            if self.vm_font.vao is None:
+                self.vm_font._load_font_data()
+                self.vm_font.make_font_atlas(self.gl_program_text)
+                self.queue_draw()
+            else:
+                self._draw_text()
     
     def _draw_impostor_sph(self):
         """ Function doc """
@@ -547,7 +561,29 @@ class MyGLProgram(Gtk.GLArea):
     
     def _draw_text(self):
         """ Function doc """
-        self.vm_font.render_text(self.gl_program_text, "The Quick Brown Fox Jumps Over The Lazy Dog", 0, 0, 0, 0)
+        # self.vm_font.render_text(self.gl_program_text, "The Quick Brown Fox Jumps Over The Lazy Dog", 0, 0, 0, 0)
+        self.vm_font.render_text(self.gl_program_text, self.model_mat, self.glcamera.view_matrix,
+                                 self.glcamera.projection_matrix,
+                                 ["Hello-", "World"], np.zeros([2,3], dtype=np.float32))
+    
+    def _draw_texture(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glUseProgram(self.gl_program_texture)
+        self.load_matrices(self.gl_program_texture)
+        self.load_texture(self.gl_program_texture)
+        GL.glBindVertexArray(self.texture_vao)
+        GL.glActiveTexture(GL.GL_TEXTURE0)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture_texture)
+        vaos.fill_texture_buffers(self.gl_program_texture, self.texture_vbos)
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, 6)
+        
+        GL.glDisable(GL.GL_BLEND)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
     
     def edit_draw(self, event):
         """ Function doc """
@@ -651,9 +687,13 @@ class MyGLProgram(Gtk.GLArea):
         self.cartoon = not self.cartoon
         self.queue_draw()
     
-    # def _pressed_t(self):
-    #     self.text = not self.text
-    #     self.queue_draw()
+    def _pressed_t(self):
+        self.texture = not self.texture
+        self.queue_draw()
+    
+    def _pressed_w(self):
+        self.text = not self.text
+        self.queue_draw()
     
     def _pressed_m(self):
         print("------------------------------------")

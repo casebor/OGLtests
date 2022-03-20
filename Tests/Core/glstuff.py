@@ -22,12 +22,12 @@
 #  
 #  
 
+import os
+import json
 import ctypes
 import numpy as np
-import freetype as ft
 import matrix_operations as mop
 from OpenGL import GL
-from dataclasses import dataclass
 
 
 class GLCamera():
@@ -265,188 +265,159 @@ class GLCamera():
         return True
 
 
-@dataclass()
-class CharsInfo:
-    ax: np.float32
-    ay: np.float32
-    bw: np.float32
-    bh: np.float32
-    bl: np.float32
-    bt: np.float32
-    tx: np.float32
-
-@dataclass()
-class Point:
-    x: np.float32
-    y: np.float32
-    s: np.float32
-    t: np.float32
-
-
 class VismolFont():
-    """ VisMolFont stores the data created using the freetype python binding
-        library, such as filename, character width, character height, character
-        resolution, font color, etc.
+    """ VismolFont is used to render text from SDF font files and a description
+        of the position of the characters in the image.
     """
     
-    def __init__ (self, font_file="VeraMono.ttf", char_res=64, c_w=2, c_h=3, color=[1,1,1,1]):
+    def __init__ (self, font_name="Arial", color=None):
         """ Class initialiser
         """
-        self.font_file = font_file
-        self.char_res = char_res
-        self.char_width = c_w
-        self.char_height = c_h
-        self.offset = np.array([c_w/2.0,c_h/2.0],dtype=np.float32)
-        self.color = np.array(color,dtype=np.float32)
-        self.face = None
-        
-        self.font_buffer = None
-        self.texture_id = None
-        self.text_u = None
-        self.text_v = None
+        if color is None:
+            self.color = np.ones(3, dtype=np.float32)
+        else:
+            self.color = np.array(color, dtype=np.float32)
+        self.font_image = os.path.join("fonts", font_name + ".png")
+        self.font_json = os.path.join("fonts", font_name + ".json")
+        self.font_data = None
         self.vao = None
-        self.vbos = None
+        self.texture = None
+        self.coord_vbo = None
+        self.texture_vbo = None
+        self.modified = True
     
-    def make_freetype_font(self, program):
-        """ Function doc
+    def _load_font_data(self):
+        """ Calculate the parameters for each character in the font atlas.
+            [uvsx, uvsy] -> start uv coordinates of the character in the atlas
+            [uvex, uvey] -> end uv coordinates of the character in the atlas
+            | 0,0    |    | uvsx,uvsy           |
+            |    *   | -> |          *          |
+            |     1,1|    |           uvex,uvey |
         """
-        self.face = ft.Face(self.font_file)
-        self.face.set_pixel_sizes(0, self.char_height)
-        self.glyph = self.face.glyph
-        roww, rowh = 0, 0
-        w, h = 0, 0
-        for i in range(32, 128):
-            if self.face.load_char(chr(i), ft.FT_LOAD_RENDER | ft.FT_LOAD_FORCE_AUTOHINT):
-                raise RuntimeError("Character {} failed to load".format(chr(i)))
-            if roww + self.glyph.bitmap.width + 1 >= 1024:
-                w = max(w, roww)
-                h += rowh
-                roww, rowh = 0, 0
-            roww += self.face.glyph.bitmap.width + 1
-            rowh = max(rowh, self.face.glyph.bitmap.rows)
-        self.atlas_width = np.uint32(max(w, roww))
-        h += rowh
-        self.atlas_heigth = np.uint32(h)
-        
+        with open(self.font_json, "r") as f:
+            self.font_json = json.load(f)
+        self.font_name = self.font_json.pop("name")
+        self.font_data = {}
+        self.font_data["scaleW"] = np.float32(self.font_json.pop("scaleW"))
+        self.font_data["scaleH"] = np.float32(self.font_json.pop("scaleH"))
+        for char, data in self.font_json.items():
+            if len(char) > 1:
+                continue
+            uvsx = data["x"] / self.font_data["scaleW"]
+            uvex = (data["x"] + data["w"]) / self.font_data["scaleW"]
+            uvsy = data["y"] / self.font_data["scaleH"]
+            uvey = (data["y"] + data["h"]) / self.font_data["scaleH"]
+            # self.font_data[char] = np.array([[uvsx, uvsy], [uvex, uvey]], dtype=np.float32)
+            self.font_data[char] = np.array([[uvsx,uvsy], [uvsx,uvey], [uvex,uvsy],
+                                             [uvsx,uvey], [uvex,uvsy], [uvex,uvey]], dtype=np.float32)
+    
+    def make_font_atlas(self, program):
+        """ Function doc """
+        from PIL import Image
+        image_a = Image.open(self.font_image)
+        ix = image_a.size[0]
+        iy = image_a.size[1]
+        assert self.font_data is not None
+        assert self.font_data["scaleW"] == np.float32(ix)
+        assert self.font_data["scaleH"] == np.float32(iy)
+        image_a = np.array(list(image_a.getdata()), dtype=np.uint8)
+        font_texture = GL.glGenTextures(1)
         GL.glActiveTexture(GL.GL_TEXTURE0)
-        self.texture = GL.glGenTextures(1)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture)
-        
-        # tex = GL.glGetUniformLocation(program, "tex")
-        # GL.glUniform1i(tex, 0)
-        
-        GL.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1)
-        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RED, self.atlas_width, h, 0,
-                        GL.GL_ALPHA, GL.GL_UNSIGNED_BYTE, 0)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_CLAMP_TO_EDGE)
-        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_CLAMP_TO_EDGE)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, font_texture)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
         GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_a)
         
-        # self.chars_info = [None] * 128
-        # ox, oy = 0, 0
-        # rowh = 0
-        # for i in range(32, 128):
-        #     if face.load_char(chr(i), ft.FT_LOAD_RENDER | ft.FT_LOAD_FORCE_AUTOHINT):
-        #         raise RuntimeError("Character {} failed to load".format(chr(i)))
-        #     if ox + self.glyph.bitmap.width + 1 >= 1024:
-        #         oy += rowh
-        #         rowh = 0
-        #         ox = 0
-        #     GL.glTexSubImage2D(GL.GL_TEXTURE_2D, 0, ox, oy, self.glyph.bitmap.width,
-        #                        self.glyph.bitmap.rows, GL.GL_ALPHA, GL.GL_UNSIGNED_BYTE,
-        #                        self.glyph.bitmap.buffer)
-        #     _ax = self.glyph.advance.x >> 6
-        #     _ay = self.glyph.advance.y >> 6
-        #     _bw = self.glyph.bitmap.width
-        #     _bh = self.glyph.bitmap.rows
-        #     _bl = self.glyph.bitmap_left
-        #     _bt = self.glyph.bitmap_top
-        #     _tx = np.float32(ox / w)
-        #     _ty = np.float32(oy / h)
-        #     self.chars_info[i] = CharsInfo(_ax, _ay, _bw, _bh, _bl, _bt, _tx, _ty)
-        #     rowh = max(rowh, self.glyph.bitmap.rows)
-        #     ox += self.glyph.bitmap.width + 1
-        return True
-    
-    def render_text(self, program, text, x, y, sx, sy):
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture)
-        tex = GL.glGetUniformLocation(program, "tex")
-        GL.glUniform1i(tex, 0)
+        coords = np.zeros(3, dtype=np.float32)
+        textur = np.zeros(2, dtype=np.float32)
+        
+        vao = GL.glGenVertexArrays(1)
+        GL.glBindVertexArray(vao)
         
         coord_vbo = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-        # GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_DYNAMIC_DRAW)
-        gl_coord = GL.glGetAttribLocation(program, "coord")
-        GL.glEnableVertexAttribArray(gl_coord)
-        GL.glVertexAttribPointer(gl_coord, 4, GL.GL_FLOAT, GL.GL_FALSE, 0, 0)
-        
-        coords = [None] * 6 * len(text)
-        i = 0
-        for c in text:
-            x2 = x + self.chars_info[ord(c)].bl * sx
-            y2 = -y - self.chars_info[ord(c)].bt * sy
-            w = self.chars_info[ord(c)].bw * sx
-            h = self.chars_info[ord(c)].bh * sy
-            x += self.chars_info[ord(c)].ax * sx
-            y += self.chars_info[ord(c)].ay * sy
-            if not w or not h:
-                continue
-            
-            coords[i] = Point(x2, -y2, self.chars_info[ord(c)].tx, self.chars_info[ord(c)].ty)
-            i += 1
-            coords[i] = Point(x2 + w, -y2, self.chars_info[ord(c)].tx + self.chars_info[ord(c)].bw / self.atlas_width, self.chars_info[ord(c)].ty)
-            i += 1
-            coords[i] = Point(x2, -y2 - h, self.chars_info[ord(c)].tx, self.chars_info[ord(c)].ty + self.chars_info[ord(c)].bh / self.atlas_heigth)
-            i += 1
-            coords[i] = Point(x2 + w, -y2, self.chars_info[ord(c)].tx + self.chars_info[ord(c)].bw / self.atlas_width, self.chars_info[ord(c)].ty)
-            i += 1
-            coords[i] = Point(x2, -y2 - h, self.chars_info[ord(c)].tx, self.chars_info[ord(c)].ty + self.chars_info[ord(c)].bh / self.atlas_heigth)
-            i += 1
-            coords[i] = Point(x2 + w, -y2 - h, self.chars_info[ord(c)].tx + self.chars_info[ord(c)].bw / self.atlas_width, self.chars_info[ord(c)].ty + self.chars_info[ord(c)].bh / self.atlas_heigth)
-            i += 1
-            
-            GL.glBufferData(GL.GL_ARRAY_BUFFER, len(coords), coords, GL.GL_DYNAMIC_DRAW)
-            GL.glDrawArrays(GL.GL_TRIANGLES, 0, i)
-            GL.glDisableVertexAttribArray(gl_coord)
-    
-    def make_freetype_texture(self, program):
-        """ Function doc
-        """
-        coords = np.zeros(3,np.float32)
-        uv_pos = np.zeros(4,np.float32)
-        
-        vertex_array_object = GL.glGenVertexArrays(1)
-        GL.glBindVertexArray(vertex_array_object)
-        
-        coord_vbo = GL.glGenBuffers(1)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_DYNAMIC_DRAW)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_STATIC_DRAW)
         gl_coord = GL.glGetAttribLocation(program, "vert_coord")
         GL.glEnableVertexAttribArray(gl_coord)
-        GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+        GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize,ctypes.c_void_p(0))
         
         tex_vbo = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, tex_vbo)
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, uv_pos.itemsize*len(uv_pos), uv_pos, GL.GL_DYNAMIC_DRAW)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, textur.nbytes, textur, GL.GL_STATIC_DRAW)
         gl_texture = GL.glGetAttribLocation(program, "vert_uv")
         GL.glEnableVertexAttribArray(gl_texture)
-        GL.glVertexAttribPointer(gl_texture, 4, GL.GL_FLOAT, GL.GL_FALSE, 4*uv_pos.itemsize, ctypes.c_void_p(0))
+        GL.glVertexAttribPointer(gl_texture, 2, GL.GL_FLOAT, GL.GL_FALSE, 2*textur.itemsize, ctypes.c_void_p(0))
         
+        self.vao = vao
+        self.texture = font_texture
+        self.coord_vbo = coord_vbo
+        self.texture_vbo = tex_vbo
         GL.glBindVertexArray(0)
         GL.glDisableVertexAttribArray(gl_coord)
         GL.glDisableVertexAttribArray(gl_texture)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    
+    def fill_texture_buffers(self, program, words, coords):
+        triangles = np.array([[-1,1,0],[-1,-1,0],[1,1,0],
+                              [-1,-1,0],[1,1,0],[1,-1,0]], dtype=np.float32)*.5
+        coords[0] = [-1,1,0]
+        coords[1] = [0,-1,0]
+        text_uvs = np.empty(2, dtype=np.float32)
+        coords_uv = np.empty(3, dtype=np.float32)
+        for i, word in enumerate(words):
+            c_uv = np.zeros([len(word)*6,3], dtype=np.float32)
+            t_uv = np.zeros([len(word)*6,2], dtype=np.float32)
+            for j, letter in enumerate(word):
+                t_uv[j*6:(j+1)*6] = self.font_data[letter]
+                c_uv[j*6:(j+1)*6] = triangles + coords[i]
+                # c_uv[j*6:(j+1)*6,0] += self.font_json[letter]["w"]/self.font_data["scaleW"]
+                c_uv[j*6:(j+1)*6,0] += j*.8
+            coords_uv = np.vstack([coords_uv, c_uv])
+            text_uvs = np.vstack([text_uvs, t_uv])
         
-        self.vao = vertex_array_object
-        self.vbos = (coord_vbo, tex_vbo)
-        return True
+        text_uvs = text_uvs[1:]
+        coords = coords_uv[1:]
+        # coords = np.array(coords_uv, dtype=np.float32)
+        self.elements = coords.shape[0]
+        print(coords.shape)
+        print(text_uvs.shape)
+        # print(text_uvs)
+        
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.coord_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_STATIC_DRAW)
+        
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.texture_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, text_uvs.nbytes, text_uvs, GL.GL_STATIC_DRAW)
+    
+    def render_text(self, program, mmat, vmat, pmat, text, coords):
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glEnable(GL.GL_BLEND)
+        GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+        GL.glUseProgram(program)
+        self.load_matrices(program, mmat, vmat, pmat)
+        self.load_font_params(program)
+        GL.glBindVertexArray(self.vao)
+        GL.glActiveTexture(GL.GL_TEXTURE0)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture)
+        
+        if self.modified:
+            self.fill_texture_buffers(program, text, coords)
+            self.modified = False
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.elements)
+        
+        GL.glDisable(GL.GL_BLEND)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
     
     def load_matrices(self, program, model_mat, view_mat, proj_mat):
         """ Function doc """
-        model_mat[:3,:3] = np.identity(3)
+        m_mat = np.copy(model_mat)
+        m_mat[:3,:3] = np.identity(3)
         model = GL.glGetUniformLocation(program, "model_mat")
-        GL.glUniformMatrix4fv(model, 1, GL.GL_FALSE, model_mat)
+        GL.glUniformMatrix4fv(model, 1, GL.GL_FALSE, m_mat)
         view = GL.glGetUniformLocation(program, "view_mat")
         GL.glUniformMatrix4fv(view, 1, GL.GL_FALSE, view_mat)
         proj = GL.glGetUniformLocation(program, "proj_mat")
@@ -457,26 +428,12 @@ class VismolFont():
             offset coordinates (X,Y) to calculate the quad and the color of
             the font.
         """
-        offset = GL.glGetUniformLocation(program, "offset")
-        GL.glUniform2fv(offset, 1, self.offset)
-        color = GL.glGetUniformLocation(program, "text_color")
-        GL.glUniform4fv(color, 1, self.color)
+        # offset = GL.glGetUniformLocation(program, "offset")
+        # GL.glUniform2fv(offset, 1, self.offset)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture)
+        gl_text = GL.glGetUniformLocation(program, "font_texture")
+        GL.glUniform1i(gl_text, 0)
+        gl_color = GL.glGetUniformLocation(program, "font_color")
+        GL.glUniform3fv(gl_color, 1, self.color)
         return True
-    
-    def print_all(self):
-        """ Function created only with debuging purposes.
-        """
-        print("#############################################")
-        print(self.font_file, "font_file")
-        print(self.char_res, "char_res")
-        print(self.char_width, "char_width")
-        print(self.char_height, "char_height")
-        print(self.offset, "offset")
-        print(self.color, "color")
-        print(self.font_buffer, "font_buffer")
-        print(self.texture_id, "texture_id")
-        print(self.text_u, "text_u")
-        print(self.text_v, "text_v")
-        print(self.vao, "vao")
-        print(self.vbos, "vbos")
     

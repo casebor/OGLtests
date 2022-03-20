@@ -675,8 +675,8 @@ def make_texture(program):
     """ Function doc """
     coords = np.array([-1.0, 1.0, 0.0,-1.0,-1.0, 0.0, 1.0,-1.0, 0.0,
                        -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,-1.0, 0.0,],dtype=np.float32)
-    textur = np.array([ 0.0, 1.0, 0.0, 0.0, 1.0, 0.0,
-                        0.0, 1.0, 1.0, 1.0, 1.0, 0.0],dtype=np.float32)
+    textur = np.array([ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+                        0.0, 0.0, 1.0, 0.0, 1.0, 1.0],dtype=np.float32)
     
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
@@ -1078,3 +1078,94 @@ def make_cartoon(program):
     GL.glDisableVertexAttribArray(gl_norm)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vertex_array_object, (coord_vbo, col_vbo, norm_vbo), len(indexes)
+
+def make_texture_OGL(program):
+    """ Function doc """
+    from PIL import Image
+    # image_a = Image.open("fonts/ArialBig.png")
+    # image_a = Image.open("fonts/Jokerman.png")
+    image_a = Image.open("fonts/Jokerman.png")
+    ix = image_a.size[0]
+    iy = image_a.size[1]
+    image_a = np.array(list(image_a.getdata()),np.uint8)
+    tex_texture = GL.glGenTextures(1)
+    GL.glActiveTexture(GL.GL_TEXTURE0)
+    GL.glBindTexture(GL.GL_TEXTURE_2D, tex_texture)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_S, GL.GL_REPEAT)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_WRAP_T, GL.GL_REPEAT)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+    GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+    GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, ix, iy, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, image_a)
+    
+    vao = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vao)
+    coords = np.zeros(3, dtype=np.float32)
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
+    gl_coord = GL.glGetAttribLocation(program, "vert_coord")
+    GL.glEnableVertexAttribArray(gl_coord)
+    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    textur = np.zeros(2, dtype=np.float32)
+    tex_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, tex_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, textur.itemsize*len(textur), textur, GL.GL_STATIC_DRAW)
+    gl_texture = GL.glGetAttribLocation(program, "vert_uv")
+    GL.glEnableVertexAttribArray(gl_texture)
+    GL.glVertexAttribPointer(gl_texture, 2, GL.GL_FLOAT, GL.GL_FALSE, 2*textur.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coord)
+    GL.glDisableVertexAttribArray(gl_texture)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return tex_texture, vao, (coord_vbo, tex_vbo)
+
+def make_texture_coords(program):
+    """ Function doc """
+    coords = np.array([-1.0, 1.0, 0.0,-1.0,-1.0, 0.0, 1.0,-1.0, 0.0,
+                       -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,-1.0, 0.0,],dtype=np.float32)*2
+    textur = np.array([ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+                        0.0, 0.0, 1.0, 0.0, 1.0, 1.0],dtype=np.float32)
+    
+    vertex_array_object = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vertex_array_object)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
+    gl_coord = GL.glGetAttribLocation(program, "vert_coord")
+    GL.glEnableVertexAttribArray(gl_coord)
+    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    tex_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, tex_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, textur.itemsize*len(textur), textur, GL.GL_STATIC_DRAW)
+    gl_texture = GL.glGetAttribLocation(program, "vert_uv")
+    GL.glEnableVertexAttribArray(gl_texture)
+    GL.glVertexAttribPointer(gl_texture, 2, GL.GL_FLOAT, GL.GL_FALSE, 2*textur.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coord)
+    GL.glDisableVertexAttribArray(gl_texture)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return vertex_array_object, (coord_vbo, tex_vbo), int(len(coords)/3)
+
+def fill_texture_buffers(program, vbos):
+    """ Function doc """
+    coords = np.array([-1.0, 1.0, 0.0,-1.0,-1.0, 0.0, 1.0,-1.0, 0.0,
+                       -1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0,-1.0, 0.0,],dtype=np.float32)*2
+    # textur = np.array([ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0,
+    #                     0.0, 0.0, 1.0, 0.0, 1.0, 1.0],dtype=np.float32)
+    uvsx = 246.0/512.0
+    uvex = (246.0+37.0)/512.0
+    uvsy = 187.0/512.0
+    uvey = (187.0+56.0)/512.0
+    textur = np.array([ uvsx, uvsy, uvsx, uvey, uvex, uvey,
+                        uvsx, uvsy, uvex, uvsy, uvex, uvey],dtype=np.float32)
+    
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbos[0])
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_STATIC_DRAW)
+    
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbos[1])
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, textur.nbytes, textur, GL.GL_STATIC_DRAW)

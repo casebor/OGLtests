@@ -4206,27 +4206,6 @@ void main(){
 }
 """
 
-v_text = """
-attribute vec4 coord;
-varying vec2 texpos;
-
-void main(void) {
-  gl_Position = vec4(coord.xy, 0, 1);
-  texpos = coord.zw;
-}
-"""
-f_text = """
-varying vec2 texpos;
-uniform sampler2D tex;
-uniform vec4 color;
-
-void main(void) {
-  gl_FragColor = vec4(1, 1, 1, texture2D(tex, texpos).a) * color;
-}
-
-"""
-
-
 v_cartoon = """
 #version 330
 
@@ -4291,5 +4270,83 @@ vec4 calculate_color(vec3 fnrm, vec3 fcrd, vec3 fcol){
 
 void main(){
     final_color = calculate_color(frag_norm, frag_coord, frag_color);
+}
+"""
+
+v_texture =  """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+in vec3 vert_coord;
+in vec2 vert_uv;
+
+out vec2 frag_uv;
+
+void main(){
+    gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
+    frag_uv = vert_uv;
+}
+"""
+f_texture = """
+#version 330
+
+uniform sampler2D font_texture;
+
+const float width = 0.5;
+const float edge = 0.01;
+uniform vec3 font_color;
+
+in vec2 frag_uv;
+
+out vec4 final_color;
+
+void main(){
+    float distance = 1.0 - texture(font_texture, frag_uv).a;
+    float alpha = 1.0 - smoothstep(width, width + edge, distance);
+    if (alpha<=0.0)
+        discard;
+    final_color = vec4(font_color, alpha);
+}
+"""
+
+v_text =  """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+in vec3 vert_coord;
+in vec2 vert_uv;
+
+out vec2 frag_uv;
+
+void main(){
+    gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
+    frag_uv = vert_uv;
+}
+"""
+f_text = """
+#version 330
+
+uniform sampler2D font_texture;
+
+const float width = 0.5;
+const float edge = 0.01;
+uniform vec3 font_color;
+
+in vec2 frag_uv;
+
+out vec4 final_color;
+
+void main(){
+    float distance = 1.0 - texture(font_texture, frag_uv).a;
+    float alpha = 1.0 - smoothstep(width, width + edge, distance);
+    if (alpha<=0.0)
+        discard;
+    final_color = vec4(font_color, alpha);
 }
 """
