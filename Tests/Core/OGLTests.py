@@ -131,7 +131,7 @@ class MyGLProgram(Gtk.GLArea):
         # Here are the test programs and flags
         self.gl_program_text = None
         self.text = False
-        self.vm_font = VismolFont()
+        self.vm_font = VismolFont(font_name="Verdana", color=[0,1,1])
         # Here are the test programs and flags
         self.gl_program_cartoon = None
         self.cartoon_vao = None
@@ -409,7 +409,7 @@ class MyGLProgram(Gtk.GLArea):
         #GL.glActiveTexture(GL.GL_TEXTURE1)
         #GL.glBindTexture(GL.GL_TEXTURE_2D, self.tex[1])
         #GL.glUniform1i(text, 1)
-        GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture_texture)
+        # GL.glBindTexture(GL.GL_TEXTURE_2D, self.texture_texture)
         text = GL.glGetUniformLocation(program, "font_texture")
         GL.glUniform1i(text, 0)
         gl_color = GL.glGetUniformLocation(program, "font_color")
@@ -564,7 +564,7 @@ class MyGLProgram(Gtk.GLArea):
         # self.vm_font.render_text(self.gl_program_text, "The Quick Brown Fox Jumps Over The Lazy Dog", 0, 0, 0, 0)
         self.vm_font.render_text(self.gl_program_text, self.model_mat, self.glcamera.view_matrix,
                                  self.glcamera.projection_matrix,
-                                 ["Hello-", "World"], np.zeros([2,3], dtype=np.float32))
+                                 ["Hello-,;\"Hello^", "World"], np.zeros([2,3], dtype=np.float32))
     
     def _draw_texture(self):
         """ Function doc """

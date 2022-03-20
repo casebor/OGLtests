@@ -4335,7 +4335,7 @@ f_text = """
 uniform sampler2D font_texture;
 
 const float width = 0.5;
-const float edge = 0.01;
+const float edge = 0.05;
 uniform vec3 font_color;
 
 in vec2 frag_uv;
