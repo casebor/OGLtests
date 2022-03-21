@@ -490,6 +490,7 @@ class MyGLProgram(Gtk.GLArea):
         self.load_lights(self.gl_program_impostor_sph)
         
         xyz_coords = self.glcamera.get_modelview_position(self.model_mat)
+        # print(self.glcamera.get_position(), xyz_coords)
         u_campos = GL.glGetUniformLocation(self.gl_program_impostor_sph, "u_campos")
         GL.glUniform3fv(u_campos, 1, xyz_coords)
         
