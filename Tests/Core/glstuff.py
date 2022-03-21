@@ -37,8 +37,7 @@ class GLCamera():
         values defined in the constructor.
     """
     
-    def __init__ (self, fov=30.0, var=(4.0 / 3.0), pos=np.array([0,0,10], dtype=np.float32),
-                  zrp=np.array([0,0,0], dtype=np.float32)):
+    def __init__ (self, fov=30.0, var=4.0/3.0, pos=None, zrp=None):
         """ Depending of the distance from the camera position to a defined
             reference point, it creates different clipping planes (this function
             could be improved, but will work for now).
@@ -67,13 +66,16 @@ class GLCamera():
         """
         self.field_of_view = np.float32(fov)
         self.viewport_aspect_ratio = np.float32(var)
-        self.zero_reference_point = np.array(zrp, dtype=np.float32)
+        if zrp is None:
+            self.zero_reference_point = np.array([0,0,0], dtype=np.float32)
+        if pos is None:
+            pos = np.array([0,0,10], dtype=np.float32)
         self.max_vertical_angle = 85.0  # must be less than 90 to avoid gimbal lock
         self.horizontal_angle = 0.0
         self.vertical_angle = 0.0
         self.min_znear = 0.1
         self.min_zfar = 9.0
-        dist = np.linalg.norm(pos - zrp)
+        dist = np.linalg.norm(pos - self.zero_reference_point)
         if dist <= 10.0:
             self.z_near = dist - 3.0
             self.z_far = dist + 3.0
@@ -90,11 +92,8 @@ class GLCamera():
             self.z_near = dist - 15.0
             self.z_far = dist + 15.0
         
-        #testing
-        #self.z_near = 0.1
-        #self.z_far = 100
-        self.fog_end = self.z_far 
-        self.fog_start = self.fog_end - self.min_zfar 
+        self.fog_end = self.z_far
+        self.fog_start = self.fog_end - self.min_zfar
         self.view_matrix = self._get_view_matrix(pos)
         self.projection_matrix = self._get_projection_matrix()
     
@@ -142,7 +141,8 @@ class GLCamera():
         """ Returns the x, y, z position of the camera in 
             absolute coordinates.
         """
-        return mop.get_xyz_coords(self.view_matrix)
+        # return mop.get_xyz_coords(self.view_matrix)
+        return self.view_matrix[3,:3]
     
     def get_modelview_position(self, model_matrix):
         modelview = mop.my_glMultiplyMatricesf(model_matrix, self.view_matrix)
@@ -313,6 +313,7 @@ class VismolFont():
             self.font_data[char] = {}
             self.font_data[char]["uv"] = np.array([[uvsx,uvsy], [uvsx,uvey], [uvex,uvsy],
                                                    [uvsx,uvey], [uvex,uvsy], [uvex,uvey]], dtype=np.float32)
+            self.font_data[char]["geom_uv"] = np.array([uvsx, uvex, uvsy, uvey], dtype=np.float32)
             if data["w"] > wmax:
                 wmax = data["w"]
             if data["h"] > hmax:
@@ -363,7 +364,7 @@ class VismolFont():
         GL.glBufferData(GL.GL_ARRAY_BUFFER, textur.nbytes, textur, GL.GL_STATIC_DRAW)
         gl_texture = GL.glGetAttribLocation(program, "vert_uv")
         GL.glEnableVertexAttribArray(gl_texture)
-        GL.glVertexAttribPointer(gl_texture, 2, GL.GL_FLOAT, GL.GL_FALSE, 2*textur.itemsize, ctypes.c_void_p(0))
+        GL.glVertexAttribPointer(gl_texture, 4, GL.GL_FLOAT, GL.GL_FALSE, 4*textur.itemsize, ctypes.c_void_p(0))
         
         self.vao = vao
         self.texture = font_texture
@@ -374,7 +375,7 @@ class VismolFont():
         GL.glDisableVertexAttribArray(gl_texture)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     
-    def fill_texture_buffers(self, program, words, coords):
+    def fill_texture_buffers_BCK(self, program, words, coords):
         coords[0] = [-1,1,0]
         coords[1] = [0,-1,0]
         w_size = 0
@@ -412,6 +413,43 @@ class VismolFont():
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.texture_vbo)
         GL.glBufferData(GL.GL_ARRAY_BUFFER, text_uvs.nbytes, text_uvs, GL.GL_STATIC_DRAW)
     
+    def fill_texture_buffers(self, program, words, coords):
+        coords[0] = [-1,1,0]
+        coords[1] = [0,-1,0]
+        w_size = 0
+        for word in words:
+            w_size += len(word)
+        text_uvs = np.empty([w_size,4], dtype=np.float32)
+        coords_uv = np.empty([w_size,3], dtype=np.float32)
+        pos = 0
+        for i, word in enumerate(words):
+            t_uv = np.zeros([len(word),4], dtype=np.float32)
+            c_uv = np.zeros([len(word),3], dtype=np.float32)
+            offset_x = 0.0
+            offset_y = 0.0
+            for j, char in enumerate(word):
+                if j > 0:
+                    offset_y -= (self.font_data[word[j-1]]["dir_vec"][1] - self.font_data[char]["dir_vec"][1])
+                offset_x += self.font_data[char]["dir_vec"][0]
+                t_uv[j:j+1] = self.font_data[char]["geom_uv"]
+                c_uv[j:j+1] = coords[i] * self.font_scale
+                c_uv[j:j+1,0] += offset_x * self.font_scale
+                c_uv[j:j+1,1] += offset_y * self.font_scale
+                offset_x += self.font_data[char]["dir_vec"][0]
+            text_uvs[pos:pos+len(word)] = t_uv
+            coords_uv[pos:pos+len(word)] = c_uv
+            pos += len(word)
+        
+        self.elements = coords_uv.shape[0]
+        print(coords_uv.shape)
+        print(text_uvs.shape)
+        
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.coord_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, coords_uv.nbytes, coords_uv, GL.GL_STATIC_DRAW)
+        
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.texture_vbo)
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, text_uvs.nbytes, text_uvs, GL.GL_STATIC_DRAW)
+    
     def render_text(self, program, mmat, vmat, pmat, text, coords):
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glEnable(GL.GL_BLEND)
@@ -426,7 +464,7 @@ class VismolFont():
         if self.modified:
             self.fill_texture_buffers(program, text, coords)
             self.modified = False
-        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.elements)
+        GL.glDrawArrays(GL.GL_POINTS, 0, self.elements)
         
         GL.glDisable(GL.GL_BLEND)
         GL.glDisable(GL.GL_DEPTH_TEST)

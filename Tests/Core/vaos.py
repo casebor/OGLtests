@@ -886,9 +886,9 @@ def make_cubes(program):
     vao = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vao)
     indexes = np.array([0,1,2],dtype=np.uint32)
-    coords = np.array([[ 1.0, 1.0, 1.0],[ 0.0, 0.0, 0.0],[-1.0,-1.0,-1.0]],dtype=np.float32)
+    coords = np.array([[ 1.0, 1.0, 1.0],[ 0.0, 0.0, 0.0],[-1.0, 1.0, 0.0]],dtype=np.float32)
     colors = np.array([[ 1.0, 0.0, 0.0],[ 0.0, 1.0, 0.0],[ 0.0, 0.0, 1.0]],dtype=np.float32)
-    radii = np.array([ 0.5, 0.5, 0.5],dtype=np.float32)
+    radii = np.array([ 0.5, 0.5, 0.1],dtype=np.float32)
     
     ind_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
@@ -1038,7 +1038,7 @@ def make_cartoon(program):
             if " CA " in line:
                 calphas[j,:] = x, y, z
                 j += 1
-    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, spline_detail=3)
+    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, spline_detail=6)
     # quit()
     # ss = cartoon.calculate_secondary_structure(calphas)
     

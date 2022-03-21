@@ -4226,7 +4226,7 @@ void main(){
     gl_Position = proj_mat * modelview * vec4(vert_coord, 1.0);
     frag_coord = vec3(modelview * vec4(vert_coord, 1.0));
     frag_color = vert_color;
-    frag_norm = vert_norm;
+    frag_norm = mat3(transpose(inverse(model_mat))) * vert_norm;
 }
 """
 f_cartoon = """
@@ -4325,6 +4325,16 @@ in vec2 vert_uv;
 out vec2 frag_uv;
 
 void main(){
+    //mat4 vm_mat = view_mat * model_mat;
+    //vm_mat[0][0] = 1;
+    //vm_mat[0][1] = 0;
+    //vm_mat[0][2] = 0;
+    //vm_mat[1][0] = 0;
+    //vm_mat[1][1] = 1;
+    //vm_mat[1][2] = 0;
+    //vm_mat[2][0] = 0;
+    //vm_mat[2][1] = 0;
+    //vm_mat[2][2] = 1;
     gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
     frag_uv = vert_uv;
 }
