@@ -1228,7 +1228,7 @@ void main(){
     mat4 modelview = view_mat * model_mat;
     gl_Position = proj_mat * modelview * vec4(vert_coord, 1.0);
     vert_norm = normalize(vert_coord - vert_centr);
-    frag_coord = -vec3(modelview * vec4(vert_coord, 1.0));
+    frag_coord = vec3(modelview * vec4(vert_coord, 1.0));
     frag_norm = mat3(transpose(inverse(model_mat))) * vert_norm;
     frag_color = vert_color;
 }
@@ -1268,7 +1268,7 @@ void main(){
     // Specular component
     float specular_coef = 0.0;
     if (diffuse_coef > 0.0)
-        specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(-vert_to_light, normal))), my_light.shininess);
+        specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(vert_to_light, normal))), my_light.shininess);
     vec3 specular = specular_coef * my_light.intensity;
     specular = specular * (vec3(1) - diffuse);
     

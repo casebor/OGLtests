@@ -968,25 +968,29 @@ def make_impostor_cyl(program):
 
 def make_glumpy(program):
     """ Function doc """
-    import cartoon
-    coords = np.empty([108, 3], dtype=np.float32)
-    calphas = np.empty([27, 3], dtype=np.float32)
-    with open("test_cartoon.pdb") as pdbin:
-        i = 0
-        j = 0
-        for line in pdbin:
-            x, y, z = float(line[30:38]), float(line[38:46]), float(line[46:54])
-            coords[i,:] = x, y, z
-            i += 1
-            if " CA " in line:
-                calphas[j,:] = x, y, z
-                j += 1
-    coords = cartoon.cartoon(coords, calphas, spline_detail=3)
-    radii = np.repeat(1, coords.shape[0]).astype(np.float32)
-    colors = np.tile([0, 1, 0], coords.shape[0]).reshape([coords.shape[0], 3]).astype(np.float32)
+    # import cartoon
+    # coords = np.empty([108, 3], dtype=np.float32)
+    # calphas = np.empty([27, 3], dtype=np.float32)
+    # with open("test_cartoon.pdb") as pdbin:
+    #     i = 0
+    #     j = 0
+    #     for line in pdbin:
+    #         x, y, z = float(line[30:38]), float(line[38:46]), float(line[46:54])
+    #         coords[i,:] = x, y, z
+    #         i += 1
+    #         if " CA " in line:
+    #             calphas[j,:] = x, y, z
+    #             j += 1
+    # coords = cartoon.cartoon(coords, calphas, spline_detail=3)
+    # radii = np.repeat(1, coords.shape[0]).astype(np.float32)
+    # colors = np.tile([0, 1, 0], coords.shape[0]).reshape([coords.shape[0], 3]).astype(np.float32)
+    # indexes = np.arange(coords.shape[0], dtype=np.uint32)
+    coords = np.random.rand(500000,3).astype(np.float32)*500 - 250
+    colors = np.random.rand(500000,3).astype(np.float32)
+    radii = np.random.rand(500000).astype(np.float32)*8
     indexes = np.arange(coords.shape[0], dtype=np.uint32)
     print("coords", coords.shape)
-    print("calphas", calphas.shape)
+    # print("calphas", calphas.shape)
     print("indexes", indexes.shape)
     
     vao = GL.glGenVertexArrays(1)
@@ -1169,3 +1173,44 @@ def fill_texture_buffers(program, vbos):
     
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbos[1])
     GL.glBufferData(GL.GL_ARRAY_BUFFER, textur.nbytes, textur, GL.GL_STATIC_DRAW)
+
+def make_instances(program):
+    coords, indexes, colors = sphd.get_sphere([1,1,1], 1.0, [0, 1, 0], level="level_1")
+    instances = np.zeros(3,dtype=np.float32)
+    
+    vao = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vao)
+    
+    ind_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.nbytes, indexes, GL.GL_DYNAMIC_DRAW)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_STATIC_DRAW)
+    gl_coord = GL.glGetAttribLocation(program, "vert_coord")
+    GL.glEnableVertexAttribArray(gl_coord)
+    GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    insta_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, insta_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, instances.nbytes, instances, GL.GL_STATIC_DRAW)
+    gl_insta = GL.glGetAttribLocation(program, "vert_instance")
+    GL.glEnableVertexAttribArray(gl_insta)
+    GL.glVertexAttribPointer(gl_insta, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, ctypes.c_void_p(0))
+    GL.glVertexAttribDivisor(gl_insta, 1)
+    
+    col_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.nbytes, colors, GL.GL_STATIC_DRAW)
+    gl_colors = GL.glGetAttribLocation(program, "vert_color")
+    GL.glEnableVertexAttribArray(gl_colors)
+    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coord)
+    GL.glDisableVertexAttribArray(gl_insta)
+    GL.glDisableVertexAttribArray(gl_colors)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    
+    return vao, (coord_vbo, col_vbo, insta_vbo), int(len(indexes))

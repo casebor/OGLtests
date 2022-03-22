@@ -143,6 +143,12 @@ class MyGLProgram(Gtk.GLArea):
         self.texture_vbos = None
         self.texture_elemns = None
         self.texture = False
+        # Here are the test programs and flags
+        self.gl_program_instances = None
+        self.instances_vao = None
+        self.instances_vbos = None
+        self.instances_elemns = None
+        self.instances = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -333,6 +339,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_cartoon = self.load_shaders(sh.v_cartoon, sh.f_cartoon)
         self.gl_program_texture = self.load_shaders(sh.v_texture, sh.f_texture)
         self.gl_program_text = self.load_shaders(sh.v_diamonds, sh.f_diamonds, sh.g_diamonds)
+        self.gl_program_instances = self.load_shaders(sh.v_instances, sh.f_instances)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -480,6 +487,13 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_text()
+        if self.instances:
+            if self.instances_vao is None:
+                self.instances_vao, self.instances_vbos, self.instances_elemns = vaos.make_instances(self.gl_program_instances)
+                self.insta_crd = np.random.rand(500000,3).astype(np.float32)*200 - 100
+                self.queue_draw()
+            else:
+                self._draw_instances()
     
     def _draw_impostor_sph(self):
         """ Function doc """
@@ -585,6 +599,18 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
+    def _draw_instances(self):
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_instances)
+        self.load_matrices(self.gl_program_instances)
+        self.load_lights(self.gl_program_instances)
+        GL.glBindVertexArray(self.instances_vao)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.instances_vbos[2])
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, self.insta_crd.nbytes, self.insta_crd, GL.GL_STATIC_DRAW)
+        GL.glDrawElementsInstanced(GL.GL_TRIANGLES, self.instances_elemns, GL.GL_UNSIGNED_INT, None, self.insta_crd.shape[0])
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+
     def edit_draw(self, event):
         """ Function doc """
         #self.glcamera.get_position() = self.get_cam_pos()
@@ -693,6 +719,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_w(self):
         self.text = not self.text
+        self.queue_draw()
+    
+    def _pressed_a(self):
+        self.instances = not self.instances
         self.queue_draw()
     
     def _pressed_Up(self):
