@@ -149,6 +149,12 @@ class MyGLProgram(Gtk.GLArea):
         self.instances_vbos = None
         self.instances_elemns = None
         self.instances = False
+        # Here are the test programs and flags
+        self.gl_program_billboard = None
+        self.billboard_vao = None
+        self.billboard_vbos = None
+        self.billboard_elemns = None
+        self.billboard = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -340,6 +346,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_texture = self.load_shaders(sh.v_texture, sh.f_texture)
         self.gl_program_text = self.load_shaders(sh.v_diamonds, sh.f_diamonds, sh.g_diamonds)
         self.gl_program_instances = self.load_shaders(sh.v_instances, sh.f_instances)
+        self.gl_program_billboard = self.load_shaders(sh.v_billboard, sh.f_billboard, sh.g_billboard)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -494,6 +501,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_instances()
+        if self.billboard:
+            if self.billboard_vao is None:
+                self.billboard_vao, self.billboard_vbos, self.billboard_elemns = vaos.make_billboard(self.gl_program_billboard)
+                self.queue_draw()
+            else:
+                self._draw_billboard()
     
     def _draw_impostor_sph(self):
         """ Function doc """
@@ -610,7 +623,24 @@ class MyGLProgram(Gtk.GLArea):
         GL.glDrawElementsInstanced(GL.GL_TRIANGLES, self.instances_elemns, GL.GL_UNSIGNED_INT, None, self.insta_crd.shape[0])
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
-
+    
+    def _draw_billboard(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_billboard)
+        self.load_matrices(self.gl_program_billboard)
+        self.load_lights(self.gl_program_billboard)
+        
+        xyz_coords = self.glcamera.get_modelview_position(self.model_mat)
+        u_campos = GL.glGetUniformLocation(self.gl_program_billboard, "u_campos")
+        GL.glUniform3fv(u_campos, 1, xyz_coords)
+        
+        GL.glBindVertexArray(self.billboard_vao)
+        GL.glDrawArrays(GL.GL_POINTS, 0, self.billboard_elemns)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
     def edit_draw(self, event):
         """ Function doc """
         #self.glcamera.get_position() = self.get_cam_pos()
@@ -723,6 +753,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_a(self):
         self.instances = not self.instances
+        self.queue_draw()
+    
+    def _pressed_b(self):
+        self.billboard = not self.billboard
         self.queue_draw()
     
     def _pressed_Up(self):

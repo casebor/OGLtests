@@ -1162,3 +1162,155 @@ void main(){
     final_color = calculate_color(frag_norm, frag_coord, frag_color);
 }
 """
+
+v_billboard = """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+in vec3 vert_coord;
+in vec3 vert_color;
+in float vert_radius;
+
+uniform vec3 u_campos;
+
+out vec3 geom_coord;
+out vec3 geom_color;
+out float geom_radius;
+out vec3 geom_cam;
+
+void main(){
+    geom_coord = (view_mat * model_mat * vec4(vert_coord, 1)).xyz;
+    geom_color = vert_color;
+    geom_radius = vert_radius;
+    geom_cam = (view_mat * model_mat * vec4(u_campos, 1)).xyz;
+}
+"""
+g_billboard = """
+#version 330
+
+layout (points) in; // Name for use is gl_in[] is default for GLSL
+layout (triangle_strip, max_vertices = 4) out;
+
+uniform mat4 proj_mat;
+
+in vec3 geom_coord[];
+in vec3 geom_color[];
+in float geom_radius[];
+in vec3 geom_cam[];
+
+out vec3 frag_coord;
+out vec3 frag_color;
+out vec3 frag_center;
+out vec3 frag_cam;
+out float frag_radius;
+
+void main(){
+    float scale_r = geom_radius[0] * sqrt(2.0);
+    vec3 p_1 = vec3(-1.0,-1.0, 1.0) * scale_r;
+    vec3 p_2 = vec3(-1.0, 1.0, 1.0) * scale_r;
+    vec3 p_3 = vec3( 1.0,-1.0, 1.0) * scale_r;
+    vec3 p_4 = vec3( 1.0, 1.0, 1.0) * scale_r;
+    
+    frag_coord = geom_coord[0] + p_1;
+    frag_color = geom_color[0];
+    frag_center = geom_coord[0];
+    frag_cam = geom_cam[0];
+    frag_radius = geom_radius[0];
+    gl_Position = proj_mat * vec4(frag_coord, 1.0);
+    EmitVertex();
+    frag_coord = geom_coord[0] + p_2;
+    frag_color = geom_color[0];
+    frag_center = geom_coord[0];
+    frag_cam = geom_cam[0];
+    frag_radius = geom_radius[0];
+    gl_Position = proj_mat * vec4(frag_coord, 1.0);
+    EmitVertex();
+    frag_coord = geom_coord[0] + p_3;
+    frag_color = geom_color[0];
+    frag_center = geom_coord[0];
+    frag_cam = geom_cam[0];
+    frag_radius = geom_radius[0];
+    gl_Position = proj_mat * vec4(frag_coord, 1.0);
+    EmitVertex();
+    frag_coord = geom_coord[0] + p_4;
+    frag_color = geom_color[0];
+    frag_center = geom_coord[0];
+    frag_cam = geom_cam[0];
+    frag_radius = geom_radius[0];
+    gl_Position = proj_mat * vec4(frag_coord, 1.0);
+    EmitVertex();
+    EndPrimitive();
+}
+"""
+f_billboard = """
+#version 330
+#extension GL_EXT_frag_depth: enable
+precision highp float;
+
+struct Light {
+    vec3 position;
+    //vec3 color;
+    vec3 intensity;
+    //vec3 specular_color;
+    float ambient_coef;
+    float shininess;
+};
+
+uniform Light my_light;
+
+uniform mat4 proj_mat;
+//uniform float u_depth;
+
+in vec3 frag_color;
+in vec3 frag_coord;
+in vec3 frag_center;
+in vec3 frag_cam;
+in float frag_radius;
+
+out vec4 final_color;
+
+float sph_intersect(vec3 ro, vec3 rd, vec3 sph, float rad){
+    vec3 oc = ro - sph;
+    float b = dot(oc, rd);
+    float c = dot(oc, oc) - rad*rad;
+    float h = b*b - c;
+    if( h<0.0 ) return -1.0;
+    return -b - sqrt(h);
+}
+
+vec4 calculate_color(vec3 fnrm, vec3 fcrd, vec3 fcol){
+    vec3 normal = normalize(fnrm);
+    vec3 vert_to_light = normalize(my_light.position);
+    vec3 vert_to_cam = normalize(fcrd);
+    // Ambient Component
+    vec3 ambient = my_light.ambient_coef * fcol * my_light.intensity;
+    // Diffuse component
+    float diffuse_coef = max(0.0, dot(normal, vert_to_light));
+    vec3 diffuse = diffuse_coef * fcol * my_light.intensity;
+    // Specular component
+    float specular_coef = 0.0;
+    if (diffuse_coef > 0.0)
+        specular_coef = pow(max(0.0, dot(vert_to_cam, reflect(vert_to_light, normal))), my_light.shininess);
+    vec3 specular = specular_coef * my_light.intensity;
+    specular = specular * (vec3(1) - diffuse);
+    vec4 out_color = vec4(ambient + diffuse + specular, 1.0);
+    return out_color;
+}
+
+void main(){
+    vec3 ray_orig = frag_cam;
+    vec3 ray_dir = normalize(frag_coord - frag_cam);
+    float dist_to_sph = sph_intersect(ray_orig, ray_dir, frag_center, frag_radius);
+    if (dist_to_sph < 0.0) discard;
+    vec3 coord_on_sph = ray_orig + ray_dir * dist_to_sph;
+    vec3 normal = normalize(coord_on_sph - frag_center);
+    vec4 depth = proj_mat * vec4(coord_on_sph, 1.0);
+    gl_FragDepth = depth.z / depth.w;
+    //gl_FragDepth = coord_on_sph.z;
+    
+    final_color = calculate_color(normal, coord_on_sph, frag_color);
+}
+"""
