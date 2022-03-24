@@ -314,16 +314,17 @@ class MyGLProgram(Gtk.GLArea):
             self.glcamera.z_near -= move_z
             self.glcamera.z_far -= move_z
             if self.glcamera.z_near >= self.glcamera.min_znear:
-                self.glcamera.set_projection_matrix(mop.my_glPerspectivef(self.glcamera.field_of_view, 
-                                                    self.glcamera.viewport_aspect_ratio,
-                                                    self.glcamera.z_near, self.glcamera.z_far))
+                zoom_mat = mop.my_glPerspectivef(self.glcamera.field_of_view, 
+                                                 self.glcamera.viewport_aspect_ratio,
+                                                 self.glcamera.z_near, self.glcamera.z_far)
             else:
                 if self.glcamera.z_far < (self.glcamera.min_zfar+self.glcamera.min_znear):
                     self.glcamera.z_near += move_z
                     self.glcamera.z_far = self.glcamera.min_zfar+self.glcamera.min_znear
-                self.glcamera.set_projection_matrix(mop.my_glPerspectivef(self.glcamera.field_of_view, 
-                                                    self.glcamera.viewport_aspect_ratio,
-                                                    self.glcamera.min_znear, self.glcamera.z_far))
+                zoom_mat = mop.my_glPerspectivef(self.glcamera.field_of_view, 
+                                                 self.glcamera.viewport_aspect_ratio,
+                                                 self.glcamera.min_znear, self.glcamera.z_far)
+            self.glcamera.set_projection_matrix(zoom_mat)
             self.glcamera.update_fog()
             self.dist_cam_zrp += -move_z
             return True
@@ -339,7 +340,7 @@ class MyGLProgram(Gtk.GLArea):
             print("OpenGL major version not found")
         self.gl_program_cubes = self.load_shaders(sh.v_cubes, sh.f_cubes, sh.g_cubes)
         self.gl_program_glumpy = self.load_shaders(sh.v_glumpy, sh.f_glumpy)
-        self.gl_program_impostor_sph = self.load_shaders(sh.v_impostor_sph, sh.f_impostor_sph, sh.g_impostor_sph)
+        self.gl_program_impostor_sph = self.load_shaders(sh.v_impostor_sph, sh.f_impostor_sph)
         self.gl_program_impostor_cyl = self.load_shaders(sh.v_impostor_cyl, sh.f_impostor_cyl, sh.g_impostor_cyl)
         # self.gl_program_text = self.load_shaders(sh.v_text, sh.f_text)
         self.gl_program_cartoon = self.load_shaders(sh.v_cartoon, sh.f_cartoon)
@@ -498,6 +499,9 @@ class MyGLProgram(Gtk.GLArea):
             if self.instances_vao is None:
                 self.instances_vao, self.instances_vbos, self.instances_elemns = vaos.make_instances(self.gl_program_instances)
                 self.insta_crd = np.random.rand(500000,3).astype(np.float32)*200 - 100
+                self.insta_col = np.random.rand(500000,3).astype(np.float32)
+                self.insta_rads = np.random.rand(500000).astype(np.float32) + .5
+                self.insta_flag_test = True
                 self.queue_draw()
             else:
                 self._draw_instances()
@@ -512,7 +516,7 @@ class MyGLProgram(Gtk.GLArea):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glUseProgram(self.gl_program_impostor_sph)
-        GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        # GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         self.load_matrices(self.gl_program_impostor_sph)
         self.load_lights(self.gl_program_impostor_sph)
         
@@ -522,8 +526,8 @@ class MyGLProgram(Gtk.GLArea):
         GL.glUniform3fv(u_campos, 1, xyz_coords)
         
         GL.glBindVertexArray(self.impostor_sph_vao)
-        GL.glDrawArrays(GL.GL_POINTS, 0, self.impostor_sph_elemns)
-        GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.impostor_sph_elemns)
+        # GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -618,8 +622,15 @@ class MyGLProgram(Gtk.GLArea):
         self.load_matrices(self.gl_program_instances)
         self.load_lights(self.gl_program_instances)
         GL.glBindVertexArray(self.instances_vao)
-        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.instances_vbos[2])
-        GL.glBufferData(GL.GL_ARRAY_BUFFER, self.insta_crd.nbytes, self.insta_crd, GL.GL_STATIC_DRAW)
+        if self.insta_flag_test:
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.instances_vbos[1])
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, self.insta_col.nbytes, self.insta_col, GL.GL_STATIC_DRAW)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.instances_vbos[2])
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, self.insta_rads.nbytes, self.insta_rads, GL.GL_STATIC_DRAW)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.instances_vbos[3])
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, self.insta_crd.nbytes, self.insta_crd, GL.GL_STATIC_DRAW)
+            self.insta_flag_test = False
+        
         GL.glDrawElementsInstanced(GL.GL_TRIANGLES, self.instances_elemns, GL.GL_UNSIGNED_INT, None, self.insta_crd.shape[0])
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)

@@ -841,12 +841,36 @@ def make_sphere(program, level="level_2"):
 
 def make_impostor_sph(program):
     """ Function doc """
+    box = np.array([[-1.0,-1.0,-1.0], [-1.0, 1.0,-1.0], [-1.0,-1.0, 1.0],
+                    [-1.0, 1.0,-1.0], [-1.0,-1.0, 1.0], [-1.0, 1.0, 1.0],
+                    [-1.0,-1.0, 1.0], [-1.0, 1.0, 1.0], [ 1.0,-1.0, 1.0],
+                    [-1.0, 1.0, 1.0], [ 1.0,-1.0, 1.0], [ 1.0, 1.0, 1.0],
+                    [ 1.0,-1.0, 1.0], [ 1.0, 1.0, 1.0], [ 1.0,-1.0,-1.0],
+                    [ 1.0, 1.0, 1.0], [ 1.0,-1.0,-1.0], [ 1.0, 1.0,-1.0],
+                    [ 1.0,-1.0, 1.0], [ 1.0, 1.0,-1.0], [-1.0,-1.0,-1.0],
+                    [ 1.0, 1.0,-1.0], [-1.0,-1.0,-1.0], [-1.0, 1.0,-1.0],
+                    [-1.0,-1.0,-1.0], [-1.0,-1.0, 1.0], [ 1.0,-1.0,-1.0],
+                    [-1.0,-1.0, 1.0], [ 1.0,-1.0,-1.0], [ 1.0,-1.0, 1.0],
+                    [-1.0, 1.0,-1.0], [-1.0, 1.0, 1.0], [ 1.0, 1.0,-1.0],
+                    [-1.0, 1.0, 1.0], [ 1.0, 1.0,-1.0], [ 1.0, 1.0, 1.0]], dtype=np.float32)
+    
+    # box = np.array([[-1.0,-1.0,-1.0], [-1.0,-1.0, 1.0], [ 1.0,-1.0, 1.0],
+    #                 [ 1.0,-1.0,-1.0], [-1.0, 1.0,-1.0], [-1.0, 1.0, 1.0],
+    #                 [ 1.0, 1.0, 1.0], [ 1.0, 1.0,-1.0]], dtype=np.float32)
+    
+    # indexes = np.array([0,1,2], dtype=np.uint32)
+    centers = np.random.rand(20,3).astype(np.float32)*5 - 2.5
+    colors = np.random.rand(20,3).astype(np.float32)
+    radii = np.random.rand(20).astype(np.float32)
+    
+    coords = np.array([box*r + c for r,c in zip(radii, centers)]).reshape(20*36,3).astype(np.float32)
+    colors = np.tile(colors, 36).flatten().reshape(20*36,3)
+    radii = np.repeat(radii, 36).astype(np.float32)
+    indexes = np.array(36, dtype=np.uint32)
+    centers = np.tile(centers, 36).flatten().reshape(20*36,3)
+    
     vao = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vao)
-    indexes = np.array([0,1,2],dtype=np.uint32)
-    coords = np.array([[ 0.0, 1.0, 1.0],[-1.0, 0.0, 0.0],[ 0.0,-1.0,-1.0]],dtype=np.float32)
-    colors = np.array([[ 1.0, 0.0, 0.0],[ 0.0, 1.0, 0.0],[ 0.0, 0.0, 1.0]],dtype=np.float32)
-    radii = np.array([ 0.5, 0.5, 0.5],dtype=np.float32)
     
     ind_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
@@ -866,6 +890,13 @@ def make_impostor_sph(program):
     GL.glEnableVertexAttribArray(gl_colors)
     GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
     
+    cent_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, cent_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, centers.nbytes, centers, GL.GL_STATIC_DRAW)
+    gl_cent = GL.glGetAttribLocation(program, "vert_center")
+    GL.glEnableVertexAttribArray(gl_cent)
+    GL.glVertexAttribPointer(gl_cent, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*centers.itemsize, ctypes.c_void_p(0))
+    
     rad_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, rad_vbo)
     GL.glBufferData(GL.GL_ARRAY_BUFFER, radii.nbytes, radii, GL.GL_STATIC_DRAW)
@@ -876,9 +907,10 @@ def make_impostor_sph(program):
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_coords)
     GL.glDisableVertexAttribArray(gl_colors)
+    GL.glDisableVertexAttribArray(gl_cent)
     GL.glDisableVertexAttribArray(gl_rads)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vao, (ind_vbo, coord_vbo, col_vbo, rad_vbo), np.uint32(coords.shape[0])
+    return vao, (ind_vbo, coord_vbo, col_vbo, cent_vbo, rad_vbo), np.uint32(coords.shape[0])
 
 def make_cubes(program):
     """ Function doc """
@@ -1175,7 +1207,10 @@ def fill_texture_buffers(program, vbos):
 
 def make_instances(program):
     coords, indexes, colors = sphd.get_sphere([1,1,1], 1.0, [0, 1, 0], level="level_1")
+    radii = np.ones(1, dtype=np.float32)
     instances = np.zeros(3,dtype=np.float32)
+    coords = coords.reshape(42,3)
+    # print(coords.shape)
     
     vao = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vao)
@@ -1191,6 +1226,22 @@ def make_instances(program):
     GL.glEnableVertexAttribArray(gl_coord)
     GL.glVertexAttribPointer(gl_coord, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
     
+    col_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.nbytes, colors, GL.GL_STATIC_DRAW)
+    gl_colors = GL.glGetAttribLocation(program, "vert_color")
+    GL.glEnableVertexAttribArray(gl_colors)
+    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    GL.glVertexAttribDivisor(gl_colors, 1)
+    
+    rad_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, rad_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, radii.nbytes, radii, GL.GL_STATIC_DRAW)
+    gl_rads = GL.glGetAttribLocation(program, "vert_radius")
+    GL.glEnableVertexAttribArray(gl_rads)
+    GL.glVertexAttribPointer(gl_rads, 1, GL.GL_FLOAT, GL.GL_FALSE, radii.itemsize, ctypes.c_void_p(0))
+    GL.glVertexAttribDivisor(gl_rads, 1)
+    
     insta_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, insta_vbo)
     GL.glBufferData(GL.GL_ARRAY_BUFFER, instances.nbytes, instances, GL.GL_STATIC_DRAW)
@@ -1199,20 +1250,14 @@ def make_instances(program):
     GL.glVertexAttribPointer(gl_insta, 3, GL.GL_FLOAT, GL.GL_FALSE, 0, ctypes.c_void_p(0))
     GL.glVertexAttribDivisor(gl_insta, 1)
     
-    col_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.nbytes, colors, GL.GL_STATIC_DRAW)
-    gl_colors = GL.glGetAttribLocation(program, "vert_color")
-    GL.glEnableVertexAttribArray(gl_colors)
-    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
-    
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_coord)
-    GL.glDisableVertexAttribArray(gl_insta)
     GL.glDisableVertexAttribArray(gl_colors)
+    GL.glDisableVertexAttribArray(gl_rads)
+    GL.glDisableVertexAttribArray(gl_insta)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     
-    return vao, (coord_vbo, col_vbo, insta_vbo), int(len(indexes))
+    return vao, (coord_vbo, col_vbo, rad_vbo, insta_vbo), int(len(indexes))
 
 def make_billboard(program):
     indexes = np.array([0,1,2],dtype=np.uint32)
@@ -1220,9 +1265,9 @@ def make_billboard(program):
     colors = np.array([[ 1.0, 0.0, 0.0],[ 0.0, 1.0, 0.0],[ 0.0, 0.0, 1.0]],dtype=np.float32)
     radii = np.array([ 0.5, 0.8, 1.0],dtype=np.float32)
     
-    coords = np.random.rand(500000,3).astype(np.float32)*500 - 250
+    coords = np.random.rand(500000,3).astype(np.float32) * 500 - 250
     colors = np.random.rand(500000,3).astype(np.float32)
-    radii = np.random.rand(500000).astype(np.float32)*8
+    radii = np.random.rand(500000).astype(np.float32) + .5
     indexes = np.arange(coords.shape[0], dtype=np.uint32)
     
     vao = GL.glGenVertexArrays(1)

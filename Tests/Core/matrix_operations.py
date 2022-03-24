@@ -22,7 +22,6 @@
 #  
 #  
 
-import math
 import numpy as np
 
 
@@ -105,10 +104,10 @@ def my_glRotatef(in_matrix, angle, dir_vec):
     """
     vector = np.array(dir_vec, dtype=np.float32)
     assert(np.linalg.norm(vector)>0.0)
-    angle = angle*math.pi/180.0
+    angle = angle*np.pi/180.0
     x,y,z = vector/np.linalg.norm(vector)
-    c = math.cos(angle)
-    s = math.sin(angle)
+    c = np.cos(angle)
+    s = np.sin(angle)
     rot_matrix = np.identity(4, dtype=np.float32)
     rot_matrix[0,0] = x*x*(1-c)+c
     rot_matrix[1,0] = y*x*(1-c)+z*s
@@ -136,7 +135,7 @@ def my_glPerspectivef(fovy, aspect, z_near, z_far):
     """
     assert(aspect>0)
     assert(z_far>z_near)
-    f = np.float32(1/(math.tan(fovy*math.pi/180.0)))
+    f = np.float32(1/(np.tan(fovy*np.pi/180.0)))
     pers_matrix = np.zeros((4,4), dtype=np.float32)
     pers_matrix[0,0] = f/aspect
     pers_matrix[1,1] = f
@@ -144,6 +143,30 @@ def my_glPerspectivef(fovy, aspect, z_near, z_far):
     pers_matrix[3,2] = 2*z_near*z_far/(z_near-z_far)
     pers_matrix[2,3] = -1
     return pers_matrix
+
+def my_glFrustum(left, right, bottom, top, z_near, z_far):
+    assert(z_far>z_near)
+    frustum = np.zeros((4,4), dtype=np.float32)
+    frustum[0,0] = 2*z_near/(rigth-left)
+    frustum[1,1] = 2*z_near/(top-bottom)
+    frustum[2,2] = (z_far+z_near)/(z_near-z_far)
+    frustum[2,0] = (rigth+left)/(rigth-left)
+    frustum[2,1] = (top+bottom)/(top-bottom)
+    frustum[2,3] = -1
+    frustum[3,2] = 2*z_near*z_far/(z_near-z_far)
+    return frustum
+
+def my_glOrtho(left, right, bottom, top, z_near, z_far):
+    assert(z_far>z_near)
+    ortho_matrix = np.zeros((4,4), dtype=np.float32)
+    ortho_matrix[0,0] = 2/(right-left)
+    ortho_matrix[1,1] = 2/(top-bottom)
+    ortho_matrix[2,2] = 2/(z_near-z_far)
+    ortho_matrix[3,3] = 1
+    ortho_matrix[3,0] = (left+right)/(left-right)
+    ortho_matrix[3,1] = (bottom+top)/(bottom-top)
+    ortho_matrix[3,1] = (z_near+z_far)/(z_near-z_far)
+    return ortho_matrix
 
 def get_xyz_coords(xyz_mat):
     """ Returns the x, y, z position contained in the xyz_mat matrix. The
