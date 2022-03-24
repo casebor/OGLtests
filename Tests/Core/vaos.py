@@ -1305,3 +1305,10 @@ def make_billboard(program):
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vao, (ind_vbo, coord_vbo, col_vbo, rad_vbo), np.uint32(coords.shape[0])
 
+def make_simple(program):
+    a, b = 1, -1
+    cube_coords = np.array([[a,a,a], [a,a,b], [a.b.b], [a,a,a], [a,b,b], [a,b,a],
+                            [b,a,a], [a,a,a], [a,b,a], [b,a,a], [a,b,a], [b,b,a],
+                            [b,a,b], []
+                            ])
+    cube_normals = np.array([[]])

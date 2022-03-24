@@ -155,6 +155,12 @@ class MyGLProgram(Gtk.GLArea):
         self.billboard_vbos = None
         self.billboard_elemns = None
         self.billboard = False
+        # Here are the test programs and flags
+        self.gl_program_simple = None
+        self.simple_vao = None
+        self.simple_vbos = None
+        self.simple_elemns = None
+        self.simple = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -348,6 +354,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_text = self.load_shaders(sh.v_diamonds, sh.f_diamonds, sh.g_diamonds)
         self.gl_program_instances = self.load_shaders(sh.v_instances, sh.f_instances)
         self.gl_program_billboard = self.load_shaders(sh.v_billboard, sh.f_billboard, sh.g_billboard)
+        self.gl_program_simple = self.load_shaders(sh.v_simple, sh.f_simple)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -511,6 +518,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_billboard()
+        if self.simple:
+            if self.simple_vao is None:
+                self.simple_vao, self.simple_vbos, self.simple_elemns = vaos.make_simple(self.gl_program_simple)
+                self.queue_draw()
+            else:
+                self._draw_simple()
     
     def _draw_impostor_sph(self):
         """ Function doc """
@@ -651,6 +664,9 @@ class MyGLProgram(Gtk.GLArea):
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
+    
+    def draw_simple(self):
+        pass
     
     def edit_draw(self, event):
         """ Function doc """
