@@ -1455,7 +1455,7 @@ out vec3 frag_norm;
 void main() {
     frag_color = vert_color;
     frag_norm = mat3(transpose(inverse(model_mat))) * vert_norm;
-    frag_coord = view_mat * model_mat * vec4(vert_coord, 1.0);
+    frag_coord = (view_mat * model_mat * vec4(vert_coord, 1.0)).xyz;
     gl_Position = proj_mat * vec4(frag_coord, 1.0);
 }
 """

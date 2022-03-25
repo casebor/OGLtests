@@ -600,6 +600,7 @@ class MyGLProgram(Gtk.GLArea):
         self.load_lights(self.gl_program_cartoon)
         GL.glBindVertexArray(self.cartoon_vao)
         GL.glDrawElements(GL.GL_TRIANGLES, self.cartoon_elemns, GL.GL_UNSIGNED_INT, None)
+        # GL.glDrawArrays(GL.GL_TRIANGLES, 0, self.cartoon_elemns)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -665,8 +666,15 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
-    def draw_simple(self):
-        pass
+    def _draw_simple(self):
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        GL.glUseProgram(self.gl_program_simple)
+        self.load_matrices(self.gl_program_simple)
+        self.load_lights(self.gl_program_simple)
+        GL.glBindVertexArray(self.simple_vao)
+        GL.glDrawElements(GL.GL_TRIANGLES, self.simple_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
     
     def edit_draw(self, event):
         """ Function doc """
@@ -784,6 +792,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_b(self):
         self.billboard = not self.billboard
+        self.queue_draw()
+    
+    def _pressed_s(self):
+        self.simple = not self.simple
         self.queue_draw()
     
     def _pressed_Up(self):

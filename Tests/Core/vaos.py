@@ -1073,8 +1073,8 @@ def make_cartoon(program):
             if " CA " in line:
                 calphas[j,:] = x, y, z
                 j += 1
-    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, spline_detail=6)
-    # quit()
+    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, spline_detail=12)
+    indexes = np.arange(coords.shape[0], dtype=np.uint32)
     # ss = cartoon.calculate_secondary_structure(calphas)
     
     # colors = np.tile([0, 1, 0], coords.shape[0]).reshape([coords.shape[0], 3]).astype(np.float32)
@@ -1084,7 +1084,7 @@ def make_cartoon(program):
     
     ind_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
-    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.nbytes, indexes, GL.GL_DYNAMIC_DRAW)
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
@@ -1307,8 +1307,56 @@ def make_billboard(program):
 
 def make_simple(program):
     a, b = 1, -1
-    cube_coords = np.array([[a,a,a], [a,a,b], [a.b.b], [a,a,a], [a,b,b], [a,b,a],
+    cube_coords = np.array([[a,a,a], [a,a,b], [a,b,b], [a,a,a], [a,b,b], [a,b,a],
                             [b,a,a], [a,a,a], [a,b,a], [b,a,a], [a,b,a], [b,b,a],
-                            [b,a,b], []
-                            ])
-    cube_normals = np.array([[]])
+                            [b,a,b], [b,a,a], [b,b,a], [b,a,b], [b,b,a], [b,b,b],
+                            [a,a,b], [b,a,b], [b,b,b], [a,a,b], [b,b,b], [a,b,b],
+                            [b,a,b], [a,a,b], [a,a,a], [b,a,b], [a,a,a], [b,a,a],
+                            [b,b,a], [a,b,a], [a,b,b], [b,b,a], [a,b,b], [b,b,b]], dtype=np.float32)
+    cube_normals = np.array([[a,0,0], [a,0,0], [a,0,0], [a,0,0], [a,0,0], [a,0,0],
+                             [0,0,a], [0,0,a], [0,0,a], [0,0,a], [0,0,a], [0,0,a],
+                             [b,0,0], [b,0,0], [b,0,0], [b,0,0], [b,0,0], [b,0,0],
+                             [0,0,b], [0,0,b], [0,0,b], [0,0,b], [0,0,b], [0,0,b],
+                             [0,a,0], [0,a,0], [0,a,0], [0,a,0], [0,a,0], [0,a,0],
+                             [0,b,0], [0,b,0], [0,b,0], [0,b,0], [0,b,0], [0,b,0]], dtype=np.float32)
+    centers = np.array([[0,0,0], [2,2,0], [-2,0,1]], dtype=np.float32)
+    cols = np.array([[1,0,0], [0,1,0], [0,0,1]])
+    coords = np.array([cube_coords + c for c in centers]).reshape(centers.shape[0]*cube_coords.shape[0], 3).astype(np.float32)
+    normals = np.array([cube_normals + 0 for c in centers]).reshape(centers.shape[0]*cube_coords.shape[0], 3).astype(np.float32)
+    colors = np.tile(cols, 36).reshape(centers.shape[0]*cube_coords.shape[0], 3).astype(np.float32)
+    indexes = np.arange(coords.shape[0], dtype=np.uint32)
+    
+    vao = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vao)
+    
+    ind_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.nbytes, indexes, GL.GL_DYNAMIC_DRAW)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_STATIC_DRAW)
+    gl_coords = GL.glGetAttribLocation(program, "vert_coord")
+    GL.glEnableVertexAttribArray(gl_coords)
+    GL.glVertexAttribPointer(gl_coords, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    col_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.nbytes, colors, GL.GL_STATIC_DRAW)
+    gl_colors = GL.glGetAttribLocation(program, "vert_color")
+    GL.glEnableVertexAttribArray(gl_colors)
+    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    
+    norm_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, norm_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, normals.nbytes, normals, GL.GL_STATIC_DRAW)
+    gl_norms = GL.glGetAttribLocation(program, "vert_norm")
+    GL.glEnableVertexAttribArray(gl_norms)
+    GL.glVertexAttribPointer(gl_norms, 1, GL.GL_FLOAT, GL.GL_FALSE, normals.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coords)
+    GL.glDisableVertexAttribArray(gl_colors)
+    GL.glDisableVertexAttribArray(gl_norms)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return vao, (ind_vbo, coord_vbo, col_vbo, norm_vbo), indexes.shape[0]
