@@ -1073,8 +1073,8 @@ def make_cartoon(program):
             if " CA " in line:
                 calphas[j,:] = x, y, z
                 j += 1
-    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, spline_detail=12)
-    indexes = np.arange(coords.shape[0], dtype=np.uint32)
+    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, spline_detail=6)
+    # indexes = np.arange(coords.shape[0], dtype=np.uint32)
     # ss = cartoon.calculate_secondary_structure(calphas)
     
     # colors = np.tile([0, 1, 0], coords.shape[0]).reshape([coords.shape[0], 3]).astype(np.float32)
