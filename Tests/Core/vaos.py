@@ -1073,7 +1073,13 @@ def make_cartoon(program):
             if " CA " in line:
                 calphas[j,:] = x, y, z
                 j += 1
-    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, spline_detail=6)
+    secstruc = [(0,0,2), (1,2,13), (0,13,16), (2,16,20,np.array([[ 0.38114753, 0.544680, -0.7470276],
+                                                                 [-0.01111542, 0.848985, -0.5283006]], dtype=np.float32)),
+                (0,20,22), (2,22,26,np.array([[-0.32741186,-0.94466716, 0.02013549],
+                                              [0.831728,0.5514877,0.06395128]], dtype=np.float32)), (0,26,27)]
+    
+    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, ss_assigned=secstruc,
+        spline_detail=6, strand_rad=0.8, helix_rad=0.3, coil_rad=.2, spline_strength=.9)
     # indexes = np.arange(coords.shape[0], dtype=np.uint32)
     # ss = cartoon.calculate_secondary_structure(calphas)
     

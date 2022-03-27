@@ -11,56 +11,9 @@ import cython
 import numpy as np
 
 
-cpdef float distance(float[:] a, float[:] b):
-    cdef cython.float d, x, y, z
-    x = a[0] - b[0]
-    y = a[1] - b[1]
-    z = a[2] - b[2]
-    d = x*x + y*y + z*z
-    return np.sqrt(d)
-
-cpdef bint is_strand(float[:,:] calphas, Py_ssize_t ca_i):
-    strand_dists = [6.1, 10.4, 13.0]
-    cdef cython.float b_delta = 1.42
-    cdef Py_ssize_t i, j
-    for i in range(ca_i-2, ca_i):
-        for j in range(2, 5):
-            dist = distance(calphas[i], calphas[i+j])
-            if abs(dist - strand_dists[j-2]) > b_delta:
-                return False
-    return True
-
-cpdef bint is_helix(float[:,:] calphas, Py_ssize_t ca_i):
-    helix_dists = [5.45, 5.18, 6.37]
-    cdef cython.float h_delta = 2.1
-    cdef Py_ssize_t i, j
-    for i in range(ca_i-2, ca_i):
-        for j in range(2, 5):
-            dist = distance(calphas[i], calphas[i+j])
-            if abs(dist - helix_dists[j-2]) > h_delta:
-                return False
-    return True
-
-cpdef calculate_secondary_structure(float[:,:] calphas):
-    assert calphas.shape[0] > 6
-    cdef Py_ssize_t camax = calphas.shape[0]
-    cdef Py_ssize_t i, j
-    cdef cython.float dist
-    ss = "CC"
-    for i in range(2, camax-4):
-        if is_helix(calphas, i):
-            ss += "H"
-        elif is_strand(calphas, i):
-            ss += "S"
-        else:
-            ss += "C"
-    ss += "CCCC"
-    print(ss)
-
-
-cpdef cython.float[:] cubic_hermite_interpolate(p_k1, tan_k1, p_k2, tan_k2, t):
+cpdef float[:] cubic_hermite_interpolate(p_k1, tan_k1, p_k2, tan_k2, float t):
     result = np.copy(p_k1)
-    cdef cython.float tt, tmt_t, h00, h01, h10, h11
+    cdef float tt, tmt_t, h00, h01, h10, h11
     tt = t * t
     tmt_t = 3.0 - 2.0 * t
     h01 = tt * tmt_t
@@ -73,16 +26,18 @@ cpdef cython.float[:] cubic_hermite_interpolate(p_k1, tan_k1, p_k2, tan_k2, t):
     result += tan_k2 * h11
     return result
 
-cpdef cython.float[:,:] catmull_rom_spline(float[:,:] points, int  num_points, int subdivs, float strength=0.6, bint circular=False):
-    cdef cython.int out_len
+cpdef catmull_rom_spline(float[:,:] points, int num_points, int subdivs,
+                         float strength=0.6, bint circular=False):
+    # When I programmed this function, only God and me knew about its internal
+    # structure. Now only God knows about it (-_-')
+    cdef Py_ssize_t out_len
     if circular:
         out_len = num_points * subdivs
     else:
         out_len = (num_points - 1) * subdivs + 1
-    out = np.empty([out_len, 3], dtype=np.float32)
-    cdef cython.float[:,:] out_view = out
+    out_coords = np.empty([out_len, 3], dtype=np.float32)
     cdef Py_ssize_t index = 0
-    cdef cython.float dt = 1.0 / subdivs
+    cdef float dt = 1.0 / subdivs
     tan_k1 = np.empty(3, dtype=np.float32)
     tan_k2 = np.empty(3, dtype=np.float32)
     p_k1 = np.empty(3, dtype=np.float32)
@@ -101,7 +56,7 @@ cpdef cython.float[:,:] catmull_rom_spline(float[:,:] points, int  num_points, i
         tan_k2[:] = p_k4 - p_k2
         tan_k2 *= strength
         for j in range(subdivs):
-            out_view[index,:] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
+            out_coords[index,:] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
             index += 1
         p_k1[:] = p_k2[:]
         p_k2[:] = p_k3[:]
@@ -117,11 +72,11 @@ cpdef cython.float[:,:] catmull_rom_spline(float[:,:] points, int  num_points, i
     else:
         tan_k1[:] = [0,0,0]
     for j in range(subdivs):
-        out_view[index,:] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
+        out_coords[index,:] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
         index += 1
     if not circular:
-        out_view[index] = points[-1]
-        return out
+        out_coords[index] = points[-1]
+        return out_coords
     p_k1[:] = p_k2[:]
     p_k2[:] = p_k3[:]
     p_k3[:] = p_k4[:]
@@ -130,12 +85,11 @@ cpdef cython.float[:,:] catmull_rom_spline(float[:,:] points, int  num_points, i
     tan_k1 = p_k4 - p_k2
     tan_k1 *= strength
     for j in range(subdivs):
-        out_view[index,:] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
+        out_coords[index,:] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
         index += 1
-    return out
+    return out_coords
 
-
-cpdef cython.float[:,:] get_rotmat3f(float angle, float[:] dir_vec):
+cpdef float[:,:] get_rotmat3f(float angle, float[:] dir_vec):
     assert(np.linalg.norm(dir_vec)>0.0)
     cdef float x = dir_vec[0]
     cdef float y = dir_vec[1]
@@ -183,22 +137,7 @@ cpdef tuple get_coil(float[:,:] spline, float coil_rad=0.2, float[:] color=None)
         normals[-6+i,:] = coords[-6+i,:] - spline[-1]
     return coords, normals, colors
 
-def get_strand_vectors(p1, p2, p3):
-    com123 = (p1 + p2 + p3) / 3.0
-    com12 = (p1 - p2) / 2.0
-    com23 = (p2 - p3) / 2.0
-    vec1 = com123 - com12
-    vec1 /= np.linalg.norm(vec1)
-    vec2 = com123 - com23
-    vec2 /= np.linalg.norm(vec2)
-    up_vec = vec1 + vec2
-    up_vec /= np.linalg.norm(up_vec)
-    vec3 = p3 - p1
-    side_vec = np.cross(up_vec, vec3)
-    side_vec /= np.linalg.norm(side_vec)
-    return up_vec, side_vec
-
-def bezier_curve(p1, p2, p3, bezier_detail):
+cpdef bezier_curve(p1, p2, p3, bezier_detail):
     points_mat = np.array([p1, p2, p3], dtype=np.float32)
     points = np.zeros([bezier_detail, 3], dtype=np.float32)
     for i, t in enumerate(np.linspace(0, 1, bezier_detail)):
@@ -206,21 +145,24 @@ def bezier_curve(p1, p2, p3, bezier_detail):
         points[i,:] = np.matmul(vec_t, points_mat)
     return points
 
-def get_strand(orig_spline, spline_detail, strand_ups, strand_rad=0.5, color=None):
+cpdef tuple get_strand(orig_spline, spline_detail, strand_ups, strand_rad=0.5, color=None):
     if color is None:
-        color = [1.0, 1.0, 0.0]
+        color = np.array([1.0, 1.0, 0.0], dtype=np.float32)
     p1 = orig_spline[0]
     p2 = np.zeros(3, dtype=np.float32)
     for i in range(0, orig_spline.shape[0], spline_detail):
         p2 += orig_spline[i]
     p2 /= (orig_spline.shape[0]/spline_detail)
     p3 = orig_spline[-1]
+    # For the beta strand, we don't use the catmull_rom_spline curve, but instead
+    # a bezier curve, since I think it will look better
     spline = bezier_curve(p1, p2, p3, orig_spline.shape[0])
     coords = np.empty([spline.shape[0]*6, 3], dtype=np.float32)
     normals = np.empty([spline.shape[0]*6, 3], dtype=np.float32)
     colors = np.tile(color, coords.shape[0]).reshape(coords.shape).astype(np.float32)
-    
-    angle = np.arccos(np.dot(strand_ups[0], strand_ups[1])) / (spline.shape[0] - spline_detail - 1)
+    # Caclulate the angle between the first and second normals of the strand,
+    # then create a rotation matrix to update the points and twist the strand
+    angle = np.arccos(np.dot(strand_ups[0], strand_ups[1])) / (spline.shape[0]-spline_detail-1)
     align_vec = np.cross(strand_ups[0], strand_ups[1])
     align_vec /= np.linalg.norm(align_vec)
     rot_mat = get_rotmat3f(angle, align_vec)
@@ -294,45 +236,7 @@ def get_strand(orig_spline, spline_detail, strand_ups, strand_rad=0.5, color=Non
         normals[i*6+5] = -n2
     return coords, normals, colors
 
-def get_strand_BCK(orig_spline, spline_detail, strand_rad=0.5, color=None):
-    if color is None:
-        color = [1.0, 1.0, 0.0]
-    p1 = orig_spline[0]
-    p2 = np.zeros(3, dtype=np.float32)
-    for i in range(0, orig_spline.shape[0], spline_detail):
-        p2 += orig_spline[i]
-    p2 /= (orig_spline.shape[0]/spline_detail)
-    p3 = orig_spline[-1]
-    spline = bezier_curve(p1, p2, p3, orig_spline.shape[0])
-    coords = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
-    normals = np.zeros([spline.shape[0]*4, 3], dtype=np.float32)
-    colors = np.tile(color, coords.shape[0]).reshape(coords.shape).astype(np.float32)
-    strand_up = np.zeros(3, dtype=np.float32)
-    strand_side = np.zeros(3, dtype=np.float32)
-    strand_dir = 1
-    for i in range(spline.shape[0] - spline_detail):
-        if i < spline.shape[0] - spline_detail * 2 and i % spline_detail == 0:
-            _vecs = get_strand_vectors(spline[i], spline[i+spline_detail], spline[i+spline_detail*2])
-            strand_up += _vecs[0] * strand_dir
-            # strand_side += _vecs[1] * strand_dir
-            strand_up /= np.linalg.norm(strand_up)
-            strand_side = np.cross(spline[i+1]-spline[i], strand_up)
-            strand_side /= np.linalg.norm(strand_side)
-            # strand_dir *= -1
-        coords[i*4] = spline[i] + strand_up * strand_rad / 1.5 + strand_side * strand_rad
-        coords[i*4+1] = spline[i] - strand_up * strand_rad / 1.5 + strand_side * strand_rad
-        coords[i*4+2] = spline[i] - strand_up * strand_rad / 1.5 - strand_side * strand_rad
-        coords[i*4+3] = spline[i] + strand_up * strand_rad / 1.5 - strand_side * strand_rad
-    arrow_rads = np.linspace(strand_rad*2.5, 0.1, spline_detail)
-    arros_inds = np.arange(spline.shape[0] - spline_detail, spline.shape[0], dtype=np.uint32)
-    for i, r in zip(arros_inds, arrow_rads):
-        coords[i*4] = spline[i] + strand_up * strand_rad / 1.5 + strand_side * r
-        coords[i*4+1] = spline[i] - strand_up * strand_rad / 1.5 + strand_side * r
-        coords[i*4+2] = spline[i] - strand_up * strand_rad / 1.5 - strand_side * r
-        coords[i*4+3] = spline[i] + strand_up * strand_rad / 1.5 - strand_side * r
-    return coords, np.zeros([spline.shape[0]*4, 3], dtype=np.float32)+.01, colors
-
-def get_helix_vector(p1, p2, p3, p4):
+cpdef get_helix_vector(p1, p2, p3, p4):
     com1234 = (p1 + p2 + p3 + p4) / 4.0
     com12 = (p1 + p2) / 2.0
     com23 = (p2 + p3) / 2.0
@@ -348,9 +252,9 @@ def get_helix_vector(p1, p2, p3, p4):
     dir_vec = com34A - com12B
     return dir_vec / np.linalg.norm(dir_vec)
 
-def get_helix(spline, spline_detail, helix_rad=0.2, color=None):
+cpdef tuple get_helix(spline, spline_detail, helix_rad=0.2, color=None):
     if color is None:
-        color = [1.0, 0.0, 0.0]
+        color = np.array([1.0, 0.0, 0.0], dtype=np.float32)
     coords = np.empty([spline.shape[0]*6, 3], dtype=np.float32)
     normals = np.empty([spline.shape[0]*6, 3], dtype=np.float32)
     colors = np.tile(color, coords.shape[0]).reshape(coords.shape).astype(np.float32)
@@ -430,18 +334,12 @@ def get_helix(spline, spline_detail, helix_rad=0.2, color=None):
         normals[i*6+5] = -n2
     return coords, normals, colors
 
-def get_indexes(num_points, points_perring, offset, is_strand=False):
+cpdef list get_indexes(num_points, points_perring, offset):
     # Add indices for the initial cap
-    if is_strand:
-        size_i = ((num_points//points_perring)-1)*2*4*3 + 2*2*3
-        indexes = np.empty(size_i, dtype=np.uint32)
-        indexes[:6] = [0,1,2, 2,3,0]
-        i = 6
-    else:
-        size_i = ((num_points//points_perring)-1)*2*6*3 + 2*4*3
-        indexes = np.empty(size_i, dtype=np.uint32)
-        indexes[:12] = [0,2,1, 2,4,3, 4,0,5, 0,4,2]
-        i = 12
+    size_i = ((num_points//points_perring)-1)*2*6*3 + 2*4*3
+    indexes = np.empty(size_i, dtype=np.uint32)
+    indexes[:12] = [0,2,1, 2,4,3, 4,0,5, 0,4,2]
+    i = 12
     for r in range(num_points//points_perring-1):
         for p in range(points_perring-1):
             indexes[i] = r*points_perring+p
@@ -462,29 +360,9 @@ def get_indexes(num_points, points_perring, offset, is_strand=False):
         indexes[i+2] = (r+1)*points_perring
         i += 3
     a = num_points - points_perring
-    if is_strand:
-        indexes[-6:] = [a,a+1,a+2, a+2,a+3,a]
-    else:
-        indexes[-12:] = [a,a+2,a+1, a+2,a+4,a+3, a+4,a,a+5, a,a+4,a+2]
+    indexes[-12:] = [a,a+2,a+1, a+2,a+4,a+3, a+4,a,a+5, a,a+4,a+2]
     indexes += offset
     return indexes.tolist()
-
-def make_normals(coords, indexes):
-    # normals = np.empty([indexes.shape[0], 3], dtype=np.float32)
-    normals = []
-    for i in range(0, indexes.shape[0], 3):
-        vec1 = coords[indexes[i+1]] - coords[indexes[i]]
-        vec2 = coords[indexes[i+2]] - coords[indexes[i+1]]
-        normal = np.cross(vec2, vec1)
-        normal /= np.linalg.norm(normal)
-        normals.append(normal)
-        normals.append(normal)
-        normals.append(normal)
-        # normals[indexes[i]][:] = normal
-        # normals[indexes[i+1]][:] = normal
-        # normals[indexes[i+2]][:] = normal
-    return normals
-
 
 cpdef get_strand_normals(float[:,:] bbone, Py_ssize_t strand_start, Py_ssize_t strand_end):
     # cdef np.array ca1, co1, o1, ca2, co2, o2
@@ -509,25 +387,11 @@ cpdef get_strand_normals(float[:,:] bbone, Py_ssize_t strand_start, Py_ssize_t s
     n3 /= np.linalg.norm(n3)
     return n1, n2, n3
 
-
-cpdef cartoon(float[:,:] bbone, float[:,:] calphas, int spline_detail=3, list ss_assigned=None):
+cpdef cartoon(float[:,:] bbone, float[:,:] calphas, list ss_assigned=None, int spline_detail=3,
+              coil_rad=0.2, helix_rad=0.2, strand_rad=0.8, float spline_strength=0.9):
     cdef Py_ssize_t sd = spline_detail
-    spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], sd, strength=0.9)
+    spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], sd, strength=spline_strength)
     spline = np.array(spline, dtype=np.float32)
-    # return spline
-    secstruc = [(0,0,2), (1,2,13), (0,13,16), (2,16,20,np.array([[ 0.38114753, 0.544680, -0.7470276],
-                                                                 [-0.01111542, 0.848985, -0.5283006]], dtype=np.float32)),
-                (0,20,22), (2,22,26,np.array([[-0.32741186,-0.94466716, 0.02013549],
-                                              [-0.831728,-0.5514877,-0.06395128]], dtype=np.float32)), (0,26,27)]
-    # secstruc = [(0,0,2), (1,2,13), (0,13,16), (2,16,20,np.array([[ 0.38114753, 0.544680, -0.7470276],
-    #                                                              [-0.40010697, 0.903422, -0.1540879],
-    #                                                              [-0.01111542, 0.848985, -0.5283006]], dtype=np.float32)),
-    #             (0,20,22), (2,22,26,np.array([[-0.32741186,-0.94466716, 0.02013549],
-    #                                           [-0.99004906, 0.07110813,-0.12143461],
-    #                                           [-0.831728, -0.5514877,-0.06395128]], dtype=np.float32)), (0,26,27)]
-    # secstruc = [SS("coil",0,2,None), SS("helix",2,13,None), SS("coil",13,16,None),
-    #             SS("strand",16,20,np.identity(3)), SS("coil",20,22,None),
-    #             SS("strand",22,26,np.identity(3)), SS("coil",26,27,None)]
     
     cdef list coords = []
     cdef list normals = []
@@ -535,18 +399,18 @@ cpdef cartoon(float[:,:] bbone, float[:,:] calphas, int spline_detail=3, list ss
     cdef list indexes = []
     cdef int offset = 0
     
-    for ss in secstruc:
+    for ss in ss_assigned:
         if ss[0] == 0:
             if ss[1] == 0:
                 if ss[2] == calphas.shape[0]:
-                    _crds, _nrmls, _cols = get_coil(spline[ss[1]*sd:ss[2]*sd])
+                    _crds, _nrmls, _cols = get_coil(spline[ss[1]*sd:ss[2]*sd], coil_rad=coil_rad)
                 else:
-                    _crds, _nrmls, _cols = get_coil(spline[ss[1]*sd:ss[2]*sd+1])
+                    _crds, _nrmls, _cols = get_coil(spline[ss[1]*sd:ss[2]*sd+1], coil_rad=coil_rad)
             else:
                 if ss[2] == calphas.shape[0]:
-                    _crds, _nrmls, _cols = get_coil(spline[ss[1]*sd-1:ss[2]*sd])
+                    _crds, _nrmls, _cols = get_coil(spline[ss[1]*sd-1:ss[2]*sd], coil_rad=coil_rad)
                 else:
-                    _crds, _nrmls, _cols = get_coil(spline[ss[1]*sd-1:ss[2]*sd+1])
+                    _crds, _nrmls, _cols = get_coil(spline[ss[1]*sd-1:ss[2]*sd+1], coil_rad=coil_rad)
             
             _inds = get_indexes(_crds.shape[0], 6, offset)
             offset += _crds.shape[0]
@@ -555,7 +419,7 @@ cpdef cartoon(float[:,:] bbone, float[:,:] calphas, int spline_detail=3, list ss
             normals.extend(_nrmls)
             colors.extend(_cols)
         elif ss[0] == 1:
-            _crds, _nrmls, _cols = get_helix(spline[ss[1]*sd:ss[2]*sd], sd)
+            _crds, _nrmls, _cols = get_helix(spline[ss[1]*sd:ss[2]*sd], sd, helix_rad=helix_rad)
             _inds = get_indexes(_crds.shape[0], 6, offset)
             offset += _crds.shape[0]
             indexes.extend(_inds)
@@ -563,7 +427,7 @@ cpdef cartoon(float[:,:] bbone, float[:,:] calphas, int spline_detail=3, list ss
             normals.extend(_nrmls)
             colors.extend(_cols)
         elif ss[0] == 2:
-            _crds, _nrmls, _cols = get_strand(spline[ss[1]*sd:ss[2]*sd], sd, ss[3])
+            _crds, _nrmls, _cols = get_strand(spline[ss[1]*sd:ss[2]*sd], sd, ss[3], strand_rad=strand_rad)
             _inds = get_indexes(_crds.shape[0], 6, offset)
             offset += _crds.shape[0]
             indexes.extend(_inds)
@@ -574,62 +438,44 @@ cpdef cartoon(float[:,:] bbone, float[:,:] calphas, int spline_detail=3, list ss
     out_normals = np.array(normals, dtype=np.float32)
     out_colors = np.array(colors, dtype=np.float32)
     out_indexes = np.array(indexes, dtype=np.uint32)
-    print("len:")
+    print("lengths:")
     print(spline.shape, out_coords.shape, out_normals.shape, out_colors.shape, out_indexes.shape)
     return out_coords, out_normals, out_indexes, out_colors
-    # for ss in secstruc:
-    #     if ss[0] == 0:
-    #         if ss[1] == 0:
-    #             if ss[2] == calphas.shape[0]:
-    #                 _crds, _cols = get_coil(spline[ss[1]*sd:ss[2]*sd])
-    #             else:
-    #                 _crds, _cols = get_coil(spline[ss[1]*sd:ss[2]*sd+1])
-    #         else:
-    #             if ss[2] == calphas.shape[0]:
-    #                 _crds, _cols = get_coil(spline[ss[1]*sd-1:ss[2]*sd])
-    #             else:
-    #                 _crds, _cols = get_coil(spline[ss[1]*sd-1:ss[2]*sd+1])
-            
-    #         _inds = get_indexes(_crds.shape[0], 6, offset)
-    #         offset += _crds.shape[0]
-    #         indexes.extend(_inds)
-    #         coords.extend(_crds)
-    #         colors.extend(_cols)
-    #     elif ss[0] == 1:
-    #         _crds, _cols = get_helix(spline[ss[1]*sd:ss[2]*sd], sd)
-    #         _inds = get_indexes(_crds.shape[0], 6, offset)
-    #         offset += _crds.shape[0]
-    #         indexes.extend(_inds)
-    #         coords.extend(_crds)
-    #         colors.extend(_cols)
-    #     elif ss[0] == 2:
-    #         _crds, _cols = get_strand(spline[ss[1]*sd:ss[2]*sd], sd)
-    #         _inds = get_indexes(_crds.shape[0], 4, offset, is_strand=True)
-    #         offset += _crds.shape[0]
-    #         indexes.extend(_inds)
-    #         coords.extend(_crds)
-    #         colors.extend(_cols)
-    # temp_coords = np.array(coords, dtype=np.float32)
-    # temp_colors = np.array(colors, dtype=np.float32)
-    # out_indexes = np.array(indexes, dtype=np.uint32)
-    # np.savetxt("indices.txt", out_indexes.reshape([out_indexes.shape[0]//3, 3]), fmt="%d")
-    # print(out_indexes.shape)
-    # out_normals = np.array(make_normals(temp_coords, out_indexes), dtype=np.float32)
-    # # out_coords = np.empty([out_indexes.shape[0], 3], dtype=np.float32)
-    # out_coords = []
-    # out_colors = []
-    # for i in out_indexes:
-    #     out_coords.append(temp_coords[i])
-    #     out_colors.append(temp_colors[i])
-    # out_coords = np.array(out_coords, dtype=np.float32)
-    # out_colors = np.array(out_colors, dtype=np.float32)
-    # print("len:")
-    # print(spline.shape, out_coords.shape, out_normals.shape, out_colors.shape, out_indexes.shape)
-    # return out_coords, out_normals, out_indexes, out_colors
 
 
 
 '''
+
+def make_normals(coords, indexes):
+    # normals = np.empty([indexes.shape[0], 3], dtype=np.float32)
+    normals = []
+    for i in range(0, indexes.shape[0], 3):
+        vec1 = coords[indexes[i+1]] - coords[indexes[i]]
+        vec2 = coords[indexes[i+2]] - coords[indexes[i+1]]
+        normal = np.cross(vec2, vec1)
+        normal /= np.linalg.norm(normal)
+        normals.append(normal)
+        normals.append(normal)
+        normals.append(normal)
+        # normals[indexes[i]][:] = normal
+        # normals[indexes[i+1]][:] = normal
+        # normals[indexes[i+2]][:] = normal
+    return normals
+
+def get_strand_vectors(p1, p2, p3):
+    com123 = (p1 + p2 + p3) / 3.0
+    com12 = (p1 - p2) / 2.0
+    com23 = (p2 - p3) / 2.0
+    vec1 = com123 - com12
+    vec1 /= np.linalg.norm(vec1)
+    vec2 = com123 - com23
+    vec2 /= np.linalg.norm(vec2)
+    up_vec = vec1 + vec2
+    up_vec /= np.linalg.norm(up_vec)
+    vec3 = p3 - p1
+    side_vec = np.cross(up_vec, vec3)
+    side_vec /= np.linalg.norm(side_vec)
+    return up_vec, side_vec
 
 # def calculate_secondary_structure(visObj):
 #     """
