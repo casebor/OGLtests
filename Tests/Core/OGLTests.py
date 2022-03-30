@@ -95,8 +95,9 @@ class MyGLProgram(Gtk.GLArea):
         self.start_time = time.perf_counter()
         self.ctrl = False
         self.shift = False
-        self.bckgrnd_color = np.array([0.0, 0.0, 0.0, 1.0],dtype=np.float32)
-        #self.bckgrnd_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
+        # self.bckgrnd_color = np.array([0.0, 0.0, 0.0, 1.0],dtype=np.float32)
+        self.bckgrnd_color = np.array([0.5, 0.5, 0.5, 1.0],dtype=np.float32)
+        # self.bckgrnd_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_position = np.array([-2.5, 2.5, 3.0],dtype=np.float32)
         self.light_color = np.array([1.0, 1.0, 1.0, 1.0],dtype=np.float32)
         self.light_ambient_coef = 0.4
@@ -520,6 +521,7 @@ class MyGLProgram(Gtk.GLArea):
                 self._draw_billboard()
         if self.simple:
             if self.simple_vao is None:
+                self.simple_new_data = None
                 self.simple_vao, self.simple_vbos, self.simple_elemns = vaos.make_simple(self.gl_program_simple)
                 self.queue_draw()
             else:
@@ -672,7 +674,20 @@ class MyGLProgram(Gtk.GLArea):
         self.load_matrices(self.gl_program_simple)
         self.load_lights(self.gl_program_simple)
         GL.glBindVertexArray(self.simple_vao)
+        if self.simple_new_data is not None:
+            snd = self.simple_new_data
+            GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, self.simple_vbos[0])
+            GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, snd["indexes"].nbytes, snd["indexes"], GL.GL_DYNAMIC_DRAW)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.simple_vbos[1])
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, snd["coords"].nbytes, snd["coords"], GL.GL_STATIC_DRAW)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.simple_vbos[2])
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, snd["colors"].nbytes, snd["colors"], GL.GL_STATIC_DRAW)
+            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.simple_vbos[3])
+            GL.glBufferData(GL.GL_ARRAY_BUFFER, snd["normals"].nbytes, snd["normals"], GL.GL_STATIC_DRAW)
+            self.simple_new_data = None
+        
         GL.glDrawElements(GL.GL_TRIANGLES, self.simple_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
@@ -796,6 +811,19 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_s(self):
         self.simple = not self.simple
+        self.queue_draw()
+    
+    def _pressed_f(self):
+        self.simple = not self.simple
+        from blender_obj_to_OGL import parse_obj
+        v, n, uv, i = parse_obj("fox.obj")
+        c = np.tile([0.8,0.5,0.0], v.shape[0]).astype(np.float32)
+        self.simple_new_data = {}
+        self.simple_new_data["indexes"] = i
+        self.simple_new_data["coords"] = v
+        self.simple_new_data["colors"] = c
+        self.simple_new_data["normals"] = n
+        self.simple_elemns = i.shape[0]
         self.queue_draw()
     
     def _pressed_Up(self):
