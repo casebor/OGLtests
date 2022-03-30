@@ -521,6 +521,7 @@ class MyGLProgram(Gtk.GLArea):
                 self._draw_billboard()
         if self.simple:
             if self.simple_vao is None:
+                self.simple_flag = False
                 self.simple_new_data = None
                 self.simple_vao, self.simple_vbos, self.simple_elemns = vaos.make_simple(self.gl_program_simple)
                 self.queue_draw()
@@ -674,7 +675,7 @@ class MyGLProgram(Gtk.GLArea):
         self.load_matrices(self.gl_program_simple)
         self.load_lights(self.gl_program_simple)
         GL.glBindVertexArray(self.simple_vao)
-        if self.simple_new_data is not None:
+        if self.simple_flag:
             snd = self.simple_new_data
             GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, self.simple_vbos[0])
             GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, snd["indexes"].nbytes, snd["indexes"], GL.GL_DYNAMIC_DRAW)
@@ -684,7 +685,7 @@ class MyGLProgram(Gtk.GLArea):
             GL.glBufferData(GL.GL_ARRAY_BUFFER, snd["colors"].nbytes, snd["colors"], GL.GL_STATIC_DRAW)
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.simple_vbos[3])
             GL.glBufferData(GL.GL_ARRAY_BUFFER, snd["normals"].nbytes, snd["normals"], GL.GL_STATIC_DRAW)
-            self.simple_new_data = None
+            self.simple_flag = False
         
         GL.glDrawElements(GL.GL_TRIANGLES, self.simple_elemns, GL.GL_UNSIGNED_INT, None)
         GL.glDisable(GL.GL_DEPTH_TEST)
@@ -824,6 +825,7 @@ class MyGLProgram(Gtk.GLArea):
         self.simple_new_data["colors"] = c
         self.simple_new_data["normals"] = n
         self.simple_elemns = i.shape[0]
+        self.simple_flag = True
         self.queue_draw()
     
     def _pressed_Up(self):

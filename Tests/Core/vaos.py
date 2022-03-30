@@ -1358,7 +1358,7 @@ def make_simple(program):
     GL.glBufferData(GL.GL_ARRAY_BUFFER, normals.nbytes, normals, GL.GL_STATIC_DRAW)
     gl_norms = GL.glGetAttribLocation(program, "vert_norm")
     GL.glEnableVertexAttribArray(gl_norms)
-    GL.glVertexAttribPointer(gl_norms, 1, GL.GL_FLOAT, GL.GL_FALSE, normals.itemsize, ctypes.c_void_p(0))
+    GL.glVertexAttribPointer(gl_norms, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*normals.itemsize, ctypes.c_void_p(0))
     
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_coords)

@@ -1438,31 +1438,29 @@ void main() {
 
 v_simple = """
 #version 330
-precision highp float;
 
 uniform mat4 model_mat;
 uniform mat4 view_mat;
 uniform mat4 proj_mat;
 
 in vec3 vert_coord;
-in vec3 vert_color;
 in vec3 vert_norm;
+in vec3 vert_color;
 
 out vec3 frag_coord;
 out vec3 frag_color;
 out vec3 frag_norm;
 
 void main() {
+    mat4 modelview = view_mat * model_mat;
+    gl_Position = proj_mat * modelview * vec4(vert_coord, 1.0);
+    frag_coord = vec3(modelview * vec4(vert_coord, 1.0));
     frag_color = vert_color;
     frag_norm = mat3(transpose(inverse(model_mat))) * vert_norm;
-    frag_coord = (view_mat * model_mat * vec4(vert_coord, 1.0)).xyz;
-    gl_Position = proj_mat * vec4(frag_coord, 1.0);
 }
 """
 f_simple = """
 #version 330
-#extension GL_EXT_frag_depth: enable
-precision highp float;
 
 struct Light {
     vec3 position;
@@ -1473,7 +1471,6 @@ struct Light {
     float shininess;
 };
 
-uniform mat4 proj_mat;
 uniform Light my_light;
 
 in vec3 frag_coord;
@@ -1502,7 +1499,6 @@ vec4 calculate_color(vec3 fnrm, vec3 fcrd, vec3 fcol){
 }
 
 void main() {
-    vec3 normal = normalize(frag_norm);
-    final_color = calculate_color(normal, frag_coord, frag_color);
+    final_color = calculate_color(frag_norm, frag_coord, frag_color);
 }
 """
