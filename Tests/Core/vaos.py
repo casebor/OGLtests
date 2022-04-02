@@ -1060,7 +1060,7 @@ def make_glumpy(program):
     return vao, (ind_vbo, coord_vbo, col_vbo, rad_vbo), indexes.shape[0]
 
 def make_cartoon(program):
-    import cartoon
+    import cartoon_b
     coords = np.empty([108, 3], dtype=np.float32)
     calphas = np.empty([27, 3], dtype=np.float32)
     with open("test_cartoon.pdb") as pdbin:
@@ -1078,7 +1078,7 @@ def make_cartoon(program):
                 (0,20,22), (2,22,26,np.array([[-0.32741186,-0.94466716, 0.02013549],
                                               [0.831728,0.5514877,0.06395128]], dtype=np.float32)), (0,26,27)]
     
-    coords, norms, indexes, colors = cartoon.cartoon(coords, calphas, ss_assigned=secstruc,
+    coords, norms, indexes, colors = cartoon_b.cartoon(coords, calphas, ss_assigned=secstruc,
         spline_detail=6, strand_rad=0.8, helix_rad=0.3, coil_rad=.2, spline_strength=.9)
     # indexes = np.arange(coords.shape[0], dtype=np.uint32)
     # ss = cartoon.calculate_secondary_structure(calphas)
