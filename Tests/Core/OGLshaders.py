@@ -1502,3 +1502,33 @@ void main() {
     final_color = calculate_color(frag_norm, frag_coord, frag_color);
 }
 """
+
+
+v_dots = """
+#version 330
+
+uniform mat4 model_mat;
+uniform mat4 view_mat;
+uniform mat4 proj_mat;
+
+in vec3 vert_coord;
+in vec3 vert_color;
+
+out vec3 frag_color;
+
+void main(){
+    frag_color = vert_color;
+    gl_Position = proj_mat * view_mat * model_mat * vec4(vert_coord, 1.0);
+}
+"""
+f_dots = """
+#version 330
+
+in vec3 frag_color;
+
+out vec4 final_color;
+
+void main(){
+    final_color = vec4(frag_color, 1.0);
+}
+"""

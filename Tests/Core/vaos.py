@@ -1366,3 +1366,56 @@ def make_simple(program):
     GL.glDisableVertexAttribArray(gl_norms)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vao, (ind_vbo, coord_vbo, col_vbo, norm_vbo), indexes.shape[0]
+
+def make_ribbon(program):
+    import cartoon_b
+    calphas = np.array([[ 7.565, 1.393,-3.330],[ 5.905, 4.313,-1.470],[ 3.905, 3.338, 1.657],
+                        [ 1.472, 6.312, 1.565],[ 0.839, 5.844,-2.192],[ 0.727, 2.024,-1.853],
+                        [-1.685, 2.311, 1.122],[-3.948, 4.672,-0.892],[-4.162, 2.074,-3.715],
+                        [-5.005,-0.679,-1.180],[-7.378, 1.658, 0.729],[-9.450, 2.165,-2.471],
+                        [-9.829,-1.650,-2.627],[-10.50,-1.769, 1.154],[-7.272,-3.432, 2.410],
+                        [-3.968,-2.547, 4.132],[-1.080,-1.652, 1.768],[ 2.411,-3.047, 2.493],
+                        [ 5.501,-2.266, 0.369],[ 7.915,-5.193,-0.169],[11.235,-3.905,-1.592],
+                        [ 9.890,-1.961,-4.606],[ 6.470,-3.689,-5.031],[ 3.119,-2.524,-3.570],
+                        [ 0.715,-5.246,-2.334],[-2.541,-5.227,-0.302],[-3.079,-7.540, 2.715]], dtype=np.float32)
+    sd = 5
+    coords, rib_inds = cartoon_b.ribbon(calphas, spline_detail=sd)
+    rib_cols = cartoon_b.get_rainbow_colors(calphas.shape[0])
+    colors = np.empty(coords.shape, dtype=np.float32)
+    pos = 0
+    for i, ri in enumerate(rib_inds):
+        colors[pos:pos+len(ri),:] = np.tile(rib_cols[i], len(ri)).reshape(len(ri), 3)
+        pos += len(ri)
+    indexes = np.arange(coords.shape[0], dtype=np.uint32)
+    # indexes = []
+    # for i in range(coords.shape[0]-1):
+    #     indexes.append(i)
+    #     indexes.append(i+1)
+    # indexes = np.array(indexes, dtype=np.uint32)
+    
+    vao = GL.glGenVertexArrays(1)
+    GL.glBindVertexArray(vao)
+    
+    ind_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.nbytes, indexes, GL.GL_DYNAMIC_DRAW)
+    
+    coord_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.nbytes, coords, GL.GL_STATIC_DRAW)
+    gl_coords = GL.glGetAttribLocation(program, "vert_coord")
+    GL.glEnableVertexAttribArray(gl_coords)
+    GL.glVertexAttribPointer(gl_coords, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
+    
+    col_vbo = GL.glGenBuffers(1)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.nbytes, colors, GL.GL_STATIC_DRAW)
+    gl_colors = GL.glGetAttribLocation(program, "vert_color")
+    GL.glEnableVertexAttribArray(gl_colors)
+    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
+    
+    GL.glBindVertexArray(0)
+    GL.glDisableVertexAttribArray(gl_coords)
+    GL.glDisableVertexAttribArray(gl_colors)
+    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+    return vao, (ind_vbo, coord_vbo, col_vbo), indexes.shape[0]

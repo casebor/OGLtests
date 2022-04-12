@@ -175,10 +175,10 @@ cpdef tuple get_strand(orig_spline, spline_detail, strand_ups, strand_rad=0.5, c
         bv /= np.linalg.norm(bv)
         sv = np.cross(bv, uv)
         sv /= np.linalg.norm(sv)
-        coords[i*6]   = spline[i] + sv * strand_rad
+        coords[i*6]   = spline[i] + sv * strand_rad * 0.755
         coords[i*6+1] = spline[i] + sv * strand_rad * 0.75 - uv * strand_rad * .25
         coords[i*6+2] = spline[i] - sv * strand_rad * 0.75 - uv * strand_rad * .25
-        coords[i*6+3] = spline[i] - sv * strand_rad
+        coords[i*6+3] = spline[i] - sv * strand_rad * 0.755
         coords[i*6+4] = spline[i] - sv * strand_rad * 0.75 + uv * strand_rad * .25
         coords[i*6+5] = spline[i] + sv * strand_rad * 0.75 + uv * strand_rad * .25
         # We make a similar treatment to the normals as for the helix case,
@@ -211,10 +211,10 @@ cpdef tuple get_strand(orig_spline, spline_detail, strand_ups, strand_rad=0.5, c
             bv /= np.linalg.norm(bv)
         sv = np.cross(bv, uv)
         sv /= np.linalg.norm(sv)
-        coords[i*6]   = spline[i] + sv * r
+        coords[i*6]   = spline[i] + sv * r * 0.755
         coords[i*6+1] = spline[i] + sv * r * 0.75 - uv * strand_rad * .25
         coords[i*6+2] = spline[i] - sv * r * 0.75 - uv * strand_rad * .25
-        coords[i*6+3] = spline[i] - sv * r
+        coords[i*6+3] = spline[i] - sv * r * 0.755
         coords[i*6+4] = spline[i] - sv * r * 0.75 + uv * strand_rad * .25
         coords[i*6+5] = spline[i] + sv * r * 0.75 + uv * strand_rad * .25
         # Now the normals
@@ -441,6 +441,11 @@ cpdef cartoon(float[:,:] bbone, float[:,:] calphas, list ss_assigned=None, int s
     print("lengths:")
     print(spline.shape, out_coords.shape, out_normals.shape, out_colors.shape, out_indexes.shape)
     return out_coords, out_normals, out_indexes, out_colors
+
+cpdef ribbon(float[:,:] calphas, int spline_detail=3, float spline_strength=0.9):
+    spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], spline_detail, strength=spline_strength)
+    return np.array(spline, dtype=np.float32)
+
 
 
 

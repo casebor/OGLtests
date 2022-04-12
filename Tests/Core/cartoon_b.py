@@ -23,7 +23,7 @@ def cubic_hermite_interpolate(p_k1, tan_k1, p_k2, tan_k2, t):
 
 def catmull_rom_spline(points, num_points, subdivs, strength=0.6, circular=False):
     # When I programmed this function, only God and me knew about its internal
-    # structure. Now only God knows about it (-_-')
+    # structure. Now only God knows (-_-')
     if circular:
         out_len = num_points * subdivs
     else:
@@ -168,10 +168,10 @@ def get_strand(orig_spline, spline_detail, strand_ups, strand_rad=0.5, color=Non
         bv /= np.linalg.norm(bv)
         sv = np.cross(bv, uv)
         sv /= np.linalg.norm(sv)
-        coords[i*6]   = spline[i] + sv * strand_rad
+        coords[i*6]   = spline[i] + sv * strand_rad * 0.755
         coords[i*6+1] = spline[i] + sv * strand_rad * 0.75 - uv * strand_rad * .25
         coords[i*6+2] = spline[i] - sv * strand_rad * 0.75 - uv * strand_rad * .25
-        coords[i*6+3] = spline[i] - sv * strand_rad
+        coords[i*6+3] = spline[i] - sv * strand_rad * 0.755
         coords[i*6+4] = spline[i] - sv * strand_rad * 0.75 + uv * strand_rad * .25
         coords[i*6+5] = spline[i] + sv * strand_rad * 0.75 + uv * strand_rad * .25
         # We make a similar treatment to the normals as for the helix case,
@@ -204,10 +204,10 @@ def get_strand(orig_spline, spline_detail, strand_ups, strand_rad=0.5, color=Non
             bv /= np.linalg.norm(bv)
         sv = np.cross(bv, uv)
         sv /= np.linalg.norm(sv)
-        coords[i*6]   = spline[i] + sv * r
+        coords[i*6]   = spline[i] + sv * r * 0.755
         coords[i*6+1] = spline[i] + sv * r * 0.75 - uv * strand_rad * .25
         coords[i*6+2] = spline[i] - sv * r * 0.75 - uv * strand_rad * .25
-        coords[i*6+3] = spline[i] - sv * r
+        coords[i*6+3] = spline[i] - sv * r * 0.755
         coords[i*6+4] = spline[i] - sv * r * 0.75 + uv * strand_rad * .25
         coords[i*6+5] = spline[i] + sv * r * 0.75 + uv * strand_rad * .25
         # Now the normals
@@ -434,6 +434,58 @@ def cartoon(bbone, calphas, ss_assigned=None, spline_detail=3,
     print("lengths:")
     print(spline.shape, out_coords.shape, out_normals.shape, out_colors.shape, out_indexes.shape)
     return out_coords, out_normals, out_indexes, out_colors
+
+def ribbon(calphas, spline_detail=3, spline_strength=0.9):
+    spline_detail = int(spline_detail)
+    spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], spline_detail, strength=spline_strength)
+    i = 0
+    if spline_detail%2 != 0:
+        lim = (spline_detail+1)//2
+    else:
+        lim = spline_detail//2
+    indexes = []
+    indexes.append(np.arange(i, lim, dtype=np.uint32))
+    i = lim
+    lim += spline_detail
+    while lim < spline.shape[0]:
+        indexes.append(np.arange(i, lim, dtype=np.uint32))
+        i = lim
+        lim += spline_detail
+    indexes.append(np.arange(i, spline.shape[0], dtype=np.uint32))
+    return spline, indexes
+
+def get_colors(num_points, inverted=False):
+    if inverted:
+        hex_colors = np.linspace(16711680, 255, num_points, dtype=np.uint32)
+    else:
+        hex_colors = np.linspace(255, 16711680, num_points, dtype=np.uint32)
+    hex_colors = ["{:0>6}".format(hex(c)[2:]) for c in hex_colors]
+    colors = np.empty([num_points, 3], dtype=np.float32)
+    for i, col in enumerate(hex_colors):
+        colors[i,] = int(col[0:2], 16), int(col[2:4], 16), int(col[4:6], 16)
+    return colors/255.0
+
+def get_rainbow_colors(num_points):
+    quarter = num_points/4.0
+    color_step = 4.0/num_points
+    red = 0.0
+    green = 0.0
+    blue = 1.0
+    colors = np.zeros([num_points, 3], dtype=np.float32)
+    for i in range(num_points):
+        if i <= quarter:
+            colors[i,:] = red, green, blue
+            green += color_step
+        elif (i >= quarter) and (i <= 2*quarter):
+            colors[i,:] = red, green, blue
+            blue -= color_step
+        elif (i >= 2*quarter) and (i <= 3*quarter):
+            colors[i,:] = red, green, blue
+            red += color_step
+        elif (i >= 3*quarter) and (i <= 4*quarter):
+            colors[i,:] = red, green, blue
+            green -= color_step
+    return colors
 
 
 

@@ -32,6 +32,7 @@ import time
 import matrix_operations as mop
 from glstuff import GLCamera
 from glstuff import VismolFont
+from glstuff import GLAxis
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -104,6 +105,7 @@ class MyGLProgram(Gtk.GLArea):
         self.light_shininess = 5.5
         self.light_intensity = np.array([0.6, 0.6, 0.6],dtype=np.float32)
         self.light_specular_color = np.array([1.0, 1.0, 1.0],dtype=np.float32)
+        self.axis = GLAxis()
         # Here are the test programs and flags
         self.gl_program_impostor_sph = None
         self.impostor_sph_vao = None
@@ -131,7 +133,7 @@ class MyGLProgram(Gtk.GLArea):
         # Here are the test programs and flags
         self.gl_program_text = None
         self.text = False
-        self.vm_font = VismolFont(font_name="Arial", color=[0,1,1])
+        self.vm_font = VismolFont(font_name="ComicSans", color=[0,1,1])
         # Here are the test programs and flags
         self.gl_program_cartoon = None
         self.cartoon_vao = None
@@ -162,6 +164,12 @@ class MyGLProgram(Gtk.GLArea):
         self.simple_vbos = None
         self.simple_elemns = None
         self.simple = False
+        # Here are the test programs and flags
+        self.gl_program_ribbon = None
+        self.ribbon_vao = None
+        self.ribbon_vbos = None
+        self.ribbon_elemns = None
+        self.ribbon = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -294,6 +302,23 @@ class MyGLProgram(Gtk.GLArea):
         else:
             rot_mat = mop.my_glRotatef(np.identity(4), angle, np.array([-dy, -dx, 0.0]))
         self.model_mat = mop.my_glMultiplyMatricesf(self.model_mat, rot_mat)
+        # Axis operations, this code only affects the gizmo axis
+        self.axis.model_mat = mop.my_glTranslatef(self.axis.model_mat, -self.axis.zrp)
+        if self.ctrl:
+            if abs(dx) >= abs(dy):
+                if (y - self.height / 2.0) < 0:
+                    self.axis.model_mat = mop.my_glRotatef(self.axis.model_mat, angle, np.array([0.0, 0.0, dx]))
+                else:
+                    self.axis.model_mat = mop.my_glRotatef(self.axis.model_mat, angle, np.array([0.0, 0.0, -dx]))
+            else:
+                if (x - self.width / 2.0) < 0:
+                    self.axis.model_mat = mop.my_glRotatef(self.axis.model_mat, angle, np.array([0.0, 0.0, -dy]))
+                else:
+                    self.axis.model_mat = mop.my_glRotatef(self.axis.model_mat, angle, np.array([0.0, 0.0, dy]))
+        else:
+            self.axis.model_mat = mop.my_glRotatef(self.axis.model_mat, angle, np.array([dy, dx, 0.0]))
+        self.axis.model_mat = mop.my_glTranslatef(self.axis.model_mat, self.axis.zrp)
+        # Axis operations, this code only affects the gizmo axis
         return True
     
     def _pan_view(self, x, y):
@@ -356,6 +381,7 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_instances = self.load_shaders(sh.v_instances, sh.f_instances)
         self.gl_program_billboard = self.load_shaders(sh.v_billboard, sh.f_billboard, sh.g_billboard)
         self.gl_program_simple = self.load_shaders(sh.v_simple, sh.f_simple)
+        self.gl_program_ribbon = self.load_shaders(sh.v_dots, sh.f_dots)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -456,8 +482,11 @@ class MyGLProgram(Gtk.GLArea):
         if self.gl_programs:
             self.create_gl_programs()
             self.gl_programs = False
+            self.axis.initialize_gl()
         GL.glClearColor(self.bckgrnd_color[0], self.bckgrnd_color[1], self.bckgrnd_color[2], self.bckgrnd_color[3])
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+        self.axis._draw(True)
+        self.axis._draw(False)
         if self.impostor_sph:
             if self.impostor_sph_vao is None:
                 self.impostor_sph_vao, self.impostor_sph_vbos, self.impostor_sph_elemns = vaos.make_impostor_sph(self.gl_program_impostor_sph)
@@ -527,6 +556,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_simple()
+        if self.ribbon:
+            if self.ribbon_vao is None:
+                self.ribbon_vao, self.ribbon_vbos, self.ribbon_elemns = vaos.make_ribbon(self.gl_program_ribbon)
+                self.queue_draw()
+            else:
+                self._draw_ribbon()
     
     def _draw_impostor_sph(self):
         """ Function doc """
@@ -692,6 +727,21 @@ class MyGLProgram(Gtk.GLArea):
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
     
+    def _draw_ribbon(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        # GL.glEnable(GL.GL_LINE_SMOOTH)
+        GL.glHint(GL.GL_LINE_SMOOTH_HINT, GL.GL_NICEST)
+        GL.glLineWidth(10)
+        GL.glUseProgram(self.gl_program_ribbon)
+        self.load_matrices(self.gl_program_ribbon)
+        GL.glBindVertexArray(self.ribbon_vao)
+        GL.glDrawElements(GL.GL_LINE_STRIP, self.ribbon_elemns, GL.GL_UNSIGNED_INT, None)
+        GL.glLineWidth(1)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
     def edit_draw(self, event):
         """ Function doc """
         #self.glcamera.get_position() = self.get_cam_pos()
@@ -826,6 +876,10 @@ class MyGLProgram(Gtk.GLArea):
         self.simple_new_data["normals"] = n
         self.simple_elemns = i.shape[0]
         self.simple_flag = True
+        self.queue_draw()
+    
+    def _pressed_r(self):
+        self.ribbon = not self.ribbon
         self.queue_draw()
     
     def _pressed_Up(self):
