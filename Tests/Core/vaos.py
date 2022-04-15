@@ -1059,24 +1059,35 @@ def make_glumpy(program):
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
     return vao, (ind_vbo, coord_vbo, col_vbo, rad_vbo), indexes.shape[0]
 
-def make_cartoon(program):
-    import cartoon_b
-    coords = np.empty([108, 3], dtype=np.float32)
-    calphas = np.empty([27, 3], dtype=np.float32)
-    with open("test_cartoon.pdb") as pdbin:
-        i = 0
-        j = 0
+def _get_backbone(pdbfile):
+    with open(pdbfile, "r") as pdbin:
+        coords = []
         for line in pdbin:
             x, y, z = float(line[30:38]), float(line[38:46]), float(line[46:54])
-            coords[i,:] = x, y, z
-            i += 1
+            coords.append([x, y, z])
+    return np.array(coords, dtype=np.float32)
+
+def make_cartoon(program):
+    import cartoon_b
+    coords = []
+    calphas = []
+    with open("test_inha.pdb") as pdbin:
+        for line in pdbin:
+            x, y, z = float(line[30:38]), float(line[38:46]), float(line[46:54])
+            coords.append([x, y, z])
             if " CA " in line:
-                calphas[j,:] = x, y, z
-                j += 1
-    secstruc = [(0,0,2), (1,2,13), (0,13,16), (2,16,20,np.array([[ 0.38114753, 0.544680, -0.7470276],
-                                                                 [-0.01111542, 0.848985, -0.5283006]], dtype=np.float32)),
-                (0,20,22), (2,22,26,np.array([[-0.32741186,-0.94466716, 0.02013549],
-                                              [0.831728,0.5514877,0.06395128]], dtype=np.float32)), (0,26,27)]
+                calphas.append([x, y, z])
+    coords = np.array(coords, dtype=np.float32)
+    calphas = np.array(calphas,dtype=np.float32)
+    ss_seq = cartoon_b.calculate_ss(coords)
+    secstruc_i = cartoon_b.get_secstruct_indexes(ss_seq)
+    print(secstruc_i)
+    secstruc = cartoon_b.get_secstruct_vectors(coords, secstruc_i)
+    print(secstruc)
+    # secstruc = [(0,0,2), (1,2,13), (0,13,16), (2,16,20,np.array([[ 0.38114753, 0.544680, -0.7470276],
+    #                                                              [-0.01111542, 0.848985, -0.5283006]], dtype=np.float32)),
+    #             (0,20,22), (2,22,26,np.array([[-0.32741186,-0.94466716, 0.02013549],
+    #                                           [0.831728,0.5514877,0.06395128]], dtype=np.float32)), (0,26,27)]
     
     coords, norms, indexes, colors = cartoon_b.cartoon(coords, calphas, ss_assigned=secstruc,
         spline_detail=6, strand_rad=0.8, helix_rad=0.3, coil_rad=.2, spline_strength=.9)

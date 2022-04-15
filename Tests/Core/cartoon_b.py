@@ -487,6 +487,198 @@ def get_rainbow_colors(num_points):
             green -= color_step
     return colors
 
+def calculate_ss(bbone):
+    def _dihedral(p0, p1, p2, p3):
+        # Adapted from https://stackoverflow.com/questions/20305272/dihedral-torsion-angle-from-four-points-in-cartesian-coordinates-in-python
+        b0 = -1.0*(p1 - p0)
+        b1 = p2 - p1
+        b2 = p3 - p2
+        # normalize b1 so that it does not influence magnitude of vector
+        # rejections that come next
+        b1 /= np.linalg.norm(b1)
+        # vector rejections
+        # v = projection of b0 onto plane perpendicular to b1
+        #   = b0 minus component that aligns with b1
+        # w = projection of b2 onto plane perpendicular to b1
+        #   = b2 minus component that aligns with b1
+        v = b0 - np.dot(b0, b1)*b1
+        w = b2 - np.dot(b2, b1)*b1
+        # angle between v and w in a plane is the torsion angle
+        # v and w may not be normalized but that's fine since tan is y/x
+        x = np.dot(v, w)
+        y = np.dot(np.cross(b1, v), w)
+        return np.degrees(np.arctan2(y, x))
+    
+    def _get_phi(co0, n1, ca1, co1):
+        return _dihedral(co0, n1, ca1, co1)
+    
+    def _get_psi(n1, ca1, co1, n2):
+        return _dihedral(n1, ca1, co1, n2)
+    
+    def _get_omega(ca0, co0, n1, ca1):
+        return _dihedral(ca0, co0, n1, ca1)
+    
+    def _get_ss_code(phi, psi, omega):
+        ss_grid = {( 180,-165):"Aa", ( 180,-135):"Ab", ( 180,-105):"Ac",
+                   ( 180, -75):"Ad", ( 180, -45):"Ae", ( 180, -15):"Af",
+                   ( 180,  15):"Ag", ( 180,  45):"Ah", ( 180,  75):"Ai",
+                   ( 180, 105):"Aj", ( 180, 135):"Ak", ( 180, 165):"Al",
+                   (-150,-165):"Ba", (-150,-135):"Bb", (-150,-105):"Bc",
+                   (-150, -75):"Bd", (-150, -45):"Be", (-150, -15):"Bf",
+                   (-150,  15):"Bg", (-150,  45):"Bh", (-150,  75):"Bi",
+                   (-150, 105):"Bj", (-150, 135):"Bk", (-150, 165):"Bl",
+                   (-120,-165):"Ca", (-120,-135):"Cb", (-120,-105):"Cc",
+                   (-120, -75):"Cd", (-120, -45):"Ce", (-120, -15):"Cf",
+                   (-120,  15):"Cg", (-120,  45):"Ch", (-120,  75):"Ci",
+                   (-120, 105):"Cj", (-120, 135):"Ck", (-120, 165):"Cl",
+                   ( -90,-165):"Da", ( -90,-135):"Db", ( -90,-105):"Dc",
+                   ( -90, -75):"Dd", ( -90, -45):"De", ( -90, -15):"Df",
+                   ( -90,  15):"Dg", ( -90,  45):"Dh", ( -90,  75):"Di",
+                   ( -90, 105):"Dj", ( -90, 135):"Dk", ( -90, 165):"Dl",
+                   ( -60,-165):"Ea", ( -60,-135):"Eb", ( -60,-105):"Ec",
+                   ( -60, -75):"Ed", ( -60, -45):"Ee", ( -60, -15):"Ef",
+                   ( -60,  15):"Eg", ( -60,  45):"Eh", ( -60,  75):"Ei",
+                   ( -60, 105):"Ej", ( -60, 135):"Ek", ( -60, 165):"El",
+                   ( -30,-165):"Fa", ( -30,-135):"Fb", ( -30,-105):"Fc",
+                   ( -30, -75):"Fd", ( -30, -45):"Fe", ( -30, -15):"Ff",
+                   ( -30,  15):"Fg", ( -30,  45):"Fh", ( -30,  75):"Fi",
+                   ( -30, 105):"Fj", ( -30, 135):"Fk", ( -30, 165):"Fl",
+                   (   0,-165):"Ja", (   0,-135):"Jb", (   0,-105):"Jc",
+                   (   0, -75):"Jd", (   0, -45):"Je", (   0, -15):"Jf",
+                   (   0,  15):"Jg", (   0,  45):"Jh", (   0,  75):"Ji",
+                   (   0, 105):"Jj", (   0, 135):"Jk", (   0, 165):"Jl",
+                   (  30,-165):"Ha", (  30,-135):"Hb", (  30,-105):"Hc",
+                   (  30, -75):"Hd", (  30, -45):"He", (  30, -15):"Hf",
+                   (  30,  15):"Hg", (  30,  45):"Hh", (  30,  75):"Hi",
+                   (  30, 105):"Hj", (  30, 135):"Hk", (  30, 165):"Hl",
+                   (  60,-165):"Ia", (  60,-135):"Ib", (  60,-105):"Ic",
+                   (  60, -75):"Id", (  60, -45):"Ie", (  60, -15):"If",
+                   (  60,  15):"Ig", (  60,  45):"Ih", (  60,  75):"Ii",
+                   (  60, 105):"Ij", (  60, 135):"Ik", (  60, 165):"Il",
+                   (  90,-165):"Ja", (  90,-135):"Jb", (  90,-105):"Jc",
+                   (  90, -75):"Jd", (  90, -45):"Je", (  90, -15):"Jf",
+                   (  90,  15):"Jg", (  90,  45):"Jh", (  90,  75):"Ji",
+                   (  90, 105):"Jj", (  90, 135):"Jk", (  90, 165):"Jl",
+                   ( 120,-165):"Ka", ( 120,-135):"Kb", ( 120,-105):"Kc",
+                   ( 120, -75):"Kd", ( 120, -45):"Ke", ( 120, -15):"Kf",
+                   ( 120,  15):"Kg", ( 120,  45):"Kh", ( 120,  75):"Ki",
+                   ( 120, 105):"Kj", ( 120, 135):"Kk", ( 120, 165):"Kl",
+                   ( 150,-165):"La", ( 150,-135):"Lb", ( 150,-105):"Lc",
+                   ( 150, -75):"Ld", ( 150, -45):"Le", ( 150, -15):"Lf",
+                   ( 150,  15):"Lg", ( 150,  45):"Lh", ( 150,  75):"Li",
+                   ( 150, 105):"Lj", ( 150, 135):"Lk", ( 150, 165):"Ll"}
+        if (abs(omega) <= 90.0):
+            return "**"
+        elif phi>180.0 or psi>180.0 or omega>180.0:
+            return "??"
+        ir1 = int(round(phi/30)) * 30
+        ir2 = -15 + int(round((psi+15)/30)) * 30
+        while ir1 <= -180: ir1 += 360
+        while ir1 >   180: ir1 -= 360
+        while ir2 <= -180: ir2 += 360
+        while ir2 >   180: ir2 -= 360
+        return ss_grid[(int(ir1), int(ir2))]
+    
+    pii = {"Dk", "Dl", "Ek", "El"}
+    helix = {"De", "Df", "Ed", "Ee", "Ef", "Fd", "Fe"}
+    strand = {"Bj", "Bk", "Bl", "Cj", "Ck", "Cl", "Dj", "Dk", "Dl"}
+    turn = {"EfDf","EeEf","EfEf","EfDg","EeDg","EeEe","EfCg","EeDf",
+            "EkJf","EkIg","EfEe","EkJg","EeCg","DfDf","EfCf","DgDf",
+            "DfDg","IhIg","EfDe","EkIh","DgCg","DfCg","IbDg","DfEe",
+            "FeEf","IbEf","DfEf","IhJf","IhJg","IgIg","EfCh","DgEe",
+            "DgEf","EeEg","IhIh","EeDe","IgJg","EkKf","EeCh","IbDf",
+            "DgDg","EgDf","FeDg","ElIg","IgIh","DfDe","EjIg","EeCf",
+            "DfCh","DgCf","DfCf","DeEe","DkIh","FeDf","EkIf","EeDh",
+            "DgCh","IgJf","EjJg","FeEe","DlIh","EgCg","ElIh","EjJf",
+            "FeCg","DlIg","IbCg","EfEg","EkJe","FkJf","ElJg","DgDe",
+            "DlJg","EgCf","IaEf","FkIg","JaEf","EjIh","EgEf","DkJg",
+            "DeEf","EeCi","JgIh","IcEf","EkKe","DkIg","IbEe","EgDg",
+            "EeFe","EjKf","IaDf","HhIg","HbDg","ElJf","EfDh","IcDf",
+            "EfBh","IcDg","IcCg","FkJg","FeCh","IgKf","FdDg","EkHh",
+            "DfDh","DgBh","DfBh","DeDf","DfFe","EfFe","EgEe","EgDe",
+            "DkJf","JgJg","IbEg","IbCh","EfBg","DgCe","JlEf","CgCg",
+            "HhJf","EeBi","DfBi","IhIf","FeEg","FdEf","EdEf","DlJf",
+            "DhCg","JgIg","IeBg","FjIg","FdCh","EdEe","JfIh","JaEe",
+            "HhJg","HbEf","HbCh","FkIh","FjJf","ElJe","DhDf","CgDf"}
+    
+    ss_out = "C"
+    res_qtty = len(bbone)
+    for i in range(4, res_qtty-4, 4):
+        phi = _get_phi(bbone[i-2], bbone[i], bbone[i+1], bbone[i+2])
+        psi = _get_psi(bbone[i], bbone[i+1], bbone[i+2], bbone[i+4])
+        omega = _get_omega(bbone[i-3], bbone[i-2], bbone[i], bbone[i+1])
+        ss_code = _get_ss_code(phi, psi, omega)
+        if ss_code == "**":
+            ss_out += "."
+        elif ss_code == "??":
+            ss_out += "C"
+        elif ss_code in helix:
+            ss_out += "H"
+        elif ss_code in strand:
+            ss_out += "S"
+        else:
+            ss_out += "C"
+    ss_out += "C"
+    # print(ss_out, len(ss_out))
+    ss_out = ss_out.replace("H.H", "HHH")
+    ss_out = ss_out.replace("S.S", "SSS")
+    ss_out = ss_out.replace(".H", "HH")
+    ss_out = ss_out.replace("H.", "HH")
+    ss_out = ss_out.replace(".S", "SS")
+    ss_out = ss_out.replace("S.", "SS")
+    for i in range(2):
+        ss_out = ss_out.replace("CHC", "CCC")
+        ss_out = ss_out.replace("CSC", "CCC")
+        ss_out = ss_out.replace("HCH", "HHH")
+        ss_out = ss_out.replace("HSH", "HHH")
+        ss_out = ss_out.replace("SCS", "SSS")
+        ss_out = ss_out.replace("SHS", "SSS")
+        ss_out = ss_out.replace("CSH", "CCH")
+        ss_out = ss_out.replace("CHS", "CCS")
+        ss_out = ss_out.replace("HSC", "HCC")
+        ss_out = ss_out.replace("SHC", "SCC")
+        ss_out = ss_out.replace("CHHC", "CCCC")
+        ss_out = ss_out.replace("CSSC", "CCCC")
+        ss_out = ss_out.replace("CHHHC", "CCCCC")
+    # print(ss_out, len(ss_out))
+    return ss_out
+
+def get_secstruct_indexes(ss_seq):
+    secstruct = []
+    active_ss = ss_seq[0]
+    active_i = 0
+    ss_codes = {"C":0, "H":1, "S": 2}
+    i = 1
+    while i < len(ss_seq):
+        if ss_seq[i] != active_ss:
+            secstruct.append((ss_codes[active_ss], active_i, i))
+            active_ss = ss_seq[i]
+            active_i = i
+        i += 1
+    secstruct.append((ss_codes[active_ss], active_i, i))
+    return secstruct
+
+def get_secstruct_vectors(coords, ss_i):
+    secstruct = []
+    for ss in ss_i:
+        if ss[0] == 2:
+            norms = np.empty([2,3], dtype=np.float32)
+            v_a1 = coords[ss[1]*4+1] - coords[ss[1]*4+2]
+            v_a2 = coords[ss[1]*4+3] - coords[ss[1]*4+2]
+            n_a = np.cross(v_a1, v_a2)
+            n_a /= np.linalg.norm(n_a)
+            norms[0] = n_a
+            v_b1 = coords[(ss[2]-1)*4+1] - coords[(ss[2]-1)*4+2]
+            v_b2 = coords[(ss[2]-1)*4+3] - coords[(ss[2]-1)*4+2]
+            n_b = np.cross(v_b1, v_b2)
+            n_b /= np.linalg.norm(n_b)
+            if (ss[2] - ss[1]) % 2 != 0:
+                n_b *= -1
+            norms[1] = n_b
+            secstruct.append((ss[0], ss[1], ss[2], norms))
+        else:
+            secstruct.append(ss)
+    return secstruct
 
 
 '''
