@@ -221,6 +221,11 @@ class MyGLProgram(Gtk.GLArea):
         self.test_vbos = None
         self.test_elemns = None
         self.test = False
+        self.gl_program_capsules = None
+        self.capsules_vao = None
+        self.capsules_vbos = None
+        self.capsules_elemns = None
+        self.capsules = False
     
     def reshape_window(self, widget, width, height):
         """ Function doc """
@@ -264,7 +269,8 @@ class MyGLProgram(Gtk.GLArea):
         self.gl_program_lines_1 = self.load_shaders(sh.v_shader_lines_1, sh.f_shader_lines_1, sh.g_shader_lines_2)
         self.gl_program_triangles = self.load_shaders(sh.v_shader_triangles, sh.f_shader_triangles)
         self.gl_program_impostor = self.load_shaders(sh.v_shader_impostor, sh.f_shader_impostor, sh.g_shader_impostor)
-        self.gl_program_test = self.load_shaders(sh.v_shader_test, sh.f_shader_test)
+        self.gl_program_test = self.load_shaders(sh.v_shader_test, sh.f_shader_test, sh.g_shader_test)
+        self.gl_program_capsules = self.load_shaders(sh.v_shader_capsules, sh.f_shader_capsules, sh.g_shader_capsules)
     
     def load_shaders(self, vertex, fragment, geometry=None):
         """ Here the shaders are loaded and compiled to an OpenGL program. By default
@@ -319,6 +325,8 @@ class MyGLProgram(Gtk.GLArea):
         """ Function doc """
         model = GL.glGetUniformLocation(program, 'u_resolution')
         GL.glUniform2fv(model, 1, np.array([self.width, self.height], dtype=np.float32))
+        u_campos = GL.glGetUniformLocation(program, 'u_campos')
+        GL.glUniform3fv(u_campos, 1, self.get_cam_pos())
     
     def load_impostor_params(self, program):
         """ Function doc """
@@ -538,6 +546,12 @@ class MyGLProgram(Gtk.GLArea):
                 self.queue_draw()
             else:
                 self._draw_test()
+        if self.capsules:
+            if self.capsules_vao is None:
+                self.capsules_vao, self.capsules_vbos, self.capsules_elemns = vaos.make_capsules(self.gl_program_capsules)
+                self.queue_draw()
+            else:
+                self._draw_capsules()
     
     def _draw_dots(self):
         """ Function doc """
@@ -824,12 +838,25 @@ class MyGLProgram(Gtk.GLArea):
         """ Function doc """
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glUseProgram(self.gl_program_test)
-        GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        # GL.glEnable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
         self.load_matrices(self.gl_program_test)
         self.load_test_data(self.gl_program_test)
         GL.glBindVertexArray(self.test_vao)
         GL.glDrawArrays(GL.GL_POINTS, 0, self.test_elemns)
-        GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        # GL.glDisable(GL.GL_VERTEX_PROGRAM_POINT_SIZE)
+        GL.glDisable(GL.GL_DEPTH_TEST)
+        GL.glBindVertexArray(0)
+        GL.glUseProgram(0)
+    
+    def _draw_capsules(self):
+        """ Function doc """
+        GL.glEnable(GL.GL_DEPTH_TEST)
+        # GL.glLineWidth(10)
+        GL.glUseProgram(self.gl_program_capsules)
+        self.load_matrices(self.gl_program_capsules)
+        GL.glBindVertexArray(self.capsules_vao)
+        GL.glDrawElements(GL.GL_LINES, self.capsules_elemns, GL.GL_UNSIGNED_INT, None)
+        # GL.glLineWidth(1)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)
         GL.glUseProgram(0)
@@ -1183,6 +1210,10 @@ class MyGLProgram(Gtk.GLArea):
     
     def _pressed_1(self):
         self.impostor = not self.impostor
+        self.queue_draw()
+    
+    def _pressed_2(self):
+        self.capsules = not self.capsules
         self.queue_draw()
     
 

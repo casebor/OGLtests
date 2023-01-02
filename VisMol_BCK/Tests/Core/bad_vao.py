@@ -28,134 +28,41 @@ import sphere_data as sphd
 
 from OpenGL import GL
 
-def cubic_hermite_interpolate(p_k1, tan_k1, p_k2, tan_k2, t):
-    p = np.zeros(3, dtype=np.float32)
-    tt = t * t
-    tmt_t = 3.0 - 2.0 * t
-    h01 = tt * tmt_t
-    h00 = 1.0 - h01
-    h10 = tt * (t - 2.0) + t
-    h11 = tt * (t - 1.0)
-    p[:] = p_k1[:]
-    p*= h00
-    p += tan_k1 * h10
-    p += p_k2 * h01
-    p += tan_k2 * h11
-    return p
-
-def catmull_rom_spline(points, num_points, subdivs, strength=0.5, circular=False):
-    if circular:
-        out_len = num_points * subdivs
-    else:
-        out_len = (num_points - 1) * subdivs + 1
-    out = np.zeros([out_len, 3], dtype=np.float32)
-    index = 0
-    dt = 1.0 / subdivs
-    tan_k1 = np.zeros(3, dtype=np.float32)
-    tan_k2 = np.zeros(3, dtype=np.float32)
-    p_k1 = np.zeros(3, dtype=np.float32)
-    p_k2 = np.zeros(3, dtype=np.float32)
-    p_k3 = np.zeros(3, dtype=np.float32)
-    p_k4 = np.zeros(3, dtype=np.float32)
-    p_k2[:] = points[0,:]
-    p_k3[:] = points[1,:]
-    if circular:
-        p_k1[:] = points[-1,:]
-        tan_k1[:] = p_k3 - p_k1
-        tan_k1 *= strength
-    else:
-        p_k1[:] = points[0,:]
-    i = 1
-    e = num_points - 1
-    while i < e:
-        p_k4[:] = points[i+1,:]
-        tan_k2[:] = p_k4 - p_k2
-        tan_k2 *= strength
-        for j in range(subdivs):
-            out[index,:] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
-            index += 1
-        p_k1[:] = p_k2[:]
-        p_k2[:] = p_k3[:]
-        p_k3[:] = p_k4[:]
-        tan_k1[:] = tan_k2[:]
-        i += 1
-    if circular:
-        p_k4[0] = points[0,0]
-        p_k4[1] = points[0,1]
-        p_k4[2] = points[1,0]
-        tan_k1 = p_k4 - p_k2
-        tan_k1 *= strength
-    else:
-        tan_k1 = np.zeros(3, dtype=np.float32)
-    for j in range(subdivs):
-        out[index] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
-        index += 1
-    if not circular:
-        out[index] = points[num_points-1:num_points]
-        return out
-    p_k1[:] = p_k2[:]
-    p_k2[:] = p_k3[:]
-    p_k3[:] = p_k4[:]
-    tan_k1[:] = tan_k2[:]
-    p_k4[:] = points[1,:]
-    tan_k1 = p_k4 - p_k2
-    tan_k1 *= strength
-    for j in range(subdivs):
-        out[index] = cubic_hermite_interpolate(p_k2, tan_k1, p_k3, tan_k2, dt*j)
-        index += 1
-    return out
-
 def _get_normal(vec1, vec2):
     """ Function doc """
     return (vec1 + vec2) / np.linalg.norm(vec1 + vec2)
-
-def make_capsules(program):
-    """ Function doc """
-    vertex_array_object = GL.glGenVertexArrays(1)
-    GL.glBindVertexArray(vertex_array_object)
-    coords = np.array([-1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-                       -1.0, 1.0, 0.0,-1.0,-1.0, 0.0,
-                       -1.0,-1.0, 0.0, 1.0,-1.0, 0.0],dtype=np.float32)
-    colors = np.array([ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-                        0.0, 1.0, 0.0, 0.0, 1.0, 0.0,
-                        1.0, 1.0, 0.0, 1.0, 0.0, 1.0],dtype=np.float32)
-    indexes = np.array([0, 1, 2, 3, 4, 5], dtype=np.uint32)
-    
-    ind_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
-    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
-    
-    coord_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    position = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(position)
-    GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
-    
-    col_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
-    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
-    GL.glEnableVertexAttribArray(gl_colors)
-    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
-    
-    GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(position)
-    GL.glDisableVertexAttribArray(gl_colors)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (ind_vbo, coord_vbo, col_vbo), int(len(indexes))
 
 def make_dots(program):
     """ Function doc """
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
-    
-    import cartoon as cton
-    coords = cton.cartoon()[0]
-    colors = [1.0,0.0,0.0] * coords.shape[0]
+    cas = np.loadtxt("cas.txt", dtype=np.float32)
+    ss = [0, 7, 18, 24, 38]
+    points = build_new_spline(cas[7:18], s=.75, pieces=8)
+    p1 = (cas[7]+cas[9]) / 2.0
+    p2 = (cas[8]+cas[10]) / 2.0
+    vec = p2-p1
+    vec /= np.linalg.norm(vec)
+    # points = build_spline(cas, s=.75, pieces=8)
+    # print(points.shape)
+    coords = [p for p in points]
+    for i in range(1, len(points)-2):
+        [coords.append(c) for c in cartoon(points[i], points[i+1], vec)[0]]
+        # _c, _ = cartoon(points[i], points[i+1], vec)
+    # coords.append(points[-1])
+    coords = np.array(coords, dtype=np.float32)
+    colors = [1.0,0.0,0.0] * points.shape[0]
+    colors.extend([0.0,1.0,0.0] * (coords.shape[0]-points.shape[0]))
+    # print(coords.shape)
+    coords = coords.flatten()
+    # print(coords.shape)
+    # colors.extend([1.0,0.0,0.0] * 40)
+    # colors.extend([0.0,1.0,0.0] * 1240)
+    # colors.extend([0.0,0.0,1.0] * 40)
+    # colors.extend([0.0,1.0,1.0] * 40)
     colors = np.array(colors, dtype=np.float32)
     colors = colors.flatten()
-    coords = coords.flatten()
+    print(coords.shape, colors.shape)
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
@@ -175,7 +82,7 @@ def make_dots(program):
     GL.glDisableVertexAttribArray(position)
     GL.glDisableVertexAttribArray(gl_colors)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), coords.shape[0]//3
+    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
 
 def make_dots_bck(program):
     """ Function doc """
@@ -994,6 +901,20 @@ def interpolate_points(p1, p2, p3, p4, s=0.25, pieces=7):
         coords[i,:] = np.matmul(v, mat)
     return np.copy(coords[:-1])
 
+def build_new_spline(calphas, s=0.25, pieces=7):
+    ns = (len(calphas)-3) * (pieces-1) + 3
+    new_coords = np.zeros([ns,3], dtype=np.float32)
+    new_coords[0,:] = calphas[0,:]
+    r = 1
+    for i in range(0, calphas.shape[0]-3):
+        _crds = interpolate_points(calphas[i], calphas[i+1], calphas[i+2],
+                                   calphas[i+3], s=s, pieces=pieces)
+        for j in range(_crds.shape[0]):
+            new_coords[r,:] = _crds[j,:]
+            r += 1
+    new_coords[-2:,:] = calphas[-2:,:]
+    return new_coords
+
 def build_spline(calphas, s=0.25, pieces=7):
     ns = (len(calphas)-3) * (pieces-1) + 3
     new_coords = np.zeros([ns,3], dtype=np.float32)
@@ -1028,7 +949,7 @@ def get_rotmat(angle, dir_vec):
     rot_matrix[2,2] = z*z*(1-c)+c
     return rot_matrix
 
-def cartoon(p1, p2, flag=False):
+def cartoon(p1, p2, upv):
     ellipse = np.array([[[-2.0, 0.00, 0], [-1.6, 0.60, 0], [-1.2, 0.800, 0], [-0.8, 0.917, 0],
                          [-0.4, 0.98, 0], [ 0.0, 1.00, 0], [ 0.4, 0.980, 0], [ 0.8, 0.917, 0],
                          [ 1.2, 0.80, 0], [ 1.6, 0.60, 0], [ 2.0, 0.000, 0],
@@ -1041,124 +962,66 @@ def cartoon(p1, p2, flag=False):
                          [ 1.8,-0.436, 0], [ 1.4,-0.714, 0], [ 1.0,-0.866, 0], [ 0.6,-0.954, 0],
                          [ 0.2,-0.995, 0], [-0.2,-0.995, 0], [-0.6,-0.954, 0], [-1.0,-0.866, 0],
                          [-1.4,-0.714, 0], [-1.8,-0.436, 0]]
-        ])
-    circle = np.array([[[ 1.000000000000, 0.000000000000, 0.0],
-                        [ 0.866025403784,-0.500000000000, 0.0],
-                        [ 0.500000000000,-0.866025403784, 0.0],
-                        [-0.000000000000,-1.000000000000, 0.0],
-                        [-0.500000000000,-0.866025403784, 0.0],
-                        [-0.866025403784,-0.500000000000, 0.0],
-                        [-1.000000000000, 0.000000000000, 0.0],
-                        [-0.866025403784, 0.500000000000, 0.0],
-                        [-0.500000000000, 0.866025403784, 0.0],
-                        [ 0.000000000000, 1.000000000000, 0.0],
-                        [ 0.500000000000, 0.866025403784, 0.0],
-                        [ 0.866025403784, 0.500000000000, 0.0]],
-                       [[ 0.965925826289,-0.258819045103, 0.0],
-                        [ 0.707106781187,-0.707106781187, 0.0],
-                        [ 0.258819045103,-0.965925826289, 0.0],
-                        [-0.258819045103,-0.965925826289, 0.0],
-                        [-0.707106781187,-0.707106781187, 0.0],
-                        [-0.965925826289,-0.258819045103, 0.0],
-                        [-0.965925826289, 0.258819045103, 0.0],
-                        [-0.707106781187, 0.707106781187, 0.0],
-                        [-0.258819045103, 0.965925826289, 0.0],
-                        [ 0.258819045103, 0.965925826289, 0.0],
-                        [ 0.707106781187, 0.707106781187, 0.0],
-                        [ 0.965925826289, 0.258819045103, 0.0]]],dtype=np.float32)/2
-    # indexes = np.arange(40, dtype=np.uint32)
+        ])/15
+    indexes = np.arange(40, dtype=np.uint32)
     vec = p2 - p1
     vec /= np.linalg.norm(vec)
+    # Build the base
+    # vec = p1/np.linalg.norm(p1)
     normal = np.cross([0,0,1], vec)
     normal /= np.linalg.norm(normal)
     angle = np.arccos(np.dot([0,0,1], vec))
     rotmat = get_rotmat(angle, normal)[:3,:3]
-    
-    disc = np.zeros([circle[int(flag)].shape[0], 3], dtype=np.float32)
-    for i, e in enumerate(circle[int(flag)]):
-        disc[i,:] = np.matmul(rotmat, e)
-    normals = disc - p2
-    mods = np.linalg.norm(normals, axis=1)
-    for i in range(normals.shape[0]):
-        normals[i,:] /= mods[i]
-    disc += p2
-
-    return disc, normals
-    # # Build the base
-    # base = np.zeros([20,3], dtype=np.float32)
-    # # for i, e in enumerate(ellipse[0]):
-    # for i, e in enumerate(circle[0]):
-    #     base[i,:] = np.matmul(rotmat, e)
-    # base += p1
-    
-    # # Build the top
-    # top = np.zeros([20,3], dtype=np.float32)
-    # # for i, e in enumerate(ellipse[1]):
-    # for i, e in enumerate(circle[1]):
-    #     top[i,:] = np.matmul(rotmat, e)
-    # top += p2
-    
-    # # Join base and top
-    # joined = np.zeros([40,3], dtype=np.float32)
-    # for i, b, t in zip(np.arange(20), base, top):
-    #     joined[i*2,:] = b
-    #     joined[i*2+1,:] = t
-    # return joined, indexes
-
-def get_indexes(num_points, pts_per_ring):
-    num_rings = num_points // pts_per_ring
-    indexes = []
-    for i in range(num_rings-1):
-        for j in range(pts_per_ring-1):
-            indexes.extend([i*pts_per_ring+j, i*pts_per_ring+j+1, (i+1)*pts_per_ring+j])
-        indexes.extend([(i+1)*pts_per_ring-j, i*pts_per_ring, (i+2)*pts_per_ring-1])
-        for j in range(pts_per_ring-1):
-            indexes.extend([(i+1)*pts_per_ring+j, i*pts_per_ring+j+1, (i+1)*pts_per_ring+j+1])
-        indexes.extend([(i+2)*pts_per_ring-1, i*pts_per_ring, (i+1)*pts_per_ring])
-    return indexes
-
-def get_indexes2(num_points, pts_per_ring):
-    num_rings = num_points // pts_per_ring
-    a = np.array([[ 0,  1, 12,  1,  2, 13,  2,  3, 14,  3,  4, 15,
-                    4,  5, 16,  5,  6, 17,  6,  7, 18,  7,  8, 19,
-                    8,  9, 20,  9, 10, 21, 10, 11, 22, 11,  0, 23,
-                   12, 13,  1, 13, 14,  2, 14, 15,  3, 15, 16,  4,
-                   16, 17,  5, 17, 18,  6, 18, 19,  7, 19, 20,  8,
-                   20, 21,  9, 21, 22, 10, 22, 23, 11, 23, 12, 11],
-                  [ 0,  1, 13,  1,  2, 14,  2,  3, 15,  3,  4, 16,
-                    4,  5, 17,  5,  6, 18,  6,  7, 19,  7,  8, 20,
-                    8,  9, 21,  9, 10, 22, 10, 11, 23, 11,  0, 12,
-                   12, 13,  0, 13, 14,  1, 14, 15,  2, 15, 16,  3,
-                   16, 17,  4, 17, 18,  5, 18, 19,  6, 19, 20,  7,
-                   20, 21,  8, 21, 22,  9, 22, 23, 10, 23, 12, 11]], dtype=np.uint32)
-    indexes = np.array([], dtype=np.uint32)
-    flag = False
-    for i in range(num_rings - 1):
-        indexes = np.hstack((indexes, a[int(flag)]+i*pts_per_ring))
-        flag = not flag
-    return indexes
+    # print(rotmat)
+    base = np.zeros([20,3], dtype=np.float32)
+    _base = np.zeros([20,3], dtype=np.float32)
+    for i, e in enumerate(ellipse[0]):
+        base[i,:] = np.matmul(e, rotmat)
+    left = np.matmul([0,-1,0], rotmat)
+    _nor = np.cross(left, upv)
+    _nor /= np.linalg.norm(_nor)
+    _ang = np.arccos(np.dot(left, upv))
+    _rma = get_rotmat(_ang, _nor)[:3,:3]
+    for i, e in enumerate(base):
+        _base[i,:] = np.matmul(e, _rma)
+    base = np.copy(_base)
+    base += p1
+    # Build the top
+    # vec = p2/np.linalg.norm(p2)
+    # normal = np.cross([0,0,1], vec)
+    # normal /= np.linalg.norm(normal)
+    # angle = np.dot(normal, vec)
+    # rotmat = get_rotmat(angle, normal)[:3,:3]
+    top = np.zeros([20,3], dtype=np.float32)
+    _top = np.zeros([20,3], dtype=np.float32)
+    for i, e in enumerate(ellipse[1]):
+        top[i,:] = np.matmul(e, rotmat)
+    for i, e in enumerate(top):
+        _top[i,:] = np.matmul(e, _rma)
+    top = np.copy(_top)
+    top += p2
+    # Join base and top
+    joined = np.zeros([40,3], dtype=np.float32)
+    for i, b, t in zip(np.arange(20), base, top):
+        joined[i*2,:] = b
+        joined[i*2+1,:] = t
+    # joined[-1,:] = base[0,:]
+    return np.copy(joined), indexes
 
 def make_cartoon(program):
     """ Function doc """
-    
-    import cartoon as cton
-    coords, normals, indexes, colors = cton.cartoon()
-    # colors = [0.0, 1.0, 0.0] * coords.shape[0]
-    # print(coords.shape, len(colors), normals.shape, indexes.shape)
-    # print(indexes.reshape((60,3)))
-    # np.savetxt("inds.txt", indexes.reshape((2016,3)))
-    coords = coords.flatten()
-    normals = normals.flatten()
+    cas = np.loadtxt("cas.txt", dtype=np.float32)
+    points = build_spline(cas, s=.75, pieces=11)
+
+    colors = np.array(([0.0,1.0,0.0] * coords.shape[0]), dtype=np.float32)
     colors = colors.flatten()
-    # colors = np.array(colors, dtype=np.float32)
-    # print(coords.shape, colors.shape, normals.shape, indexes.shape)
     
     vertex_array_object = GL.glGenVertexArrays(1)
     GL.glBindVertexArray(vertex_array_object)
     
     ind_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ELEMENT_ARRAY_BUFFER, ind_vbo)
-    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*len(indexes), indexes, GL.GL_DYNAMIC_DRAW)
+    GL.glBufferData(GL.GL_ELEMENT_ARRAY_BUFFER, indexes.itemsize*int(len(indexes)), indexes, GL.GL_DYNAMIC_DRAW)
     
     coord_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
@@ -1176,149 +1039,14 @@ def make_cartoon(program):
     
     norm_vbo = GL.glGenBuffers(1)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, norm_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, normals.itemsize*len(normals), normals, GL.GL_STATIC_DRAW)
+    GL.glBufferData(GL.GL_ARRAY_BUFFER, norms.itemsize*len(norms), norms, GL.GL_STATIC_DRAW)
     gl_norm = GL.glGetAttribLocation(program, 'vert_norm')
     GL.glEnableVertexAttribArray(gl_norm)
-    GL.glVertexAttribPointer(gl_norm, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*normals.itemsize, ctypes.c_void_p(0))
+    GL.glVertexAttribPointer(gl_norm, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*norms.itemsize, ctypes.c_void_p(0))
     
     GL.glBindVertexArray(0)
     GL.glDisableVertexAttribArray(gl_coord)
     GL.glDisableVertexAttribArray(gl_color)
     GL.glDisableVertexAttribArray(gl_norm)
     GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo, norm_vbo), indexes.shape[0]
-
-def make_test(program):
-    """ Function doc """
-    vertex_array_object = GL.glGenVertexArrays(1)
-    GL.glBindVertexArray(vertex_array_object)
-    coords = np.array([ 1.0, 1.0, 0.0,-1.0,-1.0, 0.0, 0.0, 0.0, 0.0],dtype=np.float32)
-    colors = np.array([ 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0],dtype=np.float32)
-    coords = np.array([ 1.0, 1.0, 0.0],dtype=np.float32)
-    colors = np.array([ 1.0, 0.0, 0.0],dtype=np.float32)
-
-
-    coord_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    position = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(position)
-    GL.glVertexAttribPointer(position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
-    
-    col_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
-    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
-    GL.glEnableVertexAttribArray(gl_colors)
-    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
-    
-    GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(position)
-    GL.glDisableVertexAttribArray(gl_colors)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
-
-def make_bonds_impostor(program):
-    """ Function doc """
-    n, p = -1, 1
-    cube = [n, n, n,  n, n, p,  n, p, p,  n, n, n,  n, p, p,  n, p, n, # -X
-            p, n, p,  p, n, n,  p, p, n,  p, n, p,  p, p, n,  p, p, p, # +X
-            n, n, n,  p, n, n,  p, n, p,  n, n, n,  p, n, p,  n, n, p, # -Y
-            n, p, p,  p, p, p,  p, p, n,  n, p, p,  p, p, n,  n, p, n, # +Y
-            p, n, n,  n, n, n,  n, p, n,  p, n, n,  n, p, n,  p, p, n, # -Z
-            n, n, p,  p, n, p,  p, p, p,  n, n, p,  p, p, p,  n, p, p] # +Z
-    cubes = np.array(cube*9, dtype=np.float32).flatten()
-    points = [[ 1.0, 1.0, 0.5], [ 0.0, 1.0, -0.5], [ 1.0, 0.0, 0.0],
-              [-1.0, 0.0, 0.5], [-1.0, 1.0, -0.5], [-1.0,-1.0, 0.0],
-              [ 0.0,-1.0, 0.5], [ 1.0,-1.0, -0.5], [ 0.0, 0.0, 0.0]]
-    # points = [[ 1.0, 1.0, 0.0]]
-    coords = [p*36 for p in points]
-    coords = np.array(coords, dtype=np.float32).flatten()
-    col_pt = [[ 1.0, 0.0, 0.0], [ 1.0, 1.0, 0.0], [ 1.0, 0.0, 1.0],
-              [ 0.0, 0.0, 1.0], [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 1.0],
-              [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 0.0]]
-    # col_pt = [[ 1.0, 0.0, 0.0]]
-    colors = [c*36 for c in col_pt]
-    colors = np.array(colors, dtype=np.float32).flatten()
-    # coords = coords[:216]
-    # colors = colors[:216]
-    # cubes = cubes[:216]
-    # print(cubes.shape, coords.shape, colors.shape)
-
-    vertex_array_object = GL.glGenVertexArrays(1)
-    GL.glBindVertexArray(vertex_array_object)
-    
-    cube_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, cube_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, cubes.itemsize*len(cubes), cubes, GL.GL_STATIC_DRAW)
-    gl_cube = GL.glGetAttribLocation(program, 'cube_coord')
-    GL.glEnableVertexAttribArray(gl_cube)
-    GL.glVertexAttribPointer(gl_cube, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*cubes.itemsize, ctypes.c_void_p(0))
-    
-    coord_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    gl_position = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(gl_position)
-    GL.glVertexAttribPointer(gl_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
-    
-    col_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
-    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
-    GL.glEnableVertexAttribArray(gl_colors)
-    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
-    
-    GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(gl_cube)
-    GL.glDisableVertexAttribArray(gl_position)
-    GL.glDisableVertexAttribArray(gl_colors)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo), int(len(coords)/3)
-
-def make_impostor(program):
-    """ Function doc """
-    points = [[ 1.0, 1.0, 0.5], [ 0.0, 1.0, -0.5], [ 1.0, 0.0, 0.0],
-              [-1.0, 0.0, 0.5], [-1.0, 1.0, -0.5], [-1.0,-1.0, 0.0],
-              [ 0.0,-1.0, 0.5], [ 1.0,-1.0, -0.5], [ 0.0, 0.0, 0.0]]
-    coords = np.array(points, dtype=np.float32).flatten()
-    col_pt = [[ 1.0, 0.0, 0.0], [ 1.0, 1.0, 0.0], [ 1.0, 0.0, 1.0],
-              [ 0.0, 0.0, 1.0], [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 1.0],
-              [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 0.0], [ 0.0, 1.0, 0.0]]
-    colors = np.array(col_pt, dtype=np.float32).flatten()
-    radii = np.array([1.2, 1.0, 0.8, 0.2, 1.0, 0.4, 0.8, 1.1, 0.7], dtype=np.float32)
-    # coords = coords[:216]
-    # colors = colors[:216]
-    # cubes = cubes[:216]
-    # print(coords.shape, colors.shape)
-    
-    vertex_array_object = GL.glGenVertexArrays(1)
-    GL.glBindVertexArray(vertex_array_object)
-    
-    coord_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, coord_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, coords.itemsize*len(coords), coords, GL.GL_STATIC_DRAW)
-    gl_position = GL.glGetAttribLocation(program, 'vert_coord')
-    GL.glEnableVertexAttribArray(gl_position)
-    GL.glVertexAttribPointer(gl_position, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*coords.itemsize, ctypes.c_void_p(0))
-    
-    col_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, col_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, colors.itemsize*len(colors), colors, GL.GL_STATIC_DRAW)
-    gl_colors = GL.glGetAttribLocation(program, 'vert_color')
-    GL.glEnableVertexAttribArray(gl_colors)
-    GL.glVertexAttribPointer(gl_colors, 3, GL.GL_FLOAT, GL.GL_FALSE, 3*colors.itemsize, ctypes.c_void_p(0))
-    
-    rad_vbo = GL.glGenBuffers(1)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, rad_vbo)
-    GL.glBufferData(GL.GL_ARRAY_BUFFER, radii.itemsize*len(radii), radii, GL.GL_STATIC_DRAW)
-    gl_radius = GL.glGetAttribLocation(program, 'vert_rad')
-    GL.glEnableVertexAttribArray(gl_radius)
-    GL.glVertexAttribPointer(gl_radius, 1, GL.GL_FLOAT, GL.GL_FALSE, 1*radii.itemsize, ctypes.c_void_p(0))
-    
-    GL.glBindVertexArray(0)
-    GL.glDisableVertexAttribArray(gl_position)
-    GL.glDisableVertexAttribArray(gl_colors)
-    GL.glDisableVertexAttribArray(gl_radius)
-    GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-    return vertex_array_object, (coord_vbo, col_vbo, rad_vbo), int(len(coords)/3)
+    return vertex_array_object, (coord_vbo, col_vbo, norm_vbo), int(len(coords)/3)
