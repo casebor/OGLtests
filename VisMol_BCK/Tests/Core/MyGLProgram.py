@@ -708,18 +708,24 @@ class MyGLProgram(Gtk.GLArea):
         texto = "Hello World!!! :)"
         point = np.array((-2,-1, 0),np.float32)
         GL.glBindTexture(GL.GL_TEXTURE_2D, self.vm_font.texture_id)
+        xyz_pos = np.zeros([len(texto), 3], dtype=np.float32)
+        uv_coords = np.zeros([len(texto), 4], dtype=np.float32)
         for i,c in enumerate(texto):
             c_id = ord(c)
             x = c_id%16
             y = c_id//16-2
-            xyz_pos = np.array([point[0]+i*self.vm_font.char_width, point[1], point[2]],np.float32)
-            uv_coords = np.array([x*self.vm_font.text_u, y*self.vm_font.text_v, (x+1)*self.vm_font.text_u, (y+1)*self.vm_font.text_v],np.float32)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vm_font.vbos[0])
-            GL.glBufferData(GL.GL_ARRAY_BUFFER, xyz_pos.itemsize*len(xyz_pos), xyz_pos, GL.GL_DYNAMIC_DRAW)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vm_font.vbos[1])
-            GL.glBufferData(GL.GL_ARRAY_BUFFER, uv_coords.itemsize*len(uv_coords), uv_coords, GL.GL_DYNAMIC_DRAW)
-            GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
-            GL.glDrawArrays(GL.GL_POINTS, 0, 1)
+            # xyz_pos = np.array([point[0]+i*self.vm_font.char_width, point[1], point[2]],np.float32)
+            # uv_coords = np.array([x*self.vm_font.text_u, y*self.vm_font.text_v, (x+1)*self.vm_font.text_u, (y+1)*self.vm_font.text_v],np.float32)
+            xyz_pos[i,:] = point[0]+i*self.vm_font.char_width, point[1], point[2]
+            uv_coords[i,:] = x*self.vm_font.text_u, y*self.vm_font.text_v, (x+1)*self.vm_font.text_u, (y+1)*self.vm_font.text_v
+        xyz_pos = xyz_pos.flatten()
+        uv_coords = uv_coords.flatten()
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vm_font.vbos[0])
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, xyz_pos.itemsize*len(xyz_pos), xyz_pos, GL.GL_DYNAMIC_DRAW)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self.vm_font.vbos[1])
+        GL.glBufferData(GL.GL_ARRAY_BUFFER, uv_coords.itemsize*len(uv_coords), uv_coords, GL.GL_DYNAMIC_DRAW)
+        GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
+        GL.glDrawArrays(GL.GL_POINTS, 0, len(texto))
         GL.glDisable(GL.GL_BLEND)
         GL.glDisable(GL.GL_DEPTH_TEST)
         GL.glBindVertexArray(0)

@@ -347,7 +347,7 @@ def make_normals(coords, indexes):
 def cartoon(calphas_file="cas2.txt", spline_detail=5):
     sd = spline_detail
     calphas = np.loadtxt(calphas_file)
-    spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], sd)
+    spline = catmull_rom_spline(np.copy(calphas), calphas.shape[0], sd, strength=0.9)
     # TODO: function to calculate the boundaries for secondary structures.
     # This list contains the indices of the residues that are alpha helices in
     # zero-based indexing.
