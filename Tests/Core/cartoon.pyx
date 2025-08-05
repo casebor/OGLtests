@@ -38,12 +38,12 @@ cpdef catmull_rom_spline(float[:,:] points, int num_points, int subdivs,
     out_coords = np.empty([out_len, 3], dtype=np.float32)
     cdef Py_ssize_t index = 0
     cdef float dt = 1.0 / subdivs
-    tan_k1 = np.empty(3, dtype=np.float32)
-    tan_k2 = np.empty(3, dtype=np.float32)
-    p_k1 = np.empty(3, dtype=np.float32)
+    tan_k1 = np.zeros(3, dtype=np.float32)
+    tan_k2 = np.zeros(3, dtype=np.float32)
+    p_k1 = np.zeros(3, dtype=np.float32)
     p_k2 = np.copy(points[0])
     p_k3 = np.copy(points[1])
-    p_k4 = np.empty(3, dtype=np.float32)
+    p_k4 = np.zeros(3, dtype=np.float32)
     if circular:
         p_k1[:] = points[-1,:]
         tan_k1[:] = p_k3 - p_k1
