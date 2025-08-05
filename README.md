@@ -1,15 +1,11 @@
-# VisMol
-Another version of EasyMol, using modern OpenGL with shaders
+# OGLtests
+Playground for tests using modern OpenGL
 
-To test run the command:
-    python VisMol 1l2y.pdb
+Requires PyOpenGL, PyGTK, numpy, cython and freetype libraries
 
-Once the window is opened, press "l" to load the data and then use whichever of the next commands:
-
-b --> Turn on/off the ball-stick representation
-d --> Turn on/off the dots representation
-c --> Turn on/off the crystal representation
-r --> Turn on/off the ribbon representation (crashes when there is no c-alphas)
-s --> Turn on/off the spheres representation
-esc --> Quits the program
+Run python3 OGLTests.py to start a small window
+Then press different keys to test visualization functions with modern OpenGL
+c -> simple cartoon representation of a protein
+a -> Draw 500K spheres using instancing
+b -> Draw 500K spheres using billboards
 
